@@ -1,13 +1,13 @@
 {
-  "name": "Shop Floor Digital Portal",
-  "short_name": "Shop Floor",
-  "description": "QHSE Digital Portal — Quality, Safety, Maintenance & Production",
+  "name": "Nexora",
+  "short_name": "Nexora",
+  "description": "Nexora — Shop Floor Digital Portal by pladis (Quality, Safety, Maintenance, Production & Factory Access)",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#1e3a5f",
-  "theme_color": "#1e3a5f",
+  "background_color": "#1A0B2E",
+  "theme_color": "#4C1D95",
   "icons": [
     {
       "src": "icon-192.png",
