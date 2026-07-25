@@ -4,14 +4,15 @@
 // IMPORTANT: Bump CACHE_VERSION every time you upload a new version
 // of index.html. This forces every phone/browser to fetch the fresh
 // copy instead of serving an old cached one.
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = 'shopfloor-portal-' + CACHE_VERSION;
 
 const PRECACHE_URLS = [
   './index.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './icon-180.png'
 ];
 
 // Install: pre-cache the app shell, then activate immediately (don't wait for old tabs to close)
