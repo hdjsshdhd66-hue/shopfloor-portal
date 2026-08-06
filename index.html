@@ -2012,6 +2012,16 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
 .qr-box{display:inline-flex;flex-direction:column;align-items:center;gap:6px;padding:10px;background:#faf8ff;border:1px solid #e9d5ff;border-radius:12px}
 .offline-chip{position:fixed;bottom:18px;right:18px;z-index:10030;display:none;background:#b91c1c;color:#fff;padding:8px 14px;border-radius:99px;font-weight:800;font-size:.75rem;box-shadow:0 8px 20px rgba(185,28,28,.35)}
 .offline-chip.on{display:flex;align-items:center;gap:8px}
+
+.app-version-badge{position:fixed;bottom:18px;left:18px;z-index:10030;background:#0f172a;color:#fff;padding:7px 12px;border-radius:99px;font-weight:800;font-size:.68rem;letter-spacing:.2px;box-shadow:0 8px 20px rgba(15,23,42,.28);cursor:pointer;border:1px solid rgba(255,255,255,.12);font-family:inherit}
+.app-version-badge:hover{background:#1e293b}
+.app-version-panel{display:none;position:fixed;bottom:56px;left:18px;z-index:10031;width:min(340px,calc(100vw - 36px));background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px;box-shadow:0 16px 40px rgba(15,23,42,.18)}
+.app-version-panel.open{display:block}
+.app-version-panel h4{margin:0 0 6px;font-size:.85rem;color:#0f172a}
+.app-version-panel pre{margin:0 0 10px;white-space:pre-wrap;font-size:.72rem;color:#475569;background:#f8fafc;border-radius:8px;padding:8px;max-height:120px;overflow:auto}
+.app-version-panel .avp-actions{display:flex;flex-wrap:wrap;gap:6px}
+body.printing-permit .app-version-badge,body.printing-permit .app-version-panel{display:none!important}
+
 body.auditor-readonly{padding-top:28px}
 body.auditor-readonly .btn-primary:disabled{opacity:.45;cursor:not-allowed}
 
@@ -2033,9 +2043,9 @@ body.auditor-readonly .btn-primary:disabled{opacity:.45;cursor:not-allowed}
 
 /* ===== END FORM DESIGN SYSTEM ===== */
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="./xlsx.full.min.js"></script>
+<script src="./qrcode.min.js"></script>
+<script src="./JsBarcode.all.min.js"></script>
 </head>
 <body>
 
@@ -2394,43 +2404,43 @@ body.auditor-readonly .btn-primary:disabled{opacity:.45;cursor:not-allowed}
       <div class="brand-shapes-row" style="margin-bottom:10px">
         <div class="brand-shape-card" style="animation-delay:0s;border-color:#e9d5ff">
           <div class="brand-shape brand-shape-circle brand-logo-wrap">
-            <img src="https://pladis-production.s3.eu-west-2.amazonaws.com/s3fs-public/styles/brand_logo/public/2024-04/mcvites-logo-org_0.png.webp" alt="McVitie's" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text>McVitie\'s</div>'"/>
+            <img src="./brand-mcvities.webp" alt="McVitie's" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text>McVitie\'s</div>'"/>
           </div>
           <div class="brand-shape-name">McVitie's</div>
         </div>
         <div class="brand-shape-card" style="animation-delay:.15s;border-color:#e9d5ff">
           <div class="brand-shape brand-shape-hex brand-logo-wrap">
-            <img src="https://pladis-production.s3.eu-west-2.amazonaws.com/s3fs-public/styles/brand_logo/public/2025-10/GODIVA%20logo%20transparent%20wordmark.png.webp" alt="GODIVA" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text>GODIVA</div>'"/>
+            <img src="./brand-godiva.webp" alt="GODIVA" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text>GODIVA</div>'"/>
           </div>
           <div class="brand-shape-name">GODIVA</div>
         </div>
         <div class="brand-shape-card" style="animation-delay:.3s;border-color:#e9d5ff">
           <div class="brand-shape brand-shape-diamond brand-logo-wrap">
-            <img src="https://pladis-production.s3.eu-west-2.amazonaws.com/s3fs-public/styles/brand_logo/public/2024-04/ulker-logo-org.png.webp" alt="Ülker" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text>Ülker</div>'"/>
+            <img src="./brand-ulker.webp" alt="Ülker" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text>Ülker</div>'"/>
           </div>
           <div class="brand-shape-name">Ülker</div>
         </div>
         <div class="brand-shape-card" style="animation-delay:.45s;border-color:#e9d5ff">
           <div class="brand-shape brand-shape-circle brand-logo-wrap">
-            <img src="https://pladis-production.s3.eu-west-2.amazonaws.com/s3fs-public/styles/brand_logo/public/2024-04/carrs-logo-org.png.webp" alt="Carr's" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text>Carr\'s</div>'"/>
+            <img src="./brand-carrs.webp" alt="Carr's" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text>Carr\'s</div>'"/>
           </div>
           <div class="brand-shape-name">Carr's</div>
         </div>
         <div class="brand-shape-card" style="animation-delay:.6s;border-color:#e9d5ff">
           <div class="brand-shape brand-shape-hex brand-logo-wrap">
-            <img src="https://pladis-production.s3.eu-west-2.amazonaws.com/s3fs-public/styles/brand_logo/public/2024-04/jacobs-logo-org.png.webp" alt="Jacob's" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text>Jacob\'s</div>'"/>
+            <img src="./brand-jacobs.webp" alt="Jacob's" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text>Jacob\'s</div>'"/>
           </div>
           <div class="brand-shape-name">Jacob's</div>
         </div>
         <div class="brand-shape-card" style="animation-delay:.75s;border-color:#e9d5ff">
           <div class="brand-shape brand-shape-circle brand-logo-wrap">
-            <img src="https://pladis-production.s3.eu-west-2.amazonaws.com/s3fs-public/styles/brand_logo/public/2024-05/bn-logo-org_1.png.webp" alt="BN" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text>BN</div>'"/>
+            <img src="./brand-bn.webp" alt="BN" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text>BN</div>'"/>
           </div>
           <div class="brand-shape-name">BN</div>
         </div>
         <div class="brand-shape-card" style="animation-delay:.9s;border-color:#e9d5ff">
           <div class="brand-shape brand-shape-diamond brand-logo-wrap">
-            <img src="https://pladis-production.s3.eu-west-2.amazonaws.com/s3fs-public/styles/brand_logo/public/2025-07/Verkade_logo3_0.png.webp" alt="Verkade" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text style=transform:rotate(-45deg)>Verkade</div>'"/>
+            <img src="./brand-verkade.webp" alt="Verkade" class="brand-logo-img" onerror="this.outerHTML='<div class=brand-mark-text style=transform:rotate(-45deg)>Verkade</div>'"/>
           </div>
           <div class="brand-shape-name">Verkade</div>
         </div>
@@ -4986,7 +4996,7 @@ function applyLanguage(lang){
     if(langMeta && !langMeta.ready){ alert(langMeta.name+' — Coming soon!'); }
     return;
   }
-  localStorage.setItem('pqs_lang', lang);
+  safeSetItem('pqs_lang', lang);
   document.documentElement.setAttribute('lang', lang);
   document.documentElement.setAttribute('dir', langMeta.rtl ? 'rtl' : 'ltr');
   const dict = I18N[lang] || I18N.en;
@@ -5687,7 +5697,7 @@ function runEscalationScan(silent){
   });
   if(fresh.length){
     notified = notified.concat(fresh).slice(-400);
-    try{ localStorage.setItem(KEY, JSON.stringify(notified)); }catch(e){}
+    try{ safeSetItem(KEY, JSON.stringify(notified)); }catch(e){}
     if(!silent && typeof showToast==='function') showToast(fresh.length+' escalation alert(s) raised','red');
   }
   return list;
@@ -5905,7 +5915,7 @@ function collectDailyHubStats(portal){
   });
   var crPend = (typeof prodData!=='undefined'&&prodData.clearanceRequests?prodData.clearanceRequests:[]).filter(function(r){ return r.status==='Pending'; });
   var permitsActive = (typeof safetyData!=='undefined'&&safetyData.permits?safetyData.permits:[]).filter(function(p){ return (p.status||'Active')==='Active'; });
-  var dtOpen = (typeof prodData!=='undefined'&&prodData.downtime?prodData.downtime:[]).filter(function(d){ return w1InLastDays(d.date||d.timestamp, 7); });
+  var dtOpen = (typeof prodData!=='undefined'&&prodData.downtimeRecords?prodData.downtimeRecords:[]).filter(function(d){ return w1InLastDays(d.date||d.timestamp, 7); });
 
   var incompleteLC = 0;
   if(typeof lcChecks!=='undefined' && typeof LC_LINES!=='undefined'){
@@ -5929,7 +5939,7 @@ function collectDailyHubStats(portal){
     stats.kpis.push({l:'Open NCR', v:ncrOpen.length, c:ncrOpen.length?'#dc2626':'#16a34a', alert:!!ncrOpen.length, go:'ncr'});
     stats.kpis.push({l:'Clearance Incomplete', v:incompleteLC, c:incompleteLC?'#d97706':'#16a34a', alert:!!incompleteLC, go:'clearance'});
     stats.kpis.push({l:'Checklists Saved Today', v:clToday, c:'#1e3a5f', go:'checklist'});
-    stats.kpis.push({l:'Pending Clearance Req', v:crPend.length, c:crPend.length?'#d97706':'#16a34a', alert:!!crPend.length, go:'clearancereq'});
+    stats.kpis.push({l:'Pending Clearance Req', v:crPend.length, c:crPend.length?'#d97706':'#16a34a', alert:!!crPend.length, go:'clearance'});
   }
   if(portal==='safety'){
     stats.kpis.push({l:'Near Miss (30d)', v:nmOpen.length, c:nmOpen.length?'#dc2626':'#16a34a', go:'nearmiss'});
@@ -5945,12 +5955,12 @@ function collectDailyHubStats(portal){
   if(portal==='production'){
     stats.kpis.push({l:'Clearance Pending', v:crPend.length, c:crPend.length?'#d97706':'#16a34a', alert:!!crPend.length, go:'clearancereq'});
     stats.kpis.push({l:'Downtime (7d)', v:dtOpen.length, c:dtOpen.length?'#b45309':'#16a34a', go:'downtime'});
-    stats.kpis.push({l:'Clearance Incomplete', v:incompleteLC, c:incompleteLC?'#d97706':'#16a34a', go:'clearance'});
+    stats.kpis.push({l:'Clearance Incomplete', v:incompleteLC, c:incompleteLC?'#d97706':'#16a34a', go:'linecleaning'});
   }
   if(portal==='factory'){
     var facActive = 0;
     try{
-      if(typeof facData!=='undefined' && facData.passes) facActive = facData.passes.filter(function(p){ return (p.status||'Active')==='Active'; }).length;
+      if(typeof accessData!=='undefined' && accessData.passes) facActive = accessData.passes.filter(function(p){ return (typeof facPassStatus==='function'?facPassStatus(p)==='Active':(p.status||'Active')==='Active'); }).length;
       else if(typeof factoryPasses!=='undefined') facActive = factoryPasses.filter(function(p){ return (p.status||'Active')==='Active'; }).length;
     }catch(e){}
     stats.kpis.push({l:'Active Access Passes', v:facActive, c:'#1e3a5f', go:'factoryaccess'});
@@ -5959,10 +5969,13 @@ function collectDailyHubStats(portal){
   if(ncrOpen.length && portal==='quality') stats.alerts.push({title:ncrOpen.length+' open NCR(s)', detail:'Close within 48h policy · '+ncrOpen30.length+' in last 30 days', c:'#dc2626', go:'ncr'});
   if(capaLate.length && portal==='safety') stats.alerts.push({title:capaLate.length+' late CAPA action(s)', detail:'Committed date passed — update status or complete', c:'#dc2626', go:'capa'});
   if(capaDueSoon.length && portal==='safety') stats.alerts.push({title:capaDueSoon.length+' CAPA due within 3 days', detail:'Short-horizon actions needing attention', c:'#d97706', go:'capa'});
-  if(incompleteLC && (portal==='quality'||portal==='production')) stats.alerts.push({title:incompleteLC+' line clearance(s) incomplete today', detail:'Finish visual/ATP checks before startup', c:'#d97706', go:'clearance'});
-  if(bdOpen.length && (portal==='maintenance'||portal==='production')) stats.alerts.push({title:bdOpen.length+' open breakdown(s)', detail:'Equipment still down or unresolved', c:'#dc2626', go:'breakdown'});
+  if(incompleteLC && portal==='quality') stats.alerts.push({title:incompleteLC+' line clearance(s) incomplete today', detail:'Finish visual/ATP checks before startup', c:'#d97706', go:'clearance'});
+  if(incompleteLC && portal==='production') stats.alerts.push({title:incompleteLC+' line clearance(s) incomplete today', detail:'Complete cleaning / request Quality clearance', c:'#d97706', go:'linecleaning'});
+  if(bdOpen.length && portal==='maintenance') stats.alerts.push({title:bdOpen.length+' open breakdown(s)', detail:'Equipment still down or unresolved', c:'#dc2626', go:'breakdown'});
+  if(bdOpen.length && portal==='production') stats.alerts.push({title:bdOpen.length+' open breakdown(s)', detail:'See downtime / coordinate with Maintenance', c:'#dc2626', go:'downtime'});
   if(pmOver.length && portal==='maintenance') stats.alerts.push({title:pmOver.length+' PM overdue', detail:'Schedule preventive maintenance', c:'#dc2626', go:'pmschedule'});
-  if(crPend.length && (portal==='production'||portal==='quality')) stats.alerts.push({title:crPend.length+' clearance request(s) pending', detail:'Awaiting Quality clearance response', c:'#d97706', go:'clearancereq'});
+  if(crPend.length && portal==='quality') stats.alerts.push({title:crPend.length+' clearance request(s) pending', detail:'Awaiting Quality clearance response', c:'#d97706', go:'clearance'});
+  if(crPend.length && portal==='production') stats.alerts.push({title:crPend.length+' clearance request(s) pending', detail:'Awaiting Quality clearance response', c:'#d97706', go:'clearancereq'});
 
   stats.raw = {
     ncrOpen:ncrOpen.length, ncrClosed:(typeof ncrList!=='undefined'?ncrList:[]).filter(function(n){return n.status==='closed';}).length,
@@ -6295,10 +6308,20 @@ document.addEventListener('click', function(e){
   if(!menu || !menu.classList.contains('menu-open')) return;
   if(menu.contains(e.target) || (toggle && toggle.contains(e.target))) return;
   closeHeaderMenu();
-  if(typeof renderPortalSidebar==='function' && currentPortal) renderPortalSidebar(v);
 });
 
+function remapViewForPortal(v, portal){
+  // Soft remap for cross-portal links that mean the same workflow
+  var maps = {
+    quality: { clearancereq: 'clearance' },
+    production: { breakdown: 'downtime' }
+  };
+  var m = maps[portal||''];
+  if(m && m[v]) return m[v];
+  return v;
+}
 function nav(v){
+  if(currentPortal) v = remapViewForPortal(v, currentPortal);
   // Role access check
   if(typeof isSystemAdminView==='function' && isSystemAdminView(v) && typeof canAccessSystemAdminViews==='function' && !canAccessSystemAdminViews()){
     showToast('System / IT tools require Edit Portal mode','red');
@@ -7014,17 +7037,249 @@ function showPreviousFacPasses(){
   });
 }
 
+/* ============================================================
+   PLATFORM HARDENING — schema version, global errors,
+   unsaved-form guard, visible app version
+   ============================================================ */
+var DATA_SCHEMA_VERSION = 1;
+var APP_VERSION = '1.0'; // user-facing release label (paired with APP_BUILD / CACHE_VERSION)
+
+function migrateDataSchema(data, fromVer, toVer){
+  // Central place for future field renames / shape changes.
+  // Keep migrations additive and idempotent.
+  try{
+    data = data || {};
+    var v = parseInt(fromVer, 10);
+    if(isNaN(v) || v < 1) v = 0;
+    // v0 → v1: stamp schema only (baseline after introducing schemaVersion)
+    if(v < 1){
+      data._schemaMigratedFrom = fromVer == null ? 'legacy' : fromVer;
+      data._schemaMigratedAt = new Date().toISOString();
+      v = 1;
+    }
+    // Future: if(v < 2){ ...; v = 2; }
+    data.schemaVersion = toVer || DATA_SCHEMA_VERSION;
+    return data;
+  }catch(e){
+    console.error('migrateDataSchema failed', e);
+    if(data) data.schemaVersion = toVer || DATA_SCHEMA_VERSION;
+    return data;
+  }
+}
+function ensureSchemaVersion(obj){
+  if(!obj || typeof obj !== 'object') return obj;
+  if(obj.schemaVersion == null) obj.schemaVersion = DATA_SCHEMA_VERSION;
+  return obj;
+}
+function applySchemaOnLoad(d, label){
+  if(!d || typeof d !== 'object') return d;
+  var from = d.schemaVersion;
+  if(from == null || Number(from) !== DATA_SCHEMA_VERSION){
+    d = migrateDataSchema(d, from, DATA_SCHEMA_VERSION);
+    d._schemaNeedsPersist = true;
+    try{
+      if(typeof pushAppError==='function'){
+        pushAppError('schema-migrate', (label||'data')+' migrated from '+(from==null?'legacy':from)+' → '+DATA_SCHEMA_VERSION, true);
+      }
+      if(typeof showToast==='function'){
+        showToast('Data format updated to schema v'+DATA_SCHEMA_VERSION+' ('+(label||'store')+')','ok');
+      }
+    }catch(e){}
+  } else {
+    d.schemaVersion = DATA_SCHEMA_VERSION;
+    d._schemaNeedsPersist = false;
+  }
+  return d;
+}
+function persistSchemaIfNeeded(d, which){
+  try{
+    if(!d || !d._schemaNeedsPersist) return;
+    d._schemaNeedsPersist = false;
+    // Stamp schemaVersion onto disk immediately so migration is not "memory only"
+    if(which==='pqs_data' && typeof saveState==='function'){
+      setTimeout(function(){ try{ saveState(); }catch(e){} }, 0);
+    } else if(which==='pqs_prod' && typeof saveProdData==='function'){
+      setTimeout(function(){ try{ saveProdData(); }catch(e){} }, 0);
+    } else if(which==='pqs_maint' && typeof saveMaintData==='function'){
+      setTimeout(function(){ try{ saveMaintData(); }catch(e){} }, 0);
+    } else if(which==='pqs_access' && typeof saveAccessData==='function'){
+      setTimeout(function(){ try{ saveAccessData(); }catch(e){} }, 0);
+    }
+  }catch(e){}
+}
+
+/* ---------- Global error capture ---------- */
+var APP_ERROR_LOG_KEY = 'pqs_errorLog';
+var __appErrorLog = [];
+var __appErrorToastAt = 0;
+function loadAppErrorLog(){
+  try{ __appErrorLog = safeParse(localStorage.getItem(APP_ERROR_LOG_KEY), []) || []; }catch(e){ __appErrorLog = []; }
+  if(!Array.isArray(__appErrorLog)) __appErrorLog = [];
+}
+function persistAppErrorLog(){
+  try{
+    if(__appErrorLog.length > 100) __appErrorLog = __appErrorLog.slice(0,100);
+    safeSetItem(APP_ERROR_LOG_KEY, JSON.stringify(__appErrorLog));
+  }catch(e){}
+}
+function pushAppError(type, message, silent){
+  try{
+    var entry = {
+      at: new Date().toISOString(),
+      type: type || 'error',
+      message: String(message||'').slice(0,800),
+      portal: (typeof currentPortal!=='undefined' ? currentPortal : ''),
+      user: (typeof currentUser!=='undefined' && currentUser ? currentUser.name : ''),
+      build: (typeof APP_BUILD!=='undefined' ? APP_BUILD : ''),
+      version: APP_VERSION,
+      url: (location && location.href) ? location.href : ''
+    };
+    __appErrorLog.unshift(entry);
+    persistAppErrorLog();
+    updateVersionBadge();
+    if(!silent){
+      var now = Date.now();
+      if(now - __appErrorToastAt > 8000){
+        __appErrorToastAt = now;
+        if(typeof showToast==='function'){
+          showToast('Unexpected error captured. Tap version badge to export error log.','red');
+        }
+      }
+    }
+  }catch(e){}
+}
+function exportAppErrorLog(){
+  try{
+    loadAppErrorLog();
+    var blob = new Blob([JSON.stringify({
+      exportedAt: new Date().toISOString(),
+      appVersion: APP_VERSION,
+      appBuild: (typeof APP_BUILD!=='undefined'?APP_BUILD:''),
+      schemaVersion: DATA_SCHEMA_VERSION,
+      count: __appErrorLog.length,
+      errors: __appErrorLog
+    }, null, 2)], {type:'application/json'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'Pladis_Portal_ErrorLog_'+APP_VERSION+'_'+(typeof APP_BUILD!=='undefined'?APP_BUILD:'build')+'_'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    if(typeof showToast==='function') showToast('Error log exported','green');
+  }catch(e){
+    alert('Could not export error log');
+  }
+}
+function clearAppErrorLog(){
+  __appErrorLog = [];
+  try{ localStorage.removeItem(APP_ERROR_LOG_KEY); }catch(e){}
+  updateVersionBadge();
+  if(typeof showToast==='function') showToast('Error log cleared','green');
+}
+function installGlobalErrorHandlers(){
+  loadAppErrorLog();
+  window.onerror = function(message, source, lineno, colno, error){
+    pushAppError('onerror', String(message)+' @ '+String(source||'')+':'+lineno+':'+colno+(error&&error.stack?'\n'+error.stack:''));
+    return false;
+  };
+  window.addEventListener('unhandledrejection', function(ev){
+    var reason = ev && ev.reason;
+    var msg = reason && reason.message ? reason.message : String(reason);
+    var stack = reason && reason.stack ? ('\n'+reason.stack) : '';
+    pushAppError('unhandledrejection', msg+stack);
+  });
+}
+
+/* ---------- Unsaved form guard ---------- */
+window.__formDirty = false;
+function markFormDirty(){ window.__formDirty = true; try{ updateVersionBadge(); }catch(e){} }
+function clearFormDirty(){ window.__formDirty = false; try{ updateVersionBadge(); }catch(e){} }
+function installFormDirtyGuard(){
+  var mark = function(e){
+    var t = e && e.target;
+    if(!t || !t.tagName) return;
+    var tag = t.tagName.toLowerCase();
+    if(tag!=='input' && tag!=='select' && tag!=='textarea') return;
+    if(t.type==='file' || t.type==='button' || t.type==='submit' || t.type==='checkbox' && t.closest('.pbi-side')) {
+      // still mark checkbox/text changes inside forms
+    }
+    if(t.closest('.modal-overlay.open') || t.closest('.view.active') || t.closest('#fac-permit-modal.open')){
+      markFormDirty();
+    }
+  };
+  document.addEventListener('input', mark, true);
+  document.addEventListener('change', mark, true);
+  window.addEventListener('beforeunload', function(e){
+    if(!window.__formDirty) return;
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  });
+}
+
+/* ---------- Visible version badge ---------- */
+function updateVersionBadge(){
+  var el = document.getElementById('app-version-badge');
+  if(!el) return;
+  var build = (typeof APP_BUILD!=='undefined' ? APP_BUILD : '');
+  var dirty = window.__formDirty ? ' · unsaved' : '';
+  var errs = __appErrorLog && __appErrorLog.length ? (' · '+__appErrorLog.length+' err') : '';
+  el.textContent = 'v'+APP_VERSION+' · '+build+dirty+errs;
+  el.title = 'Shop Floor Digital Portal\nVersion '+APP_VERSION+'\nBuild '+build+'\nSchema v'+DATA_SCHEMA_VERSION+'\nClick for diagnostics';
+}
+function toggleVersionPanel(){
+  var panel = document.getElementById('app-version-panel');
+  if(!panel) return;
+  var open = panel.classList.toggle('open');
+  if(open){
+    var build = (typeof APP_BUILD!=='undefined' ? APP_BUILD : '');
+    document.getElementById('avp-meta').textContent =
+      'Version '+APP_VERSION+' · Build '+build+' · Schema v'+DATA_SCHEMA_VERSION+
+      '\nErrors logged: '+(__appErrorLog?__appErrorLog.length:0)+
+      (window.__formDirty?'\nUnsaved form changes: YES':'');
+  }
+}
+function initPlatformHardening(){
+  installGlobalErrorHandlers();
+  installFormDirtyGuard();
+  updateVersionBadge();
+  document.addEventListener('click', function(ev){
+    var panel = document.getElementById('app-version-panel');
+    var badge = document.getElementById('app-version-badge');
+    if(!panel || !panel.classList.contains('open')) return;
+    if(panel.contains(ev.target) || (badge && badge.contains(ev.target))) return;
+    panel.classList.remove('open');
+  });
+}
+
+window.DATA_SCHEMA_VERSION = DATA_SCHEMA_VERSION;
+window.APP_VERSION = APP_VERSION;
+window.exportAppErrorLog = exportAppErrorLog;
+window.clearAppErrorLog = clearAppErrorLog;
+window.markFormDirty = markFormDirty;
+window.clearFormDirty = clearFormDirty;
+window.toggleVersionPanel = toggleVersionPanel;
+window.initPlatformHardening = initPlatformHardening;
+window.applySchemaOnLoad = applySchemaOnLoad;
+window.ensureSchemaVersion = ensureSchemaVersion;
+window.persistSchemaIfNeeded = persistSchemaIfNeeded;
+
+
 // ---- STORAGE HELPERS ----
 function saveState(){
   try{
     const payload = {
+      schemaVersion: (typeof DATA_SCHEMA_VERSION!=='undefined'?DATA_SCHEMA_VERSION:1),
       checks, remarks, cwData, hoHistory, issues,
       lcChecks, ncrList, loginLog, mdLog,
       complaints, fsIssues, holdPallets, filterLog,
       accessRequests, riskAssessments, checklistHistory
     };
-    localStorage.setItem('pqs_data', encryptData(JSON.stringify(payload)));
-  }catch(e){ console.error('saveState error',e); }
+    if(typeof ensureSchemaVersion==='function') ensureSchemaVersion(payload);
+    var __enc = encryptData(JSON.stringify(payload));
+    if(!__enc){ throw new Error('encryptData returned empty'); }
+    if(!safeSetItem('pqs_data', __enc)) throw new Error('storage write failed');
+    if(typeof clearFormDirty==='function') clearFormDirty();
+  }catch(e){ console.error('saveState error',e); if(typeof showToast==='function') showToast('SAVE FAILED — could not encrypt/store data','red'); }
 }
 function loadState(){
   try{
@@ -7032,8 +7287,10 @@ function loadState(){
     const enc = localStorage.getItem('pqs_data');
     if(enc){
       const dec = decryptData(enc);
-      if(dec){
-        const d = JSON.parse(dec);
+      var d = dec ? safeParse(dec, null) : null;
+      if(d){
+        // REQUIRED: migrate / stamp schema on every successful decrypt path
+        if(typeof applySchemaOnLoad==='function') d = applySchemaOnLoad(d, 'pqs_data');
         checks    = d.checks    || {};
         remarks   = d.remarks   || {};
         cwData    = d.cwData    || {};
@@ -7050,19 +7307,28 @@ function loadState(){
         accessRequests = d.accessRequests || [];
         riskAssessments = d.riskAssessments || [];
         checklistHistory = d.checklistHistory || [];
+        if(typeof persistSchemaIfNeeded==='function') persistSchemaIfNeeded(d, 'pqs_data');
         return;
       }
     }
     // Fallback: legacy unencrypted keys (first run after update)
-    checks     = JSON.parse(localStorage.getItem('pqs_checks')||'{}');
-    remarks    = JSON.parse(localStorage.getItem('pqs_remarks')||'{}');
-    cwData     = JSON.parse(localStorage.getItem('pqs_cwData')||'{}');
-    hoHistory  = JSON.parse(localStorage.getItem('pqs_hoHistory')||'[]');
-    issues     = JSON.parse(localStorage.getItem('pqs_issues')||'[]');
-    lcChecks   = JSON.parse(localStorage.getItem('pqs_lcChecks')||'{}');
-    ncrList    = JSON.parse(localStorage.getItem('pqs_ncrList')||'[]');
-    loginLog   = JSON.parse(localStorage.getItem('pqs_loginLog')||'[]');
-    mdLog      = JSON.parse(localStorage.getItem('pqs_mdLog')||'{}');
+    checks     = safeParse(localStorage.getItem('pqs_checks'), {});
+    remarks    = safeParse(localStorage.getItem('pqs_remarks'), {});
+    cwData     = safeParse(localStorage.getItem('pqs_cwData'), {});
+    hoHistory  = safeParse(localStorage.getItem('pqs_hoHistory'), []);
+    issues     = safeParse(localStorage.getItem('pqs_issues'), []);
+    lcChecks   = safeParse(localStorage.getItem('pqs_lcChecks'), {});
+    ncrList    = safeParse(localStorage.getItem('pqs_ncrList'), []);
+    loginLog   = safeParse(localStorage.getItem('pqs_loginLog'), []);
+    mdLog      = safeParse(localStorage.getItem('pqs_mdLog'), {});
+    complaints = safeParse(localStorage.getItem('pqs_complaints'), complaints||[]);
+    fsIssues = safeParse(localStorage.getItem('pqs_fsIssues'), fsIssues||[]);
+    holdPallets = safeParse(localStorage.getItem('pqs_holdPallets'), holdPallets||[]);
+    filterLog = safeParse(localStorage.getItem('pqs_filterLog'), filterLog||{});
+    // Legacy path has no schemaVersion on disk — stamp via save on next tick
+    if(typeof persistSchemaIfNeeded==='function'){
+      persistSchemaIfNeeded({ _schemaNeedsPersist:true, schemaVersion:(typeof DATA_SCHEMA_VERSION!=='undefined'?DATA_SCHEMA_VERSION:1) }, 'pqs_data');
+    }
   }catch(e){ console.error('loadState error',e); }
 }
 function clearAllState(){
@@ -7082,12 +7348,14 @@ const HO_ACK_ITEMS=["Reviewed open issues from previous shift","Checked metal de
 // INIT
 // ============================================================
 window.onload=()=>{
+  if(typeof initPlatformHardening==='function') initPlatformHardening();
   loadState();
   loadCustomLines();
   loadCustomCW();
   loadCustomAllergen();
   checkExistingSession();
   loadTheme();
+  if(typeof updateVersionBadge==='function') updateVersionBadge();
   document.getElementById('lines-date-display').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   document.getElementById('cl-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('cw-date').value=new Date().toISOString().split('T')[0];
@@ -7589,11 +7857,11 @@ function saveCustomLines(){
       });
     });
   });
-  localStorage.setItem('pqs_lineOverrides', JSON.stringify(overrides));
+  safeSetItem('pqs_lineOverrides', JSON.stringify(overrides));
 }
 function loadCustomLines(){
   try{
-    const overrides = JSON.parse(localStorage.getItem('pqs_lineOverrides')||'{}');
+    const overrides = safeParse(localStorage.getItem('pqs_lineOverrides'), {});
     Object.entries(LINES).forEach(([lk, ln]) => {
       ln.sections.forEach(sec => {
         sec.items.forEach(item => {
@@ -7632,7 +7900,7 @@ function saveEditCW(){
   p.good = `${p.goodL}–${p.goodH}g`;
   p.over = `>${p.overNum}g`;
   p.under = `<${p.goodL}g`;
-  localStorage.setItem('pqs_cwOverrides', JSON.stringify(CW_PRODUCTS));
+  safeSetItem('pqs_cwOverrides', JSON.stringify(CW_PRODUCTS));
   closeEditCWModal();
   initCWSelect();
   renderCW();
@@ -7640,7 +7908,7 @@ function saveEditCW(){
 }
 function loadCustomCW(){
   try{
-    const saved = JSON.parse(localStorage.getItem('pqs_cwOverrides')||'null');
+    const saved = safeParse(localStorage.getItem('pqs_cwOverrides'), null);
     if(saved && Array.isArray(saved) && saved.length === CW_PRODUCTS.length){
       saved.forEach((p,i)=>Object.assign(CW_PRODUCTS[i], p));
     }
@@ -7650,7 +7918,7 @@ function loadCustomCW(){
 // ---- Allergen Matrix admin overrides ----
 function loadCustomAllergen(){
   try{
-    const saved = JSON.parse(localStorage.getItem('pqs_allergenOverrides')||'null');
+    const saved = safeParse(localStorage.getItem('pqs_allergenOverrides'), null);
     if(saved){
       Object.entries(saved).forEach(([group, rows])=>{
         if(ALLERGEN_DATA[group]) ALLERGEN_DATA[group] = rows;
@@ -7659,7 +7927,7 @@ function loadCustomAllergen(){
   }catch(e){}
 }
 function saveCustomAllergen(){
-  localStorage.setItem('pqs_allergenOverrides', JSON.stringify(ALLERGEN_DATA));
+  safeSetItem('pqs_allergenOverrides', JSON.stringify(ALLERGEN_DATA));
 }
 let editingAllergenRow = null;
 let swabRowCount = 0;
@@ -7681,13 +7949,18 @@ function addSwabLocationRow(data){
 function previewSwabPhoto(rowId, input){
   const file = input.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e=>{
+  compressImageFile(file, 1280, 0.72).then(function(dataUrl){
     const preview = document.querySelector(`#${rowId} .swab-photo-preview`);
-    preview.innerHTML = `<img src="${e.target.result}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;cursor:pointer" onclick="window.open('${e.target.result}','_blank')"/>`;
-    preview.dataset.photo = e.target.result;
-  };
-  reader.readAsDataURL(file);
+    preview.innerHTML = `<img src="${dataUrl}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;cursor:pointer"/>`;
+    const __img = preview.querySelector('img');
+    __img.addEventListener('click', function(){
+      const w = window.open('');
+      if(w) w.document.write('<img src="'+dataUrl+'" style="max-width:100%"/>');
+    });
+    preview.dataset.photo = dataUrl;
+  }).catch(function(){
+    if(typeof showToast==='function') showToast('Could not read that image','red');
+  });
 }
 function collectSwabLocations(){
   return [...document.querySelectorAll('#ea-swab-rows > div')].map(row=>{
@@ -7831,6 +8104,64 @@ function applyRoleAccess(){
 
 // Simple XOR-based encryption for localStorage data
 const ENCRYPT_KEY = 'PladisQMS2026';
+// ============================================================
+// STORAGE SAFETY LAYER
+// Prevents the #1 silent-failure mode: localStorage filling up and
+// every subsequent save failing while the UI still says "Saved".
+// Use safeSetItem() instead of localStorage.setItem() for app data.
+// ============================================================
+function storageUsedBytes(){
+  try{
+    var total = 0;
+    for(var i=0;i<localStorage.length;i++){
+      var k = localStorage.key(i);
+      var v = localStorage.getItem(k) || '';
+      total += (k.length + v.length) * 2; // UTF-16 approximation
+    }
+    return total;
+  }catch(e){ return 0; }
+}
+// Typical browser cap is ~5MB. Warn as we approach it.
+var STORAGE_SOFT_LIMIT = 4.0 * 1024 * 1024;
+var __storageWarned = false;
+function checkStoragePressure(){
+  var used = storageUsedBytes();
+  if(used > STORAGE_SOFT_LIMIT && !__storageWarned){
+    __storageWarned = true;
+    if(typeof showToast==='function'){
+      showToast('Storage almost full ('+(used/1048576).toFixed(1)+' MB). Export a backup and clear old records.','red');
+    }
+  }
+  return used;
+}
+// Returns true on success, false on failure. NEVER fails silently.
+function safeSetItem(key, value){
+  try{
+    localStorage.setItem(key, value);
+    checkStoragePressure();
+    return true;
+  }catch(e){
+    var isQuota = e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
+    var msg = isQuota
+      ? 'SAVE FAILED — device storage is full. Nothing was saved. Export a backup, then delete old records to free space.'
+      : 'SAVE FAILED — could not write to storage. Nothing was saved.';
+    if(typeof showToast==='function'){ showToast(msg,'red'); }
+    else { alert(msg); }
+    console.error('safeSetItem failed for key:', key, e);
+    return false;
+  }
+}
+// Parses stored JSON without letting one corrupted key break the whole module.
+function safeParse(raw, fallback){
+  try{
+    if(raw === null || raw === undefined || raw === '') return fallback;
+    var v = JSON.parse(raw);
+    return (v === null || v === undefined) ? fallback : v;
+  }catch(e){
+    console.error('safeParse: corrupted stored data, using fallback.', e);
+    return fallback;
+  }
+}
 function encryptData(str){
   try{
     const encoded = encodeURIComponent(str);
@@ -9267,18 +9598,18 @@ function lastNDaysCounts(timestamps, days){
 function saveComplaintsSnapshot(){
   const name = prompt('Name this snapshot (e.g. "June 2026 Review"):', new Date().toLocaleDateString());
   if(!name) return;
-  if(!window._ccSnapshots) window._ccSnapshots = JSON.parse(localStorage.getItem('pqs_ccSnapshots')||'[]');
+  if(!window._ccSnapshots) window._ccSnapshots = safeParse(localStorage.getItem('pqs_ccSnapshots'), []);
   window._ccSnapshots.unshift({
     name, date:new Date().toISOString(),
     data: JSON.parse(JSON.stringify(complaints)),
     savedBy: currentUser?.name || ''
   });
-  localStorage.setItem('pqs_ccSnapshots', JSON.stringify(window._ccSnapshots));
+  safeSetItem('pqs_ccSnapshots', JSON.stringify(window._ccSnapshots));
   populateSnapshotSelect();
   showToast(' Dashboard snapshot saved: '+name,'green');
 }
 function populateSnapshotSelect(){
-  if(!window._ccSnapshots) window._ccSnapshots = JSON.parse(localStorage.getItem('pqs_ccSnapshots')||'[]');
+  if(!window._ccSnapshots) window._ccSnapshots = safeParse(localStorage.getItem('pqs_ccSnapshots'), []);
   const sel = document.getElementById('cc-snapshot-select');
   const current = sel.value;
   sel.innerHTML = '<option value="">— Live Data (Current) —</option>' +
@@ -9534,12 +9865,12 @@ let fsPhotoData = null;
 function previewFSPhoto(e){
   const file = e.target.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    fsPhotoData = ev.target.result;
+  compressImageFile(file, 1280, 0.72).then(function(dataUrl){
+    fsPhotoData = dataUrl;
     document.getElementById('fs-photo-preview').innerHTML = `<img src="${fsPhotoData}" style="max-width:200px;border-radius:8px;border:1px solid var(--border)"/>`;
-  };
-  reader.readAsDataURL(file);
+  }).catch(function(){
+    if(typeof showToast==='function') showToast('Could not read that image','red');
+  });
 }
 function reviewFSIssueSubmit(){
   openReviewModal('Food Safety Issue', [
@@ -10528,7 +10859,7 @@ window._safetyDoLogin = async function(){
   currentUser={name,role,loginTime:now.toISOString(),portal:currentPortal, authMode:(authResult&&authResult.mode)||'local'};
   sessionStorage.setItem('pqs_currentUser',JSON.stringify(currentUser));
   if(document.getElementById('login-remember').checked){
-    localStorage.setItem('pqs_remembered_name', name);
+    safeSetItem('pqs_remembered_name', name);
   } else {
     localStorage.removeItem('pqs_remembered_name');
   }
@@ -10623,26 +10954,50 @@ let safetyData = {
 };
 let reworkData = { generated: [], used: [] };
 
-// Patch save/load to include safetyData + reworkData
+// Patch save/load to include safetyData + reworkData — single write (no double pqs_data)
 const _origSaveState = saveState;
 saveState = function(){
   try{
-    const d = JSON.parse(decryptData(localStorage.getItem('pqs_data')||'')||'{}');
-    d.safetyData = safetyData;
-    d.reworkData = reworkData;
-    localStorage.setItem('pqs_data', encryptData(JSON.stringify(d)));
-  } catch(e){ _origSaveState(); }
+    const payload = {
+      schemaVersion: (typeof DATA_SCHEMA_VERSION!=='undefined'?DATA_SCHEMA_VERSION:1),
+      checks, remarks, cwData, hoHistory, issues,
+      lcChecks, ncrList, loginLog, mdLog,
+      complaints, fsIssues, holdPallets, filterLog,
+      accessRequests, riskAssessments, checklistHistory,
+      safetyData: (typeof safetyData!=='undefined' ? safetyData : {}),
+      reworkData: (typeof reworkData!=='undefined' ? reworkData : { generated:[], used:[] })
+    };
+    if(typeof ensureSchemaVersion==='function') ensureSchemaVersion(payload);
+    // Refuse empty / invalid payload overwrite (e.g. after a failed prior read)
+    if(!payload || typeof payload!=='object' || !Object.keys(payload).length){
+      throw new Error('refusing to overwrite with empty payload');
+    }
+    var enc = encryptData(JSON.stringify(payload));
+    if(!enc) throw new Error('encrypt failed');
+    if(!safeSetItem('pqs_data', enc)) throw new Error('storage write failed');
+    // Always clear unsaved-form flag after a successful write
+    if(typeof clearFormDirty==='function') clearFormDirty();
+  } catch(e){
+    console.error('saveState (quality+safety) failed', e);
+    // Do NOT fall back to a partial/empty overlay write that could wipe Quality.
+    if(typeof showToast==='function') showToast('SAVE FAILED — storage write blocked to protect existing data','red');
+  }
 }
 
 const _origLoadState = loadState;
 loadState = function(){
-  _origLoadState();
+  _origLoadState(); // includes applySchemaOnLoad('pqs_data') + persistSchemaIfNeeded
   try{
     const raw = localStorage.getItem('pqs_data');
     if(raw){
-      const d = JSON.parse(decryptData(raw)||'{}');
-      if(d.safetyData) safetyData = d.safetyData;
-      if(d.reworkData) reworkData = d.reworkData;
+      var d = safeParse(decryptData(raw)||'{}', null);
+      if(d && Object.keys(d).length){
+        // Belt-and-suspenders: re-apply schema helper here too
+        if(typeof applySchemaOnLoad==='function') d = applySchemaOnLoad(d, 'pqs_data');
+        if(d.safetyData) safetyData = d.safetyData;
+        if(d.reworkData) reworkData = d.reworkData;
+        if(typeof persistSchemaIfNeeded==='function') persistSchemaIfNeeded(d, 'pqs_data');
+      }
     }
   } catch(e){}
 }
@@ -11030,12 +11385,12 @@ let nmPhotoData = null;
 
 function previewNMPhoto(e){
   const file=e.target.files[0]; if(!file) return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    nmPhotoData=ev.target.result;
+  compressImageFile(file, 1280, 0.72).then(function(dataUrl){
+    nmPhotoData=dataUrl;
     document.getElementById('nm-photo-preview').innerHTML=`<img src="${nmPhotoData}" style="max-width:200px;border-radius:8px;border:1px solid var(--border)"/>`;
-  };
-  reader.readAsDataURL(file);
+  }).catch(function(){
+    if(typeof showToast==='function') showToast('Could not read that image','red');
+  });
 }
 
 function openNearMissModal(){
@@ -13207,7 +13562,7 @@ function saveScoring(){
   if(!scoringList) scoringList=[];
   scoringList.unshift(entry);
   // Save to localStorage directly
-  try{ localStorage.setItem('pqs_scoring', JSON.stringify(scoringList)); }catch(e){}
+  try{ safeSetItem('pqs_scoring', JSON.stringify(scoringList)); }catch(e){}
   document.getElementById('scoring-modal').classList.remove('open');
   renderScoring();
   showToast('Evaluation saved — '+result,'green');
@@ -13352,7 +13707,7 @@ function renderScoring(){
 function deleteScoring(i){
   if(!confirm('Delete this evaluation?')) return;
   scoringList.splice(i,1);
-  try{localStorage.setItem('pqs_scoring',JSON.stringify(scoringList));}catch(e){}
+  try{safeSetItem('pqs_scoring',JSON.stringify(scoringList));}catch(e){}
   renderScoring();
 }
 
@@ -14134,6 +14489,69 @@ function getLCDate(){
 function getLCKey(idx, date){
   return `lc_${idx}_${date}`;
 }
+
+function buildQualityClearanceInboxHtml(){
+  try{
+    if(currentPortal && currentPortal!=='quality') return '';
+    var list = (typeof prodData!=='undefined' && prodData.clearanceRequests) ? prodData.clearanceRequests : [];
+    var pending = [];
+    list.forEach(function(r,i){ if((r.status||'Pending')==='Pending') pending.push({r:r,i:i}); });
+    var html = '<div id="qc-cr-inbox" class="pro-panel" style="margin-bottom:14px;border:1px solid #fde68a;background:linear-gradient(180deg,#fffbeb,#fff)">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">';
+    html += '<div><div class="pro-panel-title" style="color:#92400e;margin:0">Pending Clearance Requests</div>';
+    html += '<div class="pro-panel-sub">From Production · approve / reject here (Quality inbox)</div></div>';
+    html += '<span style="background:#fef3c7;color:#92400e;font-weight:900;padding:4px 10px;border-radius:99px;font-size:.75rem">'+pending.length+' pending</span></div>';
+    if(!pending.length){
+      html += '<div style="font-size:.82rem;color:#78716c;padding:8px 0">No pending clearance requests right now.</div></div>';
+      return html;
+    }
+    pending.forEach(function(item){
+      var r = item.r, i = item.i;
+      html += '<div class="pro-list-card" style="border-left-color:#d97706;margin-bottom:8px">';
+      html += '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b style="color:#78350f">'+escHtml(r.line||'—')+' · '+(r.shift||'')+'</b>';
+      html += '<span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:99px;font-size:.72rem;font-weight:800">Pending</span></div>';
+      html += '<div style="font-size:.8rem;color:#374151;margin-top:6px">Date: '+escHtml(r.date||'—')+' · Requested by: '+escHtml(r.cleanedBy||'—')+'</div>';
+      if(r.notes) html += '<div style="font-size:.76rem;color:#6b7280;margin-top:4px">Notes: '+escHtml(r.notes)+'</div>';
+      html += '<div class="form-row" style="margin-top:8px"><label>Quality notes</label><input type="text" id="qc-cr-notes-'+i+'" placeholder="Approval / rejection notes" value="'+escHtml(r.qualityNotes||'')+'"/></div>';
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">';
+      html += '<button type="button" class="btn-primary" style="background:#16a34a" onclick="respondClearanceRequest('+i+',\'Approved\')">Approve</button>';
+      html += '<button type="button" class="btn-ghost" style="color:#dc2626;border-color:#fecaca" onclick="respondClearanceRequest('+i+',\'Rejected\')">Reject</button>';
+      html += '<button type="button" class="btn-ghost" onclick="nav(\'clearance\')">Open LC Form</button>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+    return html;
+  }catch(e){ console.error(e); return ''; }
+}
+function respondClearanceRequest(i, status){
+  try{
+    if(!prodData || !prodData.clearanceRequests || !prodData.clearanceRequests[i]){
+      showToast('Request not found','red'); return;
+    }
+    var r = prodData.clearanceRequests[i];
+    var notesEl = document.getElementById('qc-cr-notes-'+i);
+    var notes = notesEl ? notesEl.value.trim() : '';
+    r.status = status;
+    r.qualityNotes = notes;
+    r.reviewedBy = (currentUser && currentUser.name) || 'Quality';
+    r.reviewedAt = new Date().toISOString();
+    saveProdData();
+    if(typeof notifyPortal==='function'){
+      notifyPortal('production', {
+        type: 'clearance',
+        from: 'Quality Portal',
+        message: 'Clearance '+status+' — '+(r.line||''),
+        details: 'Shift: '+(r.shift||'—')+' · Date: '+(r.date||'—')+'\nBy: '+(r.reviewedBy||'—')+'\nNotes: '+(notes||'None'),
+        actionView: 'clearancereq'
+      });
+    }
+    showToast('Clearance request '+status,'green');
+    if(typeof renderClearance==='function') renderClearance();
+    if(typeof renderDailyHubStrip==='function') renderDailyHubStrip();
+    if(typeof renderManagerDash==='function' && document.getElementById('view-manager') && document.getElementById('view-manager').classList.contains('active')) renderManagerDash();
+  }catch(e){ console.error(e); showToast('Could not update request','red'); }
+}
+
 function renderClearance(){
   if(typeof renderClearanceQrPreview==='function') try{renderClearanceQrPreview();}catch(e){}
   const sel=document.getElementById('lc-line-sel');
@@ -14279,7 +14697,7 @@ function renderClearance(){
   <div style="font-size:.68rem;color:var(--muted);text-align:center;margin-top:8px">ISSUED NO: 00 | REV. NO: 00 | REV. DATE: ${line.rev}</div>`;
 
   html+=`</div>`;
-  document.getElementById('lc-body').innerHTML=html;
+  document.getElementById('lc-body').innerHTML=(typeof buildQualityClearanceInboxHtml==='function'?buildQualityClearanceInboxHtml():'')+html;
 }
 
 function setLC(lineIdx,rid,k1,v1,k2,v2){
@@ -15045,7 +15463,7 @@ function applyThemeSurface(t){
 
 function setTheme(t, fromHome){
   if(t!=='dark') t='light';
-  localStorage.setItem('pqs_theme', t);
+  safeSetItem('pqs_theme', t);
   applyThemeSurface(t);
   THEMES.forEach(function(th){
     var card = document.getElementById('tc-'+th);
@@ -15067,7 +15485,7 @@ function loadTheme(){
   var saved = localStorage.getItem('pqs_theme') || 'light';
   if(saved!=='light' && saved!=='dark'){
     saved = (saved==='charcoal') ? 'dark' : 'light';
-    localStorage.setItem('pqs_theme', saved);
+    safeSetItem('pqs_theme', saved);
   }
   applyThemeSurface(saved);
   updateHomeThemeButtons(saved);
@@ -15172,7 +15590,10 @@ function cellStatus(text, bgRGB, fgRGB){
 
 function exportExcel(silent){
   if(typeof XLSX === 'undefined'){
-    if(!silent) alert('Excel library not loaded. Please check your internet connection.');
+    if(!silent){
+      alert('Excel export unavailable — required library did not load.');
+      if(typeof showToast === 'function') showToast('Excel export unavailable — required library did not load.', 'red');
+    }
     return;
   }
 
@@ -15431,7 +15852,7 @@ function exportExcel(silent){
 // SAFETY PORTAL — EXCEL EXPORT
 // ============================================================
 function exportExcelSafety(){
-  if(typeof XLSX === 'undefined'){ alert('Excel library not loaded. Please check your internet connection.'); return; }
+  if(typeof XLSX === 'undefined'){ alert('Excel export unavailable — required library did not load.'); if(typeof showToast==='function') showToast('Excel export unavailable — required library did not load.','red'); return; }
   const now = new Date();
   const today = now.toISOString().split('T')[0];
   const timeStr = now.toTimeString().slice(0,5).replace(':','-');
@@ -15491,7 +15912,7 @@ function exportExcelSafety(){
 // MAINTENANCE PORTAL — EXCEL EXPORT
 // ============================================================
 function exportExcelMaintenance(){
-  if(typeof XLSX === 'undefined'){ alert('Excel library not loaded. Please check your internet connection.'); return; }
+  if(typeof XLSX === 'undefined'){ alert('Excel export unavailable — required library did not load.'); if(typeof showToast==='function') showToast('Excel export unavailable — required library did not load.','red'); return; }
   const now = new Date();
   const today = now.toISOString().split('T')[0];
   const timeStr = now.toTimeString().slice(0,5).replace(':','-');
@@ -15539,7 +15960,7 @@ function exportExcelMaintenance(){
 // PRODUCTION PORTAL — EXCEL EXPORT
 // ============================================================
 function exportExcelProduction(){
-  if(typeof XLSX === 'undefined'){ alert('Excel library not loaded. Please check your internet connection.'); return; }
+  if(typeof XLSX === 'undefined'){ alert('Excel export unavailable — required library did not load.'); if(typeof showToast==='function') showToast('Excel export unavailable — required library did not load.','red'); return; }
   const now = new Date();
   const today = now.toISOString().split('T')[0];
   const timeStr = now.toTimeString().slice(0,5).replace(':','-');
@@ -15651,9 +16072,16 @@ function importData(event){
 
       if(snapshot.rawKeys){
         // Current comprehensive format — restore every raw key exactly as stored
+        var __failed = [];
         Object.keys(snapshot.rawKeys).forEach(function(k){
-          if(k.indexOf('pqs_')===0) localStorage.setItem(k, snapshot.rawKeys[k]);
+          if(k.indexOf('pqs_')===0){
+            if(!safeSetItem(k, snapshot.rawKeys[k])) __failed.push(k);
+          }
         });
+        if(__failed.length){
+          showToast(' Restore INCOMPLETE — '+__failed.length+' section(s) could not be written (storage full). Free space and restore again.', 'red');
+          return;
+        }
         showToast(' Full backup restored — reloading...', 'green');
         setTimeout(()=>location.reload(), 1000);
         return;
@@ -16540,10 +16968,14 @@ function printDowntime(){
 }
 
 function saveMaintData(){
-  try{localStorage.setItem('pqs_maint',JSON.stringify(maintData));}catch(e){}
+  try{
+    maintData = maintData || {};
+    maintData.schemaVersion = (typeof DATA_SCHEMA_VERSION!=='undefined'?DATA_SCHEMA_VERSION:1);
+    if(safeSetItem('pqs_maint', JSON.stringify(maintData)) && typeof clearFormDirty==='function') clearFormDirty();
+  }catch(e){}
 }
 function loadMaintData(){
-  try{const s=localStorage.getItem('pqs_maint');if(s)maintData=JSON.parse(s);}catch(e){}
+  try{const s=localStorage.getItem('pqs_maint');if(s){var _md=safeParse(s,null); if(_md){ if(typeof applySchemaOnLoad==='function') _md=applySchemaOnLoad(_md,'pqs_maint'); maintData=_md; if(typeof persistSchemaIfNeeded==='function') persistSchemaIfNeeded(_md,'pqs_maint');}}}catch(e){}
   if(!maintData.calibrationList) maintData.calibrationList = [];
 }
 
@@ -16576,13 +17008,19 @@ let accessData = {
 };
 
 function saveAccessData(){
-  try{ localStorage.setItem('pqs_access', JSON.stringify(accessData)); }catch(e){}
+  try{
+    accessData = accessData || {};
+    accessData.schemaVersion = (typeof DATA_SCHEMA_VERSION!=='undefined'?DATA_SCHEMA_VERSION:1);
+    if(safeSetItem('pqs_access', JSON.stringify(accessData)) && typeof clearFormDirty==='function') clearFormDirty();
+  }catch(e){}
 }
 function loadAccessData(){
   try{
     const s=localStorage.getItem('pqs_access');
     if(s){
-      const parsed = JSON.parse(s);
+      let parsed = JSON.parse(s);
+      if(typeof applySchemaOnLoad==='function') parsed = applySchemaOnLoad(parsed, 'pqs_access');
+      if(typeof persistSchemaIfNeeded==='function') persistSchemaIfNeeded(parsed, 'pqs_access');
       accessData.passes = parsed.passes || [];
       accessData.printHistory = parsed.printHistory || [];
       accessData.verifyLog = parsed.verifyLog || [];
@@ -17645,7 +18083,8 @@ function printFacPass(id){
       if(qrEl){
         qrEl.innerHTML='';
         if(typeof QRCode === 'undefined'){
-          qrEl.innerHTML = '<div style="font-size:.7rem;color:#dc2626">QR library missing</div>';
+          qrEl.innerHTML = '<div style="font-size:.7rem;color:#dc2626">QR unavailable — required library did not load.</div>';
+          if(typeof showToast==='function') showToast('QR unavailable — required library did not load.','red');
         } else {
           new QRCode(qrEl, { text: qrPayload, width:120, height:120, colorDark:'#4C1D95', colorLight:'#ffffff' });
         }
@@ -17654,6 +18093,10 @@ function printFacPass(id){
     try{
       if(typeof JsBarcode === 'function'){
         JsBarcode('#fac-barcode', String(p.id).slice(0,22), { format:'CODE128', width:1.4, height:48, displayValue:true, fontSize:11, margin:0, lineColor:'#4C1D95' });
+      } else {
+        var bcHost = document.getElementById('fac-barcode');
+        if(bcHost) bcHost.insertAdjacentHTML('afterend','<div style="font-size:.7rem;color:#dc2626;margin-top:4px">Barcode unavailable — required library did not load.</div>');
+        if(typeof showToast==='function') showToast('Barcode unavailable — required library did not load.','red');
       }
     }catch(e){}
   }, 60);
@@ -17764,7 +18207,7 @@ function checkOverdueItems(){
     if(fresh.length){
       notified = notified.concat(fresh);
       if(notified.length>500) notified = notified.slice(-500);
-      try{ localStorage.setItem(KEY, JSON.stringify(notified)); }catch(e){}
+      try{ safeSetItem(KEY, JSON.stringify(notified)); }catch(e){}
     }
     if(typeof runEscalationScan==='function') runEscalationScan(true);
   }catch(e){ /* never let an alert-check crash the app */ }
@@ -17786,7 +18229,7 @@ function notifyPortal(targetPortal, notifObj){
   if(!entry.priority) entry.priority = resolveNotifPriority(entry);
 
   portalNotifications.push(entry);
-  try{ localStorage.setItem('pqs_notifications', JSON.stringify(portalNotifications)); }catch(e){}
+  try{ safeSetItem('pqs_notifications', JSON.stringify(portalNotifications)); }catch(e){}
 
   // If user is currently in the target portal — show live banner
   if(currentPortal === targetPortal){
@@ -17958,7 +18401,7 @@ function openNotifPanel(){
   var sp=document.getElementById('search-panel'); if(sp) sp.classList.remove('open');
   var myNotifs = portalNotifications.filter(function(n){ return n.target===currentPortal; }).slice().reverse();
   portalNotifications.forEach(function(n){ if(n.target===currentPortal) n.read=true; });
-  try{ localStorage.setItem('pqs_notifications',JSON.stringify(portalNotifications)); }catch(e){}
+  try{ safeSetItem('pqs_notifications',JSON.stringify(portalNotifications)); }catch(e){}
   updateNotifBadge();
   if(typeof renderAllHomeNotificationWidgets==='function') renderAllHomeNotificationWidgets();
   var panel = document.getElementById('notif-panel');
@@ -17973,8 +18416,9 @@ function openNotifPanel(){
       var checks = Array.isArray(n.checks)?n.checks:[];
       var ago = Math.floor((Date.now()-new Date(n.timestamp).getTime())/60000);
       var agoStr = ago<1?'Just now':ago<60?(ago+'m ago'):(Math.floor(ago/60)+'h ago');
-      var canGo = n.actionView && (!currentPortal || typeof viewBelongsToPortal!=='function' || viewBelongsToPortal(n.actionView, currentPortal));
-      var go = canGo ? ("nav('"+n.actionView+"');document.getElementById('notif-panel').classList.remove('open')") : '';
+      var av = n.actionView ? (typeof remapViewForPortal==='function'?remapViewForPortal(n.actionView, currentPortal):n.actionView) : '';
+      var canGo = av && (!currentPortal || typeof viewBelongsToPortal!=='function' || viewBelongsToPortal(av, currentPortal));
+      var go = canGo ? ("nav('"+av+"');document.getElementById('notif-panel').classList.remove('open')") : '';
       h += '<div class="np-card '+(n.type||'')+'" '+(go?'onclick="'+go+'"':'')+'>'
         +'<div class="np-card-title">'+(n.message||'').replace(/</g,'&lt;')+'</div>'
         +'<div class="np-card-meta">'+(n.from||'System')+' · '+agoStr+'</div>'
@@ -17991,7 +18435,7 @@ function openNotifPanel(){
 
 function clearMyNotifs(){
   portalNotifications = portalNotifications.filter(function(n){ return n.target!==currentPortal; });
-  try{ localStorage.setItem('pqs_notifications',JSON.stringify(portalNotifications)); }catch(e){}
+  try{ safeSetItem('pqs_notifications',JSON.stringify(portalNotifications)); }catch(e){}
   openNotifPanel();
   updateNotifBadge();
 }
@@ -18466,7 +18910,7 @@ function renderProdDash(){
 function markNotifsRead(portal){
   var p = portal || currentPortal;
   portalNotifications.forEach(function(n){if(n.target===p)n.read=true;});
-  try{localStorage.setItem('pqs_notifications',JSON.stringify(portalNotifications));}catch(e){}
+  try{safeSetItem('pqs_notifications',JSON.stringify(portalNotifications));}catch(e){}
   updateNotifBadge();
   if(p==='production') renderProdDash();
   if(p==='quality') renderManagerDash();
@@ -18856,10 +19300,14 @@ function saveDT(){
 }
 
 function saveProdData(){
-  try{localStorage.setItem('pqs_prod',JSON.stringify(prodData));}catch(e){}
+  try{
+    prodData = prodData || {};
+    prodData.schemaVersion = (typeof DATA_SCHEMA_VERSION!=='undefined'?DATA_SCHEMA_VERSION:1);
+    if(safeSetItem('pqs_prod', JSON.stringify(prodData)) && typeof clearFormDirty==='function') clearFormDirty();
+  }catch(e){}
 }
 function loadProdData(){
-  try{const s=localStorage.getItem('pqs_prod');if(s)prodData=JSON.parse(s);}catch(e){}
+  try{const s=localStorage.getItem('pqs_prod');if(s){var _pd=safeParse(s,null); if(_pd){ if(typeof applySchemaOnLoad==='function') _pd=applySchemaOnLoad(_pd,'pqs_prod'); prodData=_pd; if(typeof persistSchemaIfNeeded==='function') persistSchemaIfNeeded(_pd,'pqs_prod');}}}catch(e){}
   if(!prodData.prodValueRecords) prodData.prodValueRecords = [];
   if(!prodData.scrapRecords) prodData.scrapRecords = [];
   if(!prodData.perfDash && typeof ensureProdBiSeed==='function') ensureProdBiSeed();
@@ -19139,7 +19587,7 @@ function saveFP(){
     timestamp: new Date().toISOString()
   };
   fpState={};
-  try{localStorage.setItem('pqs_fplog',JSON.stringify(fpLog));}catch(e){}
+  try{safeSetItem('pqs_fplog',JSON.stringify(fpLog));}catch(e){}
   renderFPChecklist();
   showToast('Fire Pump inspection saved','green');
 }
@@ -19307,7 +19755,7 @@ function saveLPG(){
     timestamp: new Date().toISOString()
   };
   lpgState={};
-  try{localStorage.setItem('pqs_lpglog',JSON.stringify(lpgLog));}catch(e){}
+  try{safeSetItem('pqs_lpglog',JSON.stringify(lpgLog));}catch(e){}
   renderLPGChecklist();
   showToast('LPG Cooling inspection saved','green');
 }
@@ -19643,6 +20091,16 @@ try{var _lpgl=localStorage.getItem('pqs_lpglog');if(_lpgl)lpgLog=JSON.parse(_lpg
 
 <!-- Live notification banner (top-right corner) -->
 <div id="notif-live-banner" aria-live="polite"></div>
+<button type="button" id="app-version-badge" class="app-version-badge" onclick="toggleVersionPanel()" title="App version">v1.0</button>
+<div id="app-version-panel" class="app-version-panel" onclick="event.stopPropagation()">
+  <h4>System diagnostics</h4>
+  <pre id="avp-meta">Loading…</pre>
+  <div class="avp-actions">
+    <button type="button" class="btn-primary" style="font-size:.72rem;padding:6px 10px" onclick="exportAppErrorLog()">Export Error Log</button>
+    <button type="button" class="btn-ghost" style="font-size:.72rem;padding:6px 10px" onclick="clearAppErrorLog()">Clear Log</button>
+    <button type="button" class="btn-ghost" style="font-size:.72rem;padding:6px 10px" onclick="document.getElementById('app-version-panel').classList.remove('open')">Close</button>
+  </div>
+</div>
 <div id="offline-chip" class="offline-chip">Offline · queued locally</div>
 <button type="button" class="btn-primary kiosk-exit" onclick="exitKioskMode()">Exit Kiosk</button>
 
@@ -19764,7 +20222,7 @@ function getDeviceId(){
   try{ id = localStorage.getItem(DEVICE_ID_KEY)||''; }catch(e){}
   if(!id){
     id = 'dev-'+Math.random().toString(36).slice(2,8)+'-'+Date.now().toString(36);
-    try{ localStorage.setItem(DEVICE_ID_KEY, id); }catch(e){}
+    try{ safeSetItem(DEVICE_ID_KEY, id); }catch(e){}
   }
   return id;
 }
@@ -19773,14 +20231,14 @@ function getSyncMeta(){
 }
 function setSyncMeta(patch){
   var m = Object.assign(getSyncMeta(), patch||{});
-  try{ localStorage.setItem(SYNC_META_KEY, JSON.stringify(m)); }catch(e){}
+  try{ safeSetItem(SYNC_META_KEY, JSON.stringify(m)); }catch(e){}
   return m;
 }
 function readOfflineQueue(){
   try{ return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY)||'[]')||[]; }catch(e){ return []; }
 }
 function writeOfflineQueue(q){
-  try{ localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify((q||[]).slice(-300))); }catch(e){}
+  try{ safeSetItem(OFFLINE_QUEUE_KEY, JSON.stringify((q||[]).slice(-300))); }catch(e){}
 }
 function queueOfflineAction(action){
   var q = readOfflineQueue();
@@ -19841,7 +20299,7 @@ window.addEventListener('offline', function(){ updateOfflineChip(); queueOffline
 
 function enterKioskMode(){
   document.body.classList.add('kiosk-mode');
-  try{ localStorage.setItem('pqs_kiosk','1'); }catch(e){}
+  try{ safeSetItem('pqs_kiosk','1'); }catch(e){}
   nav('lines');
   showToast('Kiosk mode on — large checklist cards','green');
 }
@@ -20986,10 +21444,8 @@ function renderQrStation(){
 
 function readPhotoAsDataUrl(file, cb){
   if(!file) return;
-  if(file.size > 2.5*1024*1024){ showToast('Photo too large (max 2.5MB)','red'); return; }
-  var reader = new FileReader();
-  reader.onload = function(){ cb(reader.result); };
-  reader.readAsDataURL(file);
+  compressImageFile(file, 1280, 0.72).then(function(dataUrl){ cb(dataUrl); })
+    .catch(function(){ if(typeof showToast==='function') showToast('Could not read that image','red'); });
 }
 function renderPhotoAttach(inputId, previewId){
   var input=document.getElementById(inputId), prev=document.getElementById(previewId);
@@ -21647,7 +22103,7 @@ function renderWeeklyReport(){
 // WAVE 4 — IT Integration Readiness (config · auth · sync · audit)
 // Client adapters only — IT owns real server/cloud/security infra
 // ============================================================
-const APP_BUILD = 'v70';
+const APP_BUILD = 'v73';
 const IT_CONFIG_KEY = 'pqs_it_config';
 const IT_TOKEN_KEY = 'pqs_it_access_token';
 const IT_AUDIT_KEY = 'pqs_it_audit_events';
@@ -21690,7 +22146,7 @@ function saveITConfig(cfg){
   clean.apiBaseUrl = String(clean.apiBaseUrl||'').trim().replace(/\/$/, '');
   // Never persist secrets here
   delete clean.password; delete clean.clientSecret; delete clean.apiKey;
-  try{ localStorage.setItem(IT_CONFIG_KEY, JSON.stringify(clean)); }catch(e){ showToast('Could not save config','red'); return false; }
+  try{ safeSetItem(IT_CONFIG_KEY, JSON.stringify(clean)); }catch(e){ showToast('Could not save config','red'); return false; }
   auditLogEvent('it.config.save', { tenantId: clean.tenantId, authMode: clean.authMode, syncMode: clean.syncMode, environment: clean.environment });
   showToast('IT config saved','green');
   return true;
@@ -21728,7 +22184,7 @@ function auditLogEvent(action, detail){
   var list = [];
   try{ list = JSON.parse(localStorage.getItem(IT_AUDIT_KEY)||'[]')||[]; }catch(e){}
   list.unshift(ev);
-  try{ localStorage.setItem(IT_AUDIT_KEY, JSON.stringify(list.slice(0,500))); }catch(e){}
+  try{ safeSetItem(IT_AUDIT_KEY, JSON.stringify(list.slice(0,500))); }catch(e){}
   // Best-effort remote ship when server configured
   if(isServerSyncEnabled() && navigator.onLine){
     apiRequest('POST', '/audit/events', ev).catch(function(){});
@@ -22078,7 +22534,7 @@ function importSyncPackageFile(file){
       if(mode==='replace'){
         if(!confirm('REPLACE will overwrite local portal data with the package. Continue?')) return;
         Object.keys(pack.rawKeys||{}).forEach(function(k){
-          if(k.indexOf('pqs_')===0) localStorage.setItem(k, pack.rawKeys[k]);
+          if(k.indexOf('pqs_')===0){ safeSetItem(k, pack.rawKeys[k]); }
         });
       } else {
         // Merge encrypted quality payload when both sides present
@@ -22089,18 +22545,18 @@ function importSyncPackageFile(file){
             var localObj = JSON.parse(decryptData(localRaw)||'{}');
             var remoteObj = JSON.parse(decryptData(remoteRaw)||'{}');
             var merged = mergeDecryptedPayload(localObj, remoteObj);
-            localStorage.setItem('pqs_data', encryptData(JSON.stringify(merged)));
+            safeSetItem('pqs_data', encryptData(JSON.stringify(merged)));
           }catch(err){
             console.warn('payload merge failed, falling back to key copy', err);
-            localStorage.setItem('pqs_data', remoteRaw);
+            safeSetItem('pqs_data', remoteRaw);
           }
         } else if(remoteRaw){
-          localStorage.setItem('pqs_data', remoteRaw);
+          safeSetItem('pqs_data', remoteRaw);
         }
         Object.keys(pack.rawKeys||{}).forEach(function(k){
           if(k==='pqs_data' || k===DEVICE_ID_KEY) return;
           if(k.indexOf('pqs_')!==0) return;
-          if(!localStorage.getItem(k)) localStorage.setItem(k, pack.rawKeys[k]);
+          if(!localStorage.getItem(k)){ safeSetItem(k, pack.rawKeys[k]); }
         });
         // Merge remote queue into local
         var rq = pack.queue||[];
@@ -22765,7 +23221,7 @@ function runWave1SelfCheck(){
 }
 
 
-console.log('Feature Pack v70 ready — Portal BI hubs aligned to Production dashboard layout');
+console.log('Feature Pack v73 ready — offline vendor libs (xlsx/qrcode/jsbarcode) + local brand logos in SW cache');
 
 
 </script>

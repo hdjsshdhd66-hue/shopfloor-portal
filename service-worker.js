@@ -1,11 +1,21 @@
 // IMPORTANT: bump CACHE_VERSION every time you re-upload index.html (or any cached file),
 // otherwise browsers keep serving the old cached portal.
-const CACHE_VERSION = 'v70';
+const CACHE_VERSION = 'v73';
 const CACHE_NAME = 'shopfloor-cache-' + CACHE_VERSION;
 const ASSETS = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './xlsx.full.min.js',
+  './qrcode.min.js',
+  './JsBarcode.all.min.js',
+  './brand-mcvities.webp',
+  './brand-godiva.webp',
+  './brand-ulker.webp',
+  './brand-carrs.webp',
+  './brand-jacobs.webp',
+  './brand-bn.webp',
+  './brand-verkade.webp'
 ];
 
 self.addEventListener('install', (event) => {
