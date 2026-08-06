@@ -1,6 +1,6 @@
 // IMPORTANT: bump CACHE_VERSION every time you re-upload index.html (or any cached file),
 // otherwise browsers keep serving the old cached portal.
-const CACHE_VERSION = 'v73';
+const CACHE_VERSION = 'v74';
 const CACHE_NAME = 'shopfloor-cache-' + CACHE_VERSION;
 const ASSETS = [
   './',

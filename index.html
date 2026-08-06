@@ -7608,6 +7608,7 @@ function clearLoginSession(){
     }catch(e){}
   }
   currentUser = null;
+  try{ if(typeof clearIdleTimers==='function') clearIdleTimers(); }catch(e){}
   try{ sessionStorage.removeItem('pqs_currentUser'); }catch(e){}
   try{ adminMode = false; }catch(e){}
   try{
@@ -7709,11 +7710,46 @@ function checkExistingSession(){
       if(typeof initCWSelect==='function') initCWSelect();
       if(typeof consumeDeepLink==='function') setTimeout(consumeDeepLink, 300);
       if(typeof applyAuditorLock==='function') setTimeout(applyAuditorLock, 200);
+      if(typeof resetIdleTimer==='function') resetIdleTimer();
     }catch(e){}
   } else {
     renderLoginRecent();
   }
 }
+
+// ============================================================
+// AUTO-LOGOUT — أجهزة أرضية المصنع المشتركة
+// ============================================================
+var IDLE_LIMIT_MS = 15 * 60 * 1000; // 15 دقيقة
+var IDLE_WARN_MS  = 60 * 1000;      // تحذير قبل دقيقة
+var __idleTimer = null, __warnTimer = null;
+function clearIdleTimers(){
+  try{ clearTimeout(__idleTimer); }catch(e){}
+  try{ clearTimeout(__warnTimer); }catch(e){}
+  __idleTimer = null; __warnTimer = null;
+  var banner = document.getElementById('idle-warning');
+  if(banner) banner.style.display = 'none';
+}
+function resetIdleTimer(){
+  clearIdleTimers();
+  if(!currentUser) return; // لا يعمل قبل تسجيل الدخول
+  __warnTimer = setTimeout(function(){
+    if(typeof showToast === 'function'){
+      showToast('Session expires in 1 minute — move the mouse to stay signed in','red');
+    }
+  }, IDLE_LIMIT_MS - IDLE_WARN_MS);
+  __idleTimer = setTimeout(function(){
+    try{
+      if(window.__formDirty){ try{ saveState(); }catch(e){} } // احفظ قبل الخروج
+      if(typeof performLogout === 'function') performLogout();
+      else if(typeof clearLoginSession === 'function') clearLoginSession();
+      alert('Signed out automatically due to inactivity.');
+    }catch(e){}
+  }, IDLE_LIMIT_MS);
+}
+['mousemove','keydown','click','touchstart','scroll'].forEach(function(ev){
+  document.addEventListener(ev, function(){ if(typeof resetIdleTimer==='function') resetIdleTimer(); }, true);
+});
 
 
 // ============================================================
@@ -8134,6 +8170,149 @@ function checkStoragePressure(){
   }
   return used;
 }
+// ============================================================
+// AUDIT TRAIL — يسجّل من غيّر ماذا ومتى
+// ============================================================
+function currentUserName(){
+  try{ return (currentUser && currentUser.name) ? currentUser.name : 'Unknown'; }
+  catch(e){ return 'Unknown'; }
+}
+function __auditIsImageVal(v){
+  if(typeof v === 'string' && v.indexOf('data:image') === 0) return true;
+  if(Array.isArray(v) && v.length && typeof v[0] === 'string' && String(v[0]).indexOf('data:image') === 0) return true;
+  return false;
+}
+function __auditTrimHistory(rec){
+  if(rec && Array.isArray(rec.history) && rec.history.length > 50){
+    rec.history = rec.history.slice(-50);
+  }
+  return rec;
+}
+// يقارن السجل القديم بالجديد ويضيف قيداً لكل حقل تغيّر
+function recordAudit(oldRec, newRec, action){
+  try{
+    if(!newRec || typeof newRec !== 'object') return newRec;
+    if(!Array.isArray(newRec.history)){
+      newRec.history = (oldRec && Array.isArray(oldRec.history)) ? oldRec.history.slice() : [];
+    }
+    var who = currentUserName();
+    var when = new Date().toISOString();
+    if(action === 'create'){
+      newRec.history.push({ at: when, by: who, action: 'created' });
+      newRec.createdBy = who;
+      newRec.createdAt = when;
+      return __auditTrimHistory(newRec);
+    }
+    // action === 'edit' — سجّل كل حقل تغيّر فعلياً
+    var skip = { history:1, createdBy:1, createdAt:1, updatedBy:1, updatedAt:1, deleted:1, deletedBy:1, deletedAt:1, photos:1, photo:1, workflow:1 };
+    Object.keys(newRec).forEach(function(k){
+      if(skip[k]) return;
+      var before = oldRec ? oldRec[k] : undefined;
+      var after  = newRec[k];
+      // تجاهل الصور الكبيرة — سجّل فقط أنها تغيّرت
+      var isBig = __auditIsImageVal(after) || __auditIsImageVal(before) || k === 'photos' || k === 'photo';
+      var same = false;
+      try{ same = JSON.stringify(before) === JSON.stringify(after); }catch(e){ same = before === after; }
+      if(!same){
+        newRec.history.push({
+          at: when, by: who, action: 'edited', field: k,
+          from: isBig ? '[image]' : before,
+          to:   isBig ? '[image]' : after
+        });
+      }
+    });
+    newRec.updatedBy = who;
+    newRec.updatedAt = when;
+    return __auditTrimHistory(newRec);
+  }catch(e){ console.error('recordAudit failed', e); return newRec; }
+}
+// عند الحذف لا تمسح — علّم السجل كمحذوف (soft delete)
+function markDeleted(rec){
+  try{
+    if(!rec) return rec;
+    if(!Array.isArray(rec.history)) rec.history = [];
+    rec.history.push({ at:new Date().toISOString(), by:currentUserName(), action:'deleted' });
+    rec.deleted = true;
+    rec.deletedBy = currentUserName();
+    rec.deletedAt = new Date().toISOString();
+    return __auditTrimHistory(rec);
+  }catch(e){ return rec; }
+}
+function isActiveRec(r){ return !!(r && !r.deleted); }
+function formatAuditHistory(rec){
+  if(!rec || !Array.isArray(rec.history) || !rec.history.length) return 'No history recorded yet.';
+  return rec.history.map(function(h){
+    var when = h.at ? new Date(h.at).toLocaleString() : '—';
+    var line = when + ' · ' + (h.by||'Unknown') + ' · ' + (h.action||'');
+    if(h.action === 'edited' && h.field){
+      var from = (h.from === undefined || h.from === null) ? '—' : (typeof h.from === 'object' ? JSON.stringify(h.from) : String(h.from));
+      var to   = (h.to === undefined || h.to === null) ? '—' : (typeof h.to === 'object' ? JSON.stringify(h.to) : String(h.to));
+      if(from.length > 80) from = from.slice(0,80) + '…';
+      if(to.length > 80) to = to.slice(0,80) + '…';
+      line += ' ' + h.field + ': ' + from + ' → ' + to;
+    }
+    return line;
+  }).join('\n');
+}
+function showRecordHistory(kind, i){
+  try{
+    var rec = null;
+    if(kind === 'ncr') rec = (typeof ncrList!=='undefined' && ncrList[i]) || null;
+    else if(kind === 'nm') rec = (safetyData && safetyData.nearMisses && safetyData.nearMisses[i]) || null;
+    else if(kind === 'capa') rec = (safetyData && safetyData.capaList && safetyData.capaList[i]) || null;
+    else if(kind === 'permit') rec = (safetyData && safetyData.permits && safetyData.permits[i]) || null;
+    else if(kind === 'fac') rec = (accessData && accessData.passes && accessData.passes[i]) || null;
+    if(!rec){ alert('Record not found.'); return; }
+    alert(formatAuditHistory(rec));
+  }catch(e){ alert('Could not show history.'); }
+}
+function historyBtnHTML(kind, i){
+  return '<button type="button" class="btn-ghost" style="font-size:.72rem;padding:4px 8px" onclick="showRecordHistory(\''+kind+'\','+i+')" title="Change history">History</button>';
+}
+function emptyState(icon, title, hint){
+  return '<div style="text-align:center;padding:44px 20px;color:#94a3b8">'
+    + '<div style="font-size:2.4rem;margin-bottom:10px">'+(icon||'📋')+'</div>'
+    + '<div style="font-weight:700;color:#64748b;margin-bottom:6px">'+(title||'No records yet')+'</div>'
+    + (hint ? '<div style="font-size:.82rem">'+hint+'</div>' : '')
+    + '</div>';
+}
+
+// ============================================================
+// BUSY OVERLAY — مؤشر التحميل (يحتاج setTimeout ليُرسم)
+// ============================================================
+function showBusy(msg){
+  var el = document.getElementById('busy-overlay');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'busy-overlay';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:none;align-items:center;justify-content:center';
+    el.innerHTML = '<div style="background:#fff;padding:22px 30px;border-radius:14px;font-weight:700;color:#0f172a;box-shadow:0 16px 40px rgba(0,0,0,.25);text-align:center;min-width:220px">'
+      + '<div style="width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#1e3a5f;border-radius:50%;margin:0 auto 12px;animation:busySpin .7s linear infinite"></div>'
+      + '<span id="busy-msg">Working…</span></div>';
+    if(!document.getElementById('busy-spin-style')){
+      var st = document.createElement('style');
+      st.id = 'busy-spin-style';
+      st.textContent = '@keyframes busySpin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(st);
+    }
+    document.body.appendChild(el);
+  }
+  var msgEl = document.getElementById('busy-msg');
+  if(msgEl) msgEl.textContent = msg || 'Working…';
+  el.style.display = 'flex';
+}
+function hideBusy(){
+  var el = document.getElementById('busy-overlay');
+  if(el) el.style.display = 'none';
+}
+function withBusy(msg, fn){
+  showBusy(msg || 'Working…');
+  setTimeout(function(){
+    try{ fn(); }
+    finally{ hideBusy(); }
+  }, 50);
+}
+
 // Returns true on success, false on failure. NEVER fails silently.
 function safeSetItem(key, value){
   try{
@@ -10869,6 +11048,7 @@ window._safetyDoLogin = async function(){
   var hdrLogin = document.querySelector('.header');
   if(hdrLogin) hdrLogin.style.display = '';
   updateAccountDisplay();
+  if(typeof resetIdleTimer==='function') resetIdleTimer();
   if(typeof initCWSelect==='function') initCWSelect();
   if(typeof unlockNotifAudio==='function') unlockNotifAudio();
   if(typeof consumeDeepLink==='function') setTimeout(consumeDeepLink, 400);
@@ -11452,7 +11632,15 @@ function saveNearMiss(){
     timestamp: editingNMIdx!=null ? safetyData.nearMisses[editingNMIdx].timestamp : new Date().toISOString(),
     loggedBy:(currentUser&&currentUser.name)||(window._nmQrDirect?'QR Guest':'')
   };
-  if(editingNMIdx!=null){ safetyData.nearMisses[editingNMIdx]=rec; } else { safetyData.nearMisses.unshift(rec); }
+  if(editingNMIdx!=null){
+    var __oldNm = JSON.parse(JSON.stringify(safetyData.nearMisses[editingNMIdx]));
+    rec.history = (__oldNm.history||[]).slice();
+    rec.createdBy = __oldNm.createdBy; rec.createdAt = __oldNm.createdAt;
+    safetyData.nearMisses[editingNMIdx]=recordAudit(__oldNm, rec, 'edit');
+  } else {
+    rec = recordAudit(null, rec, 'create');
+    safetyData.nearMisses.unshift(rec);
+  }
   editingNMIdx=null;
   saveState();
   document.getElementById('nearmiss-modal').classList.remove('open');
@@ -11492,12 +11680,13 @@ function editNearMiss(i){
 function renderNearMissList(){
   if(typeof renderNearMissQrPreview==='function') try{renderNearMissQrPreview();}catch(e){}
   const wrap=document.getElementById('nearmiss-list');
-  if(!safetyData.nearMisses.length){
-    wrap.innerHTML=`<div class="pro-empty"><div style="font-size:1.1rem;font-weight:800;color:var(--navy);margin-bottom:6px">No near miss reports</div>File a new report with + New Report.</div>`;
+  const nmActive = (safetyData.nearMisses||[]).map(function(nm,i){return {nm:nm,i:i};}).filter(function(x){return isActiveRec(x.nm);});
+  if(!nmActive.length){
+    wrap.innerHTML = emptyState('⚠️','No near miss reports','Use “New Report” to add the first record.');
     return;
   }
   const catColors={'Unsafe Act':'#dc2626','Unsafe Condition':'#d97706','Unsafe Equipment':'#7c3aed','Unsafe Use of Equipment':'#0891b2'};
-  wrap.innerHTML=safetyData.nearMisses.map((nm,i)=>`
+  wrap.innerHTML=nmActive.map(function(x){ var nm=x.nm, i=x.i; return `
     <div class="pro-list-card danger">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
         <div><b style="color:#1e3a5f">${escHtml(nm.observer||'—')}</b><span style="color:var(--muted);font-size:.75rem"> — ${escHtml(nm.position||'')} · ${escHtml(nm.area||'')} · ${escHtml(nm.datetime?.slice(0,10)||'')}</span></div>
@@ -11511,17 +11700,18 @@ function renderNearMissList(){
       <div style="display:flex;gap:8px;margin-top:10px">
         <button type="button" onclick="printNearMiss(${i})" class="btn-ghost" style="font-size:.75rem">View & Print</button>
         <button type="button" onclick="editNearMiss(${i})" class="btn-ghost" style="font-size:.75rem;color:#2563eb">Edit</button>
+        ${historyBtnHTML('nm', i)}
         ${admDelBtn('deleteNearMiss('+i+')')}
       </div>
-    </div>`).join('');
+    </div>`; }).join('');
 }
 function deleteNearMiss(i){
   if(!requireAdmin('Delete')) return;
-  if(!confirm('Delete this near miss report permanently?')) return;
-  safetyData.nearMisses.splice(i,1);
+  if(!confirm('Mark this near miss as deleted? It will be hidden but kept for audit.')) return;
+  markDeleted(safetyData.nearMisses[i]);
   saveState();
   renderNearMissList();
-  showToast(' Near miss report deleted','red');
+  showToast('Near miss marked deleted (kept for audit)','red');
 }
 
 // ── Incident Investigation (Initial F.HSE.01 + Final F/HSE/135) ──
@@ -12154,7 +12344,7 @@ function saveCAPAEntry(){
   const entry = buildCAPAEntryFromForm();
   if(!entry.issue){ showToast('Please fill the Issue / Observation field','red'); return; }
   const sheetLabel = entry._sheetLabel; delete entry._sheetLabel;
-  safetyData.capaList.unshift(entry);
+  safetyData.capaList.unshift(recordAudit(null, entry, 'create'));
   if(typeof clearFormPhotos==='function') clearFormPhotos('capa');
   saveState();
   document.getElementById('capa-modal').classList.remove('open');
@@ -12168,11 +12358,9 @@ function renderCAPAList(sheetId){
   const wrap=document.getElementById('capa-list-'+sheetId);
   if(!wrap) return;
   const sheet=CAPA_SHEETS.find(s=>s.id===sheetId);
-  const list=safetyData.capaList.filter(c=>c.sheet===sheetId||(c.sheet===undefined&&sheetId==='nm'));
+  const list=safetyData.capaList.filter(c=>isActiveRec(c) && (c.sheet===sheetId||(c.sheet===undefined&&sheetId==='nm')));
   if(!list.length){
-    wrap.innerHTML=`<div style="text-align:center;padding:50px;color:var(--muted);background:#fff;border-radius:12px">
-      <div style="font-weight:700;font-size:1rem;margin-bottom:6px">${sheet?.label||'CAPA'}</div>
-      <div style="font-size:.82rem">No entries yet. Click + New CAPA to add a ${sheet?.source||'CAPA'} entry.</div></div>`;
+    wrap.innerHTML = emptyState('📋', sheet?.label||'CAPA', 'Use “New CAPA” to add the first '+(sheet?.source||'CAPA')+' entry.');
     return;
   }
   const stColors={Done:'#16a34a',Active:'#2563eb','Due Today':'#d97706',Late:'#dc2626',Cancelled:'#6b7280','Must Determine Due Date':'#ea580c'};
@@ -12207,6 +12395,7 @@ function renderCAPAList(sheetId){
       <div style="display:flex;gap:8px;align-items:center;padding-top:8px;border-top:1px solid #f1f5f9">
         <span style="font-size:.72rem;color:#9ca3af">Added by: ${c.addedBy||'—'}</span>
         <button type="button" class="btn-ghost" style="font-size:.72rem;margin-left:auto" onclick="printCAPAEntry(${i})">Print</button>
+        ${historyBtnHTML('capa', i)}
         <select onchange="updateCAPAStatus(${i},this.value);this.value=''" style="font-size:.75rem;border:1px solid #d1d5db;border-radius:5px;padding:3px 8px;background:#fff">
           <option value="">Update Status...</option>
           <option value="Active">Active</option>
@@ -12219,17 +12408,19 @@ function renderCAPAList(sheetId){
   }).join('');
 }
 function deleteCAPAItem(i){
-  if(!confirm('Delete this CAPA entry permanently?')) return;
-  safetyData.capaList.splice(i,1);
+  if(!confirm('Mark this CAPA as deleted? It will be hidden but kept for audit.')) return;
+  markDeleted(safetyData.capaList[i]);
   saveState();
   renderCAPAList(currentCAPASheet);
-  showToast(' CAPA entry deleted','red');
+  showToast('CAPA marked deleted (kept for audit)','red');
 }
 
 function updateCAPAStatus(i,val){
   if(!val) return;
+  var __oldC = JSON.parse(JSON.stringify(safetyData.capaList[i]));
   safetyData.capaList[i].status=val;
   if(val==='Done') safetyData.capaList[i].actual=new Date().toISOString().split('T')[0];
+  safetyData.capaList[i]=recordAudit(__oldC, safetyData.capaList[i], 'edit');
   saveState();
   renderCAPAList(currentCAPASheet);
   renderCAPADash();
@@ -13160,7 +13351,7 @@ function savePermit(type){
     permit.desc = document.getElementById('fmc-desc')?.value||'';
     permit.fmcFields = collectFmcFields();
   }
-  safetyData.permits.unshift(permit);
+  safetyData.permits.unshift(recordAudit(null, permit, 'create'));
   saveState();
   document.getElementById('permit-modal').classList.remove('open');
   if(type==='fmc13'){ renderPermitsList('fmc13','fullptw-list'); } else { renderPermitsList(); }
@@ -13171,11 +13362,11 @@ function renderPermitsList(filterType, targetId){
   targetId = targetId || 'permits-list';
   const wrap=document.getElementById(targetId);
   if(!wrap) return;
-  let list=safetyData.permits;
+  let list=safetyData.permits.filter(isActiveRec);
   if(targetId==='permits-list') list=list.filter(p=>p.type!=='fmc13'); // Full PTW lives in its own section now
   if(filterType) list=list.filter(p=>p.type===filterType);
   if(!list.length){
-    wrap.innerHTML=`<div style="text-align:center;padding:50px;color:var(--muted);background:#fff;border-radius:12px"><div style="font-size:2rem;margin-bottom:10px"></div>No work permits yet.</div>`;
+    wrap.innerHTML = emptyState('🛂','No work permits yet','Issue a new permit to get started.');
     return;
   }
   const tColors={working:'#1e3a5f',hotwork:'#dc2626',highlevel:'#d97706',confined:'#7c3aed',heavy:'#16a34a',fmc13:'#0f1e33'};
@@ -13195,17 +13386,18 @@ function renderPermitsList(filterType, targetId){
       <div style="display:flex;gap:8px;margin-top:10px">
         <button type="button" onclick="printPermit(${safetyData.permits.indexOf(p)})" class="btn-ghost" style="font-size:.75rem">Print Permit</button>
         <button type="button" onclick="closePermitItem(${safetyData.permits.indexOf(p)})" class="btn-ghost" style="font-size:.75rem"> Close</button>
+        ${historyBtnHTML('permit', safetyData.permits.indexOf(p))}
         ${admDelBtn('deletePermitItem('+safetyData.permits.indexOf(p)+')')}
       </div>
     </div>`).join('');
 }
 function deletePermitItem(i){
-  if(!confirm('Delete this permit permanently?')) return;
+  if(!confirm('Mark this permit as deleted? It will be hidden but kept for audit.')) return;
   const wasFmc = safetyData.permits[i]?.type==='fmc13';
-  safetyData.permits.splice(i,1);
+  markDeleted(safetyData.permits[i]);
   saveState();
   if(wasFmc){ renderPermitsList('fmc13','fullptw-list'); } else { renderPermitsList(); }
-  showToast(' Permit deleted','red');
+  showToast('Permit marked deleted (kept for audit)','red');
 }
 
 function openFullPTWModal(){
@@ -13216,7 +13408,9 @@ function openFullPTWModal(){
 }
 
 function closePermitItem(i){
+  var __oldP = JSON.parse(JSON.stringify(safetyData.permits[i]));
   safetyData.permits[i].status='Closed';
+  safetyData.permits[i]=recordAudit(__oldP, safetyData.permits[i], 'edit');
   saveState();
   if(safetyData.permits[i].type==='fmc13'){ renderPermitsList('fmc13','fullptw-list'); } else { renderPermitsList(); }
   showToast('Permit closed','green');
@@ -13302,6 +13496,9 @@ function printSheetEnd(footer){
 }
 
 function printPermit(i){
+  withBusy('Preparing permit print…', function(){ __printPermitWork(i); });
+}
+function __printPermitWork(i){
   const p=safetyData.permits[i];
   if(!p){ showToast('Permit not found','red'); return; }
   const tLabels={working:'WORKING PERMIT — F.HSE.13',hotwork:'HOT WORK PERMIT — F.HSE.08',highlevel:'HIGH LEVEL PERMIT — F.HSE.07',confined:'CONFINED SPACE ENTRANCE PERMIT — F.HSE.04',heavy:'HEAVY EQUIPMENT PERMIT — F.HSE.06',fmc13:'FULL PERMIT TO WORK — FMC-F/HSE/13'};
@@ -15089,7 +15286,7 @@ function printRiskAssessment(i){
 function renderNCRList(){
   const m=document.getElementById('ncr-month-sel').value;
   const y=document.getElementById('ncr-year-sel').value;
-  const filtered=ncrList.filter(n=>n.date&&n.date.startsWith(y+'-'+m));
+  const filtered=ncrList.filter(n=>isActiveRec(n) && n.date&&n.date.startsWith(y+'-'+m));
   const open=filtered.filter(n=>n.status==='open').length;
   const closed=filtered.filter(n=>n.status==='closed').length;
   const cls1=filtered.filter(n=>n.cls===1).length;
@@ -15103,7 +15300,7 @@ function renderNCRList(){
   // Dashboard charts — peak days/months + product/line (uses full list + filtered month context)
   const dash = document.getElementById('ncr-dashboard');
   if(dash){
-    const all = ncrList.slice();
+    const all = ncrList.filter(isActiveRec);
     const byDay = sfAggByKey(all, n=>sfDayKey(n.date)).slice(0,14);
     const byMonth = sfAggByKey(all, n=>sfMonthKey(n.date)).slice(0,12);
     const byProduct = sfAggByKey(all, n=>(n.prod||'Unnamed product').trim()).slice(0,10);
@@ -15125,7 +15322,7 @@ function renderNCRList(){
   }
 
   if(!filtered.length){
-    document.getElementById('ncr-list').innerHTML=`<div class="ncr-empty"><div class="ncr-empty-title">No NCRs this month</div>Click <b>+ New NCR / QI</b> to raise a quality incident.</div>`;
+    document.getElementById('ncr-list').innerHTML = emptyState('📋','No NCRs this month','Use “New NCR / QI” to add the first record.');
     return;
   }
 
@@ -15162,6 +15359,7 @@ function renderNCRList(){
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
         <button type="button" onclick="printNCR(${i})" class="btn-ghost" style="font-size:.75rem;padding:6px 12px">View &amp; Print</button>
         <button type="button" onclick="editNCR(${i})" class="btn-ghost" style="font-size:.75rem;padding:6px 12px;color:#2563eb">Edit</button>
+        ${historyBtnHTML('ncr', i)}
         <select class="fi" onchange="updateNCRStatusDrop(${i},this.value);this.value=''" style="font-size:.75rem;padding:6px 10px;min-width:150px">
           <option value="">Change Status...</option>
           <option value="open">Open</option>
@@ -15175,11 +15373,11 @@ function renderNCRList(){
 
 function deleteNCR(i){
   if(!requireAdmin('Delete')) return;
-  if(!confirm('Delete this NCR permanently? This cannot be undone.')) return;
-  ncrList.splice(i,1);
+  if(!confirm('Mark this NCR as deleted? It will be hidden but kept for audit.')) return;
+  markDeleted(ncrList[i]);
   saveState();
   renderNCRList();
-  showToast(' NCR deleted','red');
+  showToast('NCR marked deleted (kept for audit)','red');
 }
 
 let editingNCRIdx = null;
@@ -15355,14 +15553,18 @@ function saveNCR(){
     timestamp: editingNCRIdx!=null ? ncrList[editingNCRIdx].timestamp : new Date().toISOString()
   };
   if(editingNCRIdx!=null){
+    var __old = JSON.parse(JSON.stringify(ncrList[editingNCRIdx]));
     rec.workflow = ncrList[editingNCRIdx].workflow || null;
-    ncrList[editingNCRIdx]=rec;
+    rec.history = (__old.history||[]).slice();
+    rec.createdBy = __old.createdBy; rec.createdAt = __old.createdAt;
+    ncrList[editingNCRIdx]=recordAudit(__old, rec, 'edit');
     if(typeof wfNormalizeRecord==='function') wfNormalizeRecord(ncrList[editingNCRIdx]);
   } else {
     rec.workflow = {
       state: 'Submitted',
       history: [{ state:'Submitted', by:(currentUser&&currentUser.name)||'user', at:new Date().toISOString(), note:'NCR raised' }]
     };
+    rec = recordAudit(null, rec, 'create');
     ncrList.push(rec);
   }
   editingNCRIdx=null;
@@ -15373,7 +15575,9 @@ function saveNCR(){
   if(typeof runEscalationScan==='function') runEscalationScan(true);
 }
 function toggleNCRStatus(i){
+  var __old = JSON.parse(JSON.stringify(ncrList[i]));
   ncrList[i].status=ncrList[i].status==='open'?'closed':'open';
+  ncrList[i]=recordAudit(__old, ncrList[i], 'edit');
   if(typeof wfNormalizeRecord==='function'){
     wfNormalizeRecord(ncrList[i]);
     var st = ncrList[i].status==='closed'?'Closed':'Submitted';
@@ -15385,6 +15589,7 @@ function toggleNCRStatus(i){
 }
 function updateNCRStatusDrop(i, val){
   if(!val) return;
+  var __oldS = JSON.parse(JSON.stringify(ncrList[i]));
   ncrList[i].status = val;
   if(typeof wfNormalizeRecord==='function'){
     wfNormalizeRecord(ncrList[i]);
@@ -15392,6 +15597,7 @@ function updateNCRStatusDrop(i, val){
     ncrList[i].workflow.state = st;
     ncrList[i].workflow.history.push({state:st, by:(currentUser&&currentUser.name)||'user', at:new Date().toISOString(), note:'Status dropdown'});
   }
+  ncrList[i]=recordAudit(__oldS, ncrList[i], 'edit');
   saveState();
   renderNCRList();
   showToast(val==='closed'?' NCR Closed':'NCR status updated','green');
@@ -15589,6 +15795,10 @@ function cellStatus(text, bgRGB, fgRGB){
 }
 
 function exportExcel(silent){
+  if(silent){ return __exportExcelWork(true); }
+  withBusy('Preparing Excel file…', function(){ __exportExcelWork(false); });
+}
+function __exportExcelWork(silent){
   if(typeof XLSX === 'undefined'){
     if(!silent){
       alert('Excel export unavailable — required library did not load.');
@@ -15852,6 +16062,9 @@ function exportExcel(silent){
 // SAFETY PORTAL — EXCEL EXPORT
 // ============================================================
 function exportExcelSafety(){
+  withBusy('Preparing Safety Excel…', function(){ __exportExcelSafetyWork(); });
+}
+function __exportExcelSafetyWork(){
   if(typeof XLSX === 'undefined'){ alert('Excel export unavailable — required library did not load.'); if(typeof showToast==='function') showToast('Excel export unavailable — required library did not load.','red'); return; }
   const now = new Date();
   const today = now.toISOString().split('T')[0];
@@ -15912,6 +16125,9 @@ function exportExcelSafety(){
 // MAINTENANCE PORTAL — EXCEL EXPORT
 // ============================================================
 function exportExcelMaintenance(){
+  withBusy('Preparing Maintenance Excel…', function(){ __exportExcelMaintenanceWork(); });
+}
+function __exportExcelMaintenanceWork(){
   if(typeof XLSX === 'undefined'){ alert('Excel export unavailable — required library did not load.'); if(typeof showToast==='function') showToast('Excel export unavailable — required library did not load.','red'); return; }
   const now = new Date();
   const today = now.toISOString().split('T')[0];
@@ -15960,6 +16176,9 @@ function exportExcelMaintenance(){
 // PRODUCTION PORTAL — EXCEL EXPORT
 // ============================================================
 function exportExcelProduction(){
+  withBusy('Preparing Production Excel…', function(){ __exportExcelProductionWork(); });
+}
+function __exportExcelProductionWork(){
   if(typeof XLSX === 'undefined'){ alert('Excel export unavailable — required library did not load.'); if(typeof showToast==='function') showToast('Excel export unavailable — required library did not load.','red'); return; }
   const now = new Date();
   const today = now.toISOString().split('T')[0];
@@ -17076,6 +17295,7 @@ function expireFacPasses(){
 }
 function facPassStatus(p){
   if(!p) return 'Expired';
+  if(p.deleted) return 'Revoked';
   if(p.revoked) return 'Revoked';
   if(new Date(p.validUntil) < new Date()){
     if(p.status !== 'Expired'){ p.status = 'Expired'; }
@@ -17206,8 +17426,10 @@ function saveFacPass(){
     locationStatus: 'Inside'
   };
   if(pass){
+    var __oldFac = JSON.parse(JSON.stringify(pass));
     Object.assign(pass, payload);
     pass.updatedAt = now.toISOString();
+    recordAudit(__oldFac, pass, 'edit');
   } else {
     pass = Object.assign({
       id: nextFacPermitId('visitor'),
@@ -17216,6 +17438,7 @@ function saveFacPass(){
       issuedBy: currentUser?.name || '',
       printCount: 0
     }, payload);
+    recordAudit(null, pass, 'create');
     accessData.passes.unshift(pass);
   }
   saveAccessData();
@@ -17302,6 +17525,7 @@ function issueTypedPermit(type){
   if(!pass) return;
   var pid = type==='contractor'?'fac-c':(type==='temporary'?'fac-t':'fac-v');
   pass.photos = (typeof getFormPhotos==='function'?getFormPhotos(pid):[]).slice();
+  recordAudit(null, pass, 'create');
   accessData.passes.unshift(pass);
   if(typeof clearFormPhotos==='function') clearFormPhotos(pid);
   saveAccessData();
@@ -17311,21 +17535,26 @@ function issueTypedPermit(type){
 }
 
 function deleteFacPass(i, list){
-  if(!confirm('Delete this access pass permanently?')) return;
+  if(!confirm('Mark this access pass as deleted? It will be hidden but kept for audit.')) return;
   const arr = list==='active'
-    ? accessData.passes.filter(p=>facPassStatus(p)==='Active')
-    : accessData.passes.filter(p=>facPassStatus(p)!=='Active');
+    ? accessData.passes.filter(p=>isActiveRec(p) && facPassStatus(p)==='Active')
+    : accessData.passes.filter(p=>isActiveRec(p) && facPassStatus(p)!=='Active');
   const target = arr[i];
   if(!target) return;
-  accessData.passes = accessData.passes.filter(p=>p.id!==target.id);
+  markDeleted(target);
   saveAccessData();
   renderFacActiveList(); renderFacHistoryList(); renderFacVisitorLog(); renderFacDashboard();
-  showToast(' Access pass deleted','red');
+  showToast('Access pass marked deleted (kept for audit)','red');
 }
 function revokeFacPass(id){
   if(!confirm('Revoke this pass immediately?')) return;
   const p = accessData.passes.find(p=>p.id===id);
-  if(p){ p.revoked=true; p.status='Revoked'; saveAccessData(); renderFacActiveList(); renderFacHistoryList(); renderFacVisitorLog(); showToast(' Pass revoked','red'); }
+  if(p){
+    var __oldR = JSON.parse(JSON.stringify(p));
+    p.revoked=true; p.status='Revoked';
+    recordAudit(__oldR, p, 'edit');
+    saveAccessData(); renderFacActiveList(); renderFacHistoryList(); renderFacVisitorLog(); showToast(' Pass revoked','red');
+  }
 }
 function editFacPass(id){
   const p = accessData.passes.find(x=>x.id===id);
@@ -17474,6 +17703,7 @@ function renderFacListCard(p, i, listType){
       ${st==='Active' && p.locationStatus==='Outside'?`<button type="button" onclick="checkInFacPass('${safeId}')" class="btn-ghost" style="font-size:.75rem"> Check In</button>`:''}
       ${st==='Active'?`<button type="button" onclick="revokeFacPass('${safeId}')" class="btn-ghost" style="font-size:.75rem;color:#dc2626"> Revoke</button>`:''}
       ${st!=='Active'?`<button type="button" onclick="reissueFacPass('${safeId}')" class="btn-ghost" style="font-size:.75rem">Reissue</button>`:''}
+      ${historyBtnHTML('fac', accessData.passes.indexOf(p))}
       ${admDelBtn("deleteFacPass("+i+",'"+listType+"')")}
     </div>
   </div>`;
@@ -17481,15 +17711,15 @@ function renderFacListCard(p, i, listType){
 function renderFacActiveList(){
   const wrap = document.getElementById('fac-active-list');
   if(!wrap) return;
-  const active = accessData.passes.filter(p=>facPassStatus(p)==='Active');
-  if(!active.length){ wrap.innerHTML='<div class="vm-glass" style="padding:40px;text-align:center;color:var(--muted)">No active permits right now.</div>'; return; }
+  const active = accessData.passes.filter(p=>isActiveRec(p) && facPassStatus(p)==='Active');
+  if(!active.length){ wrap.innerHTML=emptyState('🪪','No active permits right now','Issue a visitor or contractor permit to begin.'); return; }
   wrap.innerHTML = active.map((p,i)=>renderFacListCard(p,i,'active')).join('');
 }
 function renderFacHistoryList(){
   const wrap = document.getElementById('fac-history-list');
   if(!wrap) return;
-  const hist = accessData.passes.filter(p=>facPassStatus(p)!=='Active');
-  if(!hist.length){ wrap.innerHTML='<div class="vm-glass" style="padding:40px;text-align:center;color:var(--muted)">No expired or revoked permits yet.</div>'; return; }
+  const hist = accessData.passes.filter(p=>isActiveRec(p) && facPassStatus(p)!=='Active');
+  if(!hist.length){ wrap.innerHTML=emptyState('🗂️','No expired or revoked permits yet','Closed permits will appear here.'); return; }
   wrap.innerHTML = hist.map((p,i)=>renderFacListCard(p,i,'history')).join('');
 }
 
@@ -17500,11 +17730,11 @@ function renderFacVisitorLog(){
   const q = ((document.getElementById('fac-log-search')||{}).value||'').toLowerCase();
   const stf = (document.getElementById('fac-log-filter')||{}).value || 'all';
   const typ = (document.getElementById('fac-log-type')||{}).value || 'all';
-  let rows = accessData.passes.slice();
+  let rows = accessData.passes.filter(isActiveRec);
   if(stf!=='all') rows = rows.filter(p=>facPassStatus(p)===stf);
   if(typ!=='all') rows = rows.filter(p=>(p.type||'visitor')===typ);
   if(q) rows = rows.filter(p => [p.id,p.name,p.company,p.host,p.purpose,p.email].join(' ').toLowerCase().includes(q));
-  if(!rows.length){ wrap.innerHTML='<div class="vm-glass" style="padding:30px;text-align:center;color:var(--muted)">No matching records.</div>'; return; }
+  if(!rows.length){ wrap.innerHTML=emptyState('🔎','No matching records','Try another search or filter.'); return; }
   let html = `<div style="overflow:auto"><table class="vm-table"><thead><tr>
     <th>Permit</th><th>Visitor</th><th>Type</th><th>Host</th><th>Status</th><th>Valid Until</th><th>Actions</th>
   </tr></thead><tbody>`;
@@ -17529,6 +17759,9 @@ function renderFacVisitorLog(){
 }
 
 function exportFacLogExcel(){
+  withBusy('Preparing visitor log…', function(){ __exportFacLogExcelWork(); });
+}
+function __exportFacLogExcelWork(){
   const rows = [['Permit ID','Type','Name','Company','Host','Purpose','Status','Issued','Valid Until','Location']];
   accessData.passes.forEach(p=>{
     rows.push([p.id,p.type||'visitor',p.name,p.company||'',p.host||'',p.purpose||'',facPassStatus(p),p.issuedAt||'',p.validUntil||'',p.locationStatus||'']);
@@ -17840,6 +18073,9 @@ function recordFacPrintHistory(id){
   try{ renderFacPrintHistory(); }catch(e){}
 }
 function printFacPermitSheet(){
+  withBusy('Preparing visitor permit print…', function(){ __printFacPermitSheetWork(); });
+}
+function __printFacPermitSheetWork(){
   var sheet = document.getElementById('fac-permit-sheet');
   if(!sheet || !sheet.innerHTML.trim()){
     if(typeof showToast==='function') showToast('افتح التصريح أولاً ثم اطبع','red');
@@ -22077,6 +22313,9 @@ function exportWeeklyManagementCSV(){
   showToast('Weekly management CSV downloaded','green');
 }
 function renderWeeklyReport(){
+  withBusy('Building weekly report…', function(){ __renderWeeklyReportWork(); });
+}
+function __renderWeeklyReportWork(){
   var wrap=document.getElementById('weeklyreport-body'); if(!wrap) return;
   var pack = buildWeeklyManagementPack();
   var body = encodeURIComponent(pack.text);
@@ -22103,7 +22342,7 @@ function renderWeeklyReport(){
 // WAVE 4 — IT Integration Readiness (config · auth · sync · audit)
 // Client adapters only — IT owns real server/cloud/security infra
 // ============================================================
-const APP_BUILD = 'v73';
+const APP_BUILD = 'v74';
 const IT_CONFIG_KEY = 'pqs_it_config';
 const IT_TOKEN_KEY = 'pqs_it_access_token';
 const IT_AUDIT_KEY = 'pqs_it_audit_events';
@@ -23221,7 +23460,7 @@ function runWave1SelfCheck(){
 }
 
 
-console.log('Feature Pack v73 ready — offline vendor libs (xlsx/qrcode/jsbarcode) + local brand logos in SW cache');
+console.log('Feature Pack v74 ready — auto-logout + audit trail (soft-delete, no images, max 50) + busy overlay');
 
 
 </script>
