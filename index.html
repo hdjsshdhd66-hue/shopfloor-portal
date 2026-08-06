@@ -566,40 +566,115 @@ body.theme-dark #account-display,body.theme-dark .account-chip{color:#f5f3ff!imp
 body.theme-dark .ps-mobile-bar{background:#1a1230!important;border-color:#3b2760!important}
 
 /* ===== Dark theme readability — all portals ===== */
-body.theme-dark, body.theme-charcoal{color:var(--text)!important}
-body.theme-dark .view, body.theme-charcoal .view,
-body.theme-dark .view *, body.theme-charcoal .view *{scrollbar-color:#5b21b6 #1a1230}
-/* Force readable text over common hardcoded dark colors */
-body.theme-dark [style*="color:#1e293b"],body.theme-dark [style*="color:#111827"],
-body.theme-dark [style*="color:#1f2937"],body.theme-dark [style*="color:#0f172a"],
-body.theme-dark [style*="color:#1e3a5f"],body.theme-dark [style*="color:#0d4a44"],
-body.theme-dark [style*="color:#065f46"],body.theme-dark [style*="color:#14532d"],
-body.theme-dark [style*="color:#92400e"],body.theme-dark [style*="color:#7c2d12"],
-body.theme-dark [style*="color:#991b1b"],body.theme-dark [style*="color:#4C1D95"],
-body.theme-dark [style*="color:#4c1d95"],body.theme-dark [style*="color:#374151"],
-body.theme-dark [style*="color:#4b5563"],body.theme-dark [style*="color:#334155"],
-body.theme-charcoal [style*="color:#1e293b"],body.theme-charcoal [style*="color:#111827"],
-body.theme-charcoal [style*="color:#1f2937"],body.theme-charcoal [style*="color:#374151"],
-body.theme-charcoal [style*="color:#4b5563"],body.theme-charcoal [style*="color:#1e3a5f"]{
-  color:#f5f3ff!important
+body.theme-dark{color:var(--text)!important}
+body.theme-dark .view,
+body.theme-dark .view *{scrollbar-color:#5b21b6 #1a1230}
+
+/* ============================================================
+   DARK MODE — التقاط الأنماط المباشرة (inline)
+   بدل تعديل +300 نمط يدوياً، نلتقطها بمحددات السمات
+============================================================ */
+/* الخلفيات الفاتحة → داكنة */
+body.theme-dark [style*="background:#fff"],
+body.theme-dark [style*="background:#ffffff"],
+body.theme-dark [style*="background: #fff"],
+body.theme-dark [style*="background: #ffffff"],
+body.theme-dark [style*="background:#f8fafc"],
+body.theme-dark [style*="background: #f8fafc"],
+body.theme-dark [style*="background:#f1f5f9"],
+body.theme-dark [style*="background: #f1f5f9"],
+body.theme-dark [style*="background:#f9fafb"],
+body.theme-dark [style*="background:#fafafa"],
+body.theme-dark [style*="background-color:#fff"],
+body.theme-dark [style*="background-color:#ffffff"],
+body.theme-dark [style*="background-color: #fff"]{
+  background:#1a1230 !important;
+  border-color:#3b2760 !important;
 }
-body.theme-dark [style*="color:#6b7280"],body.theme-dark [style*="color:#64748b"],
-body.theme-dark [style*="color:#9ca3af"],body.theme-dark [style*="color:#94a3b8"],
-body.theme-charcoal [style*="color:#6b7280"],body.theme-charcoal [style*="color:#64748b"],
-body.theme-charcoal [style*="color:#9ca3af"]{color:#d8b4fe!important}
-/* Light backgrounds that hide pale text */
-body.theme-dark [style*="background:#fff"],body.theme-dark [style*="background:#ffffff"],
-body.theme-dark [style*="background:#f8fafc"],body.theme-dark [style*="background:#fafafa"],
-body.theme-dark [style*="background:#f1f5f9"],body.theme-dark [style*="background:#f5f3ff"],
-body.theme-dark [style*="background:#faf5ff"],body.theme-dark [style*="background:#eef2ff"],
-body.theme-dark [style*="background:#eff6ff"],body.theme-dark [style*="background:#ecfdf5"],
-body.theme-dark [style*="background:#f0fdf4"],body.theme-dark [style*="background:#fff7ed"],
-body.theme-dark [style*="background:#fffbeb"],body.theme-dark [style*="background:#fef2f2"],
-body.theme-dark [style*="background:#fefce8"],body.theme-dark [style*="background:#f8fafc"],
-body.theme-charcoal [style*="background:#fff"],body.theme-charcoal [style*="background:#f8fafc"],
-body.theme-charcoal [style*="background:#fafafa"],body.theme-charcoal [style*="background:#f1f5f9"]{
-  background:#1a1230!important;color:#f5f3ff!important
+/* خلفيات التنبيهات — أبقِ الدلالة اللونية لكن داكنة */
+body.theme-dark [style*="background:#fef2f2"],
+body.theme-dark [style*="background: #fef2f2"]{ background:#2a1520 !important; }  /* خطر */
+body.theme-dark [style*="background:#f0fdf4"],
+body.theme-dark [style*="background: #f0fdf4"],
+body.theme-dark [style*="background:#ecfdf5"]{ background:#0f2418 !important; }  /* نجاح */
+body.theme-dark [style*="background:#fffbeb"],
+body.theme-dark [style*="background: #fffbeb"],
+body.theme-dark [style*="background:#fef3c7"],
+body.theme-dark [style*="background:#fff7ed"],
+body.theme-dark [style*="background:#fefce8"]{ background:#2a2110 !important; }  /* تحذير */
+body.theme-dark [style*="background:#eff6ff"],
+body.theme-dark [style*="background: #eff6ff"],
+body.theme-dark [style*="background:#eef2ff"]{ background:#12203a !important; }  /* معلومة */
+body.theme-dark [style*="background:#f5f3ff"],
+body.theme-dark [style*="background:#faf5ff"]{ background:#1e1535 !important; }  /* بنفسجي */
+
+/* النصوص الداكنة → فاتحة */
+body.theme-dark [style*="color:#1e3a5f"],
+body.theme-dark [style*="color:#1e293b"],
+body.theme-dark [style*="color:#0f172a"],
+body.theme-dark [style*="color:#111827"],
+body.theme-dark [style*="color:#1f2937"],
+body.theme-dark [style*="color:#374151"],
+body.theme-dark [style*="color:#4b5563"],
+body.theme-dark [style*="color:#334155"],
+body.theme-dark [style*="color:#111"],
+body.theme-dark [style*="color:#333"]{
+  color:#f5f3ff !important;
 }
+/* النصوص الرمادية الثانوية → رمادي فاتح مقروء */
+body.theme-dark [style*="color:#6b7280"],
+body.theme-dark [style*="color:#9ca3af"],
+body.theme-dark [style*="color:#64748b"],
+body.theme-dark [style*="color:#94a3b8"]{
+  color:#a99fc9 !important;
+}
+/* ألوان الدلالة — افتحها قليلاً لتبقى مقروءة على داكن */
+body.theme-dark [style*="color:#dc2626"],
+body.theme-dark [style*="color:#b91c1c"],
+body.theme-dark [style*="color:#991b1b"]{ color:#f87171 !important; }
+body.theme-dark [style*="color:#16a34a"],
+body.theme-dark [style*="color:#15803d"]{ color:#4ade80 !important; }
+body.theme-dark [style*="color:#92400e"],
+body.theme-dark [style*="color:#d97706"],
+body.theme-dark [style*="color:#b45309"]{ color:#fbbf24 !important; }
+body.theme-dark [style*="color:#4C1D95"],
+body.theme-dark [style*="color:#4c1d95"]{ color:#c4b5fd !important; }
+body.theme-dark [style*="color:#2563eb"],
+body.theme-dark [style*="color:#1d4ed8"]{ color:#93c5fd !important; }
+
+/* الحدود الفاتحة */
+body.theme-dark [style*="border:1px solid #e5e7eb"],
+body.theme-dark [style*="border:1px solid #eee"],
+body.theme-dark [style*="border:1px solid #e2e8f0"],
+body.theme-dark [style*="border-color:#e5e7eb"],
+body.theme-dark [style*="border-color:#e2e8f0"]{
+  border-color:#3b2760 !important;
+}
+
+/* استثناء الطباعة ١ — النماذج الرسمية دائماً بيضاء حتى في الوضع الداكن */
+@media print{
+  body.theme-dark *{
+    background:#fff !important;
+    color:#000 !important;
+    border-color:#999 !important;
+  }
+}
+/* استثناء الطباعة ٢ — ورقة تصريح الزائر تبقى بيضاء على الشاشة أيضاً */
+body.theme-dark #fac-permit-sheet,
+body.theme-dark #fac-permit-sheet *{
+  background:#fff !important;
+  color:#111 !important;
+}
+/* أعد تلوين ترويسة التصريح فقط (هوية الوثيقة) دون التأثير على نص الحقول */
+body.theme-dark #fac-permit-sheet .hdr,
+body.theme-dark #fac-permit-sheet .hdr *{
+  background:linear-gradient(135deg,#4C1D95,#7C3AED 55%,#2563EB) !important;
+  color:#fff !important;
+}
+body.theme-dark #fac-permit-sheet .status{
+  color:#fff !important;
+}
+
 body.theme-dark .feat-hero h2,body.theme-dark .feat-hero p,
 body.theme-dark .feat-shell,body.theme-dark .feat-shell *,
 body.theme-dark .pro-panel-title,body.theme-dark .pro-list-card,
@@ -607,17 +682,13 @@ body.theme-dark .pro-list-card b,body.theme-dark .pro-list-card div,
 body.theme-dark .dash-panel,body.theme-dark .dash-panel *,
 body.theme-dark .page-title,body.theme-dark label,
 body.theme-dark .vm-section-title,body.theme-dark .vm-glass,
-body.theme-dark .form-row,body.theme-dark .fg,
-body.theme-charcoal .feat-hero h2,body.theme-charcoal .feat-hero p,
-body.theme-charcoal .pro-list-card,body.theme-charcoal .page-title{
+body.theme-dark .form-row,body.theme-dark .fg{
   color:#f5f3ff!important
 }
 body.theme-dark .pro-panel-sub,body.theme-dark .page-sub,
 body.theme-dark .feat-hero p{color:#e9d5ff!important}
-body.theme-dark table,body.theme-dark table td,body.theme-dark table th,
-body.theme-charcoal table,body.theme-charcoal table td{color:#f5f3ff!important}
-body.theme-dark .modal,body.theme-dark .modal-title,body.theme-dark .modal *,
-body.theme-charcoal .modal,body.theme-charcoal .modal-title{color:#f5f3ff!important}
+body.theme-dark table,body.theme-dark table td,body.theme-dark table th{color:#f5f3ff!important}
+body.theme-dark .modal,body.theme-dark .modal-title,body.theme-dark .modal *{color:#f5f3ff!important}
 body.theme-dark .modal{background:#1a1230!important;border-color:#3b2760!important}
 body.theme-dark .btn-ghost{color:#e9d5ff!important;border-color:#7c3aed!important;background:#2e1065!important}
 body.theme-dark .nav-btn{color:#f5f3ff!important}
@@ -631,11 +702,6 @@ body.theme-dark .dash-kpi{background:#1a1230!important;border-color:#3b2760!impo
 body.theme-dark .home-theme-switch{background:#1a1230;border-color:#5b21b6}
 body.theme-dark .home-theme-btn{color:#c4b5fd}
 body.theme-dark .home-theme-btn:not(.active):hover{background:#2e1065;color:#fff}
-/* Keep status colors readable on dark */
-body.theme-dark [style*="color:#16a34a"],body.theme-dark [style*="color:#15803d"]{color:#4ade80!important}
-body.theme-dark [style*="color:#dc2626"],body.theme-dark [style*="color:#b91c1c"]{color:#f87171!important}
-body.theme-dark [style*="color:#d97706"],body.theme-dark [style*="color:#b45309"]{color:#fbbf24!important}
-body.theme-dark [style*="color:#2563eb"],body.theme-dark [style*="color:#1d4ed8"]{color:#93c5fd!important}
 
 /* Welcome home dark */
 body.theme-dark #app-welcome-screen,
@@ -881,9 +947,13 @@ body.admin-active .p-name,body.admin-active .cw-product-title{display:inline-fle
 
 @media print{
   .header,.header-nav,.btn-primary,.btn-ghost,.lc-btns,.yn,.session-bar .md-info-tag,.db-toolbar,.cw-toolbar,#login-screen,#account-display,.modal-overlay{display:none!important}
-  body{background:#fff}
+  body{background:#fff!important;color:#000!important}
   .view{display:none!important}
-  .view.active{display:block!important;padding:10px}
+  .view.active{display:block!important;padding:10px;background:#fff!important;color:#000!important}
+  /* Safety net: dark theme must never print black forms */
+  body.theme-dark, body.theme-dark .view.active, body.theme-dark .view.active *{
+    background:#fff!important;color:#000!important;border-color:#999!important;
+  }
 }
 
 .quality-nav-btn { display: inline-flex; }
@@ -3276,34 +3346,14 @@ body.auditor-readonly .btn-primary:disabled{opacity:.45;cursor:not-allowed}
         <div style="font-size:.72rem;color:var(--muted)">Clean & bright</div>
       </div>
 
-      <div class="theme-card" id="tc-dark" onclick="setTheme('dark')" style="border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;background:#1e293b;transition:all .15s">
+      <div class="theme-card" id="tc-dark" onclick="setTheme('dark')" style="border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;background:#1a1230;transition:all .15s">
         <div style="display:flex;gap:8px;margin-bottom:8px">
-          <div style="width:20px;height:20px;border-radius:4px;background:#0f172a;border:1px solid #334155"></div>
-          <div style="width:20px;height:20px;border-radius:4px;background:#38bdf8"></div>
-          <div style="width:20px;height:20px;border-radius:4px;background:#cc0000"></div>
+          <div style="width:20px;height:20px;border-radius:4px;background:#0f0a1a;border:1px solid #3b2760"></div>
+          <div style="width:20px;height:20px;border-radius:4px;background:#7C3AED"></div>
+          <div style="width:20px;height:20px;border-radius:4px;background:#c4b5fd"></div>
         </div>
-        <div style="font-weight:700;font-size:.85rem;color:#f1f5f9"> Dark</div>
-        <div style="font-size:.72rem;color:#94a3b8">Easy on the eyes</div>
-      </div>
-
-      <div class="theme-card" id="tc-green" onclick="setTheme('green')" style="border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;background:#f0fdf4;transition:all .15s">
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <div style="width:20px;height:20px;border-radius:4px;background:#f0fdf4;border:1px solid #bbf7d0"></div>
-          <div style="width:20px;height:20px;border-radius:4px;background:#166534"></div>
-          <div style="width:20px;height:20px;border-radius:4px;background:#16a34a"></div>
-        </div>
-        <div style="font-weight:700;font-size:.85rem;color:#166534"> Forest</div>
-        <div style="font-size:.72rem;color:#4ade80">Fresh & natural</div>
-      </div>
-
-      <div class="theme-card" id="tc-blue" onclick="setTheme('blue')" style="border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;background:#eff6ff;transition:all .15s">
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <div style="width:20px;height:20px;border-radius:4px;background:#eff6ff;border:1px solid #bfdbfe"></div>
-          <div style="width:20px;height:20px;border-radius:4px;background:#1e40af"></div>
-          <div style="width:20px;height:20px;border-radius:4px;background:#2563eb"></div>
-        </div>
-        <div style="font-weight:700;font-size:.85rem;color:#1e40af"> Ocean</div>
-        <div style="font-size:.72rem;color:#60a5fa">Cool & professional</div>
+        <div style="font-weight:700;font-size:.85rem;color:#f5f3ff"> Dark</div>
+        <div style="font-size:.72rem;color:#a99fc9">Easy on the eyes</div>
       </div>
 
       <div class="theme-card" id="tc-purple" onclick="setTheme('purple')" style="border:2px solid #7C3AED;border-radius:10px;padding:14px;cursor:pointer;background:#f5f3ff;transition:all .15s">
@@ -3314,16 +3364,6 @@ body.auditor-readonly .btn-primary:disabled{opacity:.45;cursor:not-allowed}
         </div>
         <div style="font-weight:700;font-size:.85rem;color:#4C1D95"> Purple</div>
         <div style="font-size:.72rem;color:#7C3AED">Login brand theme</div>
-      </div>
-
-      <div class="theme-card" id="tc-charcoal" onclick="setTheme('charcoal')" style="border:2px solid #3a3a3c;border-radius:10px;padding:14px;cursor:pointer;background:#2c2c2e;transition:all .15s">
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <div style="width:20px;height:20px;border-radius:4px;background:#1c1c1e;border:1px solid #3a3a3c"></div>
-          <div style="width:20px;height:20px;border-radius:4px;background:#0a84ff"></div>
-          <div style="width:20px;height:20px;border-radius:4px;background:#30d158"></div>
-        </div>
-        <div style="font-weight:700;font-size:.85rem;color:#f5f5f7">⬛ Charcoal</div>
-        <div style="font-size:.72rem;color:#98989d">Premium dark mode</div>
       </div>
 
     </div>
@@ -15632,17 +15672,18 @@ function printNCR(i){
   openPortalPrint('NCR '+ (n.num||''), body);
 }
 
-const THEMES=['light','dark','green','blue','purple','charcoal'];
+const THEMES=['light','dark','green','blue','purple','charcoal']; // CSS classes kept; UI allows only light/dark/purple
+const ALLOWED_THEMES=['light','dark','purple'];
 
 function updateHomeThemeButtons(t){
   var lightBtn=document.getElementById('home-theme-light');
   var darkBtn=document.getElementById('home-theme-dark');
-  if(lightBtn) lightBtn.classList.toggle('active', t==='light');
+  if(lightBtn) lightBtn.classList.toggle('active', t==='light' || t==='purple');
   if(darkBtn) darkBtn.classList.toggle('active', t==='dark');
 }
 
 function setHomeTheme(t){
-  // Home only offers Light (white) or Dark (purple)
+  // Home only offers Light or Dark Purple
   if(t!=='dark') t='light';
   setTheme(t, true);
 }
@@ -15663,12 +15704,20 @@ function applyThemeSurface(t){
       var ss = document.querySelector('.sys-sub'); if(ss) ss.style.color='rgba(233,213,255,.8)';
       var navEl = document.querySelector('.header-nav');
       if(navEl) navEl.style.background = 'linear-gradient(90deg,#1a1230,#2e1065)';
+    } else {
+      // clear forced dark inline styles when leaving dark
+      hdr.style.background = '';
+      hdr.style.borderBottomColor = '';
+      var st2 = document.querySelector('.sys-title'); if(st2) st2.style.color='';
+      var ss2 = document.querySelector('.sys-sub'); if(ss2) ss2.style.color='';
+      var navEl2 = document.querySelector('.header-nav');
+      if(navEl2) navEl2.style.background = '';
     }
   }
 }
 
 function setTheme(t, fromHome){
-  if(t!=='dark') t='light';
+  if(ALLOWED_THEMES.indexOf(t) === -1) t = 'light';
   safeSetItem('pqs_theme', t);
   applyThemeSurface(t);
   THEMES.forEach(function(th){
@@ -15683,13 +15732,14 @@ function setTheme(t, fromHome){
   var themeModal=document.getElementById('theme-modal');
   if(themeModal) themeModal.classList.remove('open');
   if(typeof showToast==='function'){
-    showToast(t==='dark' ? 'Theme: Dark Purple' : 'Theme: Light', 'green');
+    var labels={light:'Light',dark:'Dark Purple',purple:'Purple'};
+    showToast('Theme: '+(labels[t]||t), 'green');
   }
 }
 
 function loadTheme(){
   var saved = localStorage.getItem('pqs_theme') || 'light';
-  if(saved!=='light' && saved!=='dark'){
+  if(ALLOWED_THEMES.indexOf(saved) === -1){
     saved = (saved==='charcoal') ? 'dark' : 'light';
     safeSetItem('pqs_theme', saved);
   }
@@ -22342,7 +22392,7 @@ function __renderWeeklyReportWork(){
 // WAVE 4 — IT Integration Readiness (config · auth · sync · audit)
 // Client adapters only — IT owns real server/cloud/security infra
 // ============================================================
-const APP_BUILD = 'v74';
+const APP_BUILD = 'v75';
 const IT_CONFIG_KEY = 'pqs_it_config';
 const IT_TOKEN_KEY = 'pqs_it_access_token';
 const IT_AUDIT_KEY = 'pqs_it_audit_events';
@@ -23460,7 +23510,7 @@ function runWave1SelfCheck(){
 }
 
 
-console.log('Feature Pack v74 ready — auto-logout + audit trail (soft-delete, no images, max 50) + busy overlay');
+console.log('Feature Pack v75 ready — dark-mode inline fix + print exceptions + themes reduced to light/dark/purple');
 
 
 </script>
