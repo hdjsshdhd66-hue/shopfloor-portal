@@ -1,9 +1,0 @@
-{
-  "name": "Shop Floor Digital Portal",
-  "short_name": "ShopFloor",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#c8102e",
-  "icons": []
-}
