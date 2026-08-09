@@ -3,7 +3,7 @@
 // stale app code: the app shell (index.html) now uses a network-first
 // strategy below, so a fresh deploy reaches already-installed PWAs the next
 // time they're online, even if this line is forgotten.
-const CACHE_VERSION = 'v88';
+const CACHE_VERSION = 'v89';
 const CACHE_NAME = 'shopfloor-cache-' + CACHE_VERSION;
 const ASSETS = [
   './',
@@ -13,7 +13,6 @@ const ASSETS = [
   './icon-512.png',
   './icon-512-maskable.png',
   './icon-180.png',
-  './splash-portal.webp',
   './xlsx.full.min.js',
   './qrcode.min.js',
   './JsBarcode.all.min.js',
