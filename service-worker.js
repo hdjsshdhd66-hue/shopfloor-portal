@@ -1,6 +1,9 @@
-// IMPORTANT: bump CACHE_VERSION every time you re-upload index.html (or any cached file),
-// otherwise browsers keep serving the old cached portal.
-const CACHE_VERSION = 'v86';
+// CACHE_VERSION still gets bumped on every deploy as a clean break point for
+// old caches, but it is no longer the only thing standing between users and
+// stale app code: the app shell (index.html) now uses a network-first
+// strategy below, so a fresh deploy reaches already-installed PWAs the next
+// time they're online, even if this line is forgotten.
+const CACHE_VERSION = 'v87';
 const CACHE_NAME = 'shopfloor-cache-' + CACHE_VERSION;
 const ASSETS = [
   './',
@@ -21,6 +24,20 @@ const ASSETS = [
   './brand-verkade.webp'
 ];
 
+// The app shell — always try the network first so a new deploy is picked up
+// on the very next load while online; fall back to cache only when offline
+// or the network request fails.
+const APP_SHELL_PATHS = ['/', '/index.html'];
+function isAppShellRequest(req) {
+  if (req.mode === 'navigate') return true;
+  try {
+    const url = new URL(req.url);
+    return APP_SHELL_PATHS.some((p) => url.pathname === p || url.pathname.endsWith('/index.html'));
+  } catch (e) {
+    return false;
+  }
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
@@ -38,6 +55,22 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
+
+  if (isAppShellRequest(req)) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Static assets (libraries, images): cache-first with a background refresh,
+  // as before — these rarely change and benefit from instant offline loads.
   event.respondWith(
     caches.match(req).then((cached) => {
       const fetched = fetch(req).then((res) => {
