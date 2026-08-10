@@ -219,7 +219,7 @@ body.portal-maintenance{--bg:linear-gradient(165deg,#f0fdfa 0%,var(--surface-2) 
 body.portal-production{--bg:linear-gradient(165deg,#fffbeb 0%,var(--surface-2) 45%,#fef3c7 100%)}
 body.portal-factory{
   --bg:linear-gradient(165deg,#faf5ff 0%,#f5f3ff 45%,#ede9fe 100%);
-  --primary:#7C3AED;--primary-dark:#5B21B6;--navy:#4C1D95;
+  --primary:#7C3AED;--primary-dark:#5B21B6;
 }
 body.portal-factory .btn-primary{background:linear-gradient(135deg,#7C3AED,#2563EB)!important}
 body.portal-factory .page-title{color:var(--primary-light)}
@@ -2134,7 +2134,7 @@ body.has-portal-sidebar.ps-collapsed .ps-mobile-bar{display:flex!important}
 }
 .pl-card{
   position:relative;overflow:hidden;cursor:pointer;
-  background:linear-gradient(165deg,var(--form-surface) 0%,#faf8ff 100%);
+  background:linear-gradient(165deg,var(--form-surface) 0%,var(--surface-2) 100%);
   border:1px solid rgba(124,58,237,.14);border-radius:16px;padding:18px 16px;
   box-shadow:0 6px 22px rgba(76,29,149,.07);
   transition:transform .2s ease, box-shadow .2s ease, border-color .2s;
@@ -2158,7 +2158,7 @@ body.has-portal-sidebar.ps-collapsed .ps-mobile-bar{display:flex!important}
 }
 .pl-card-ico .ps-ico{width:24px;height:24px;display:inline-flex}
 .pl-card-ico .ps-ico svg, .pl-card-ico svg{width:24px;height:24px;stroke:currentColor}
-.pl-card-label{font-size:.92rem;font-weight:800;color:#1e1b4b;letter-spacing:-.02em;line-height:1.25}
+.pl-card-label{font-size:.92rem;font-weight:800;color:var(--navy);letter-spacing:-.02em;line-height:1.25}
 .pl-card-desc{font-size:.75rem;color:var(--muted);line-height:1.4;flex:1}
 .pl-card-go{
   font-size:.7rem;font-weight:800;color:#7C3AED;letter-spacing:.04em;text-transform:uppercase;
@@ -3366,6 +3366,12 @@ body:not(.login-active) #login-screen{
         </div>
       </div>
 
+      <div class="theme-switch-wrap">
+        <span class="theme-switch-label" data-ops-en="Theme">Theme</span>
+        <button type="button" class="theme-switch-btn" data-theme-choice="noir" onclick="setAppTheme('noir')" title="Violet Noir">◆</button>
+        <button type="button" class="theme-switch-btn" data-theme-choice="pladis" onclick="setAppTheme('pladis')" title="pladis Brand">●</button>
+      </div>
+
       <div id="welcome-brands" class="pladis-news-section-title" data-i18n="welcomeBrandsTitle">Our Brands</div>
       <div class="brand-company-note" data-i18n="welcomeBrandsNote">pladis is the parent company. Our much-loved product brands — enjoyed in 110+ countries — include the names below.</div>
       <div class="brand-shapes-row" style="margin-bottom:10px">
@@ -3836,11 +3842,6 @@ body:not(.login-active) #login-screen{
       </div>
     </div>
     <div class="ph-hero-date"><span id="home-hero-date"></span></div>
-  </div>
-  <div class="theme-switch-wrap">
-    <span class="theme-switch-label" data-ops-en="Theme">Theme</span>
-    <button type="button" class="theme-switch-btn" data-theme-choice="noir" onclick="setAppTheme('noir')" title="Violet Noir">◆</button>
-    <button type="button" class="theme-switch-btn" data-theme-choice="pladis" onclick="setAppTheme('pladis')" title="pladis Brand">●</button>
   </div>
   <div class="ph-section-label" data-ops-en="Quick Actions">Quick Actions</div>
   <div class="ph-quicklinks" id="home-quicklinks"></div>
@@ -4617,11 +4618,6 @@ body:not(.login-active) #login-screen{
     </div>
     <div class="ph-hero-date"><span id="mainthome-hero-date"></span></div>
   </div>
-  <div class="theme-switch-wrap">
-    <span class="theme-switch-label" data-ops-en="Theme">Theme</span>
-    <button type="button" class="theme-switch-btn" data-theme-choice="noir" onclick="setAppTheme('noir')" title="Violet Noir">◆</button>
-    <button type="button" class="theme-switch-btn" data-theme-choice="pladis" onclick="setAppTheme('pladis')" title="pladis Brand">●</button>
-  </div>
   <div class="ph-section-label" data-ops-en="Quick Actions">Quick Actions</div>
   <div id="mainthome-quicklinks" class="ph-quicklinks"></div>
 </div>
@@ -4647,11 +4643,6 @@ body:not(.login-active) #login-screen{
       </div>
     </div>
     <div class="ph-hero-date"><span id="prodhome-hero-date"></span></div>
-  </div>
-  <div class="theme-switch-wrap">
-    <span class="theme-switch-label" data-ops-en="Theme">Theme</span>
-    <button type="button" class="theme-switch-btn" data-theme-choice="noir" onclick="setAppTheme('noir')" title="Violet Noir">◆</button>
-    <button type="button" class="theme-switch-btn" data-theme-choice="pladis" onclick="setAppTheme('pladis')" title="pladis Brand">●</button>
   </div>
   <div class="ph-section-label" data-ops-en="Quick Actions">Quick Actions</div>
   <div id="prodhome-quicklinks" class="ph-quicklinks"></div>
@@ -4926,11 +4917,6 @@ body:not(.login-active) #login-screen{
       </div>
     </div>
     <div class="ph-hero-date"><span id="safetyhome-hero-date"></span></div>
-  </div>
-  <div class="theme-switch-wrap">
-    <span class="theme-switch-label" data-ops-en="Theme">Theme</span>
-    <button type="button" class="theme-switch-btn" data-theme-choice="noir" onclick="setAppTheme('noir')" title="Violet Noir">◆</button>
-    <button type="button" class="theme-switch-btn" data-theme-choice="pladis" onclick="setAppTheme('pladis')" title="pladis Brand">●</button>
   </div>
   <div class="ph-section-label" data-ops-en="Quick Actions">Quick Actions</div>
   <div class="ph-quicklinks" id="safetyhome-quicklinks"></div>
