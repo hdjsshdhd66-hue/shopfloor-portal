@@ -85,7 +85,7 @@ body.theme-pladis{
   --form-shadow-lg:0 14px 36px rgba(35,31,32,.1);
   --form-border:rgba(234,0,41,.18);
   --form-focus:0 0 0 3px rgba(234,0,41,.18);
-  --form-surface:var(--form-surface); --form-soft:#FFF6F5; --form-ink:#231F20;
+  --form-surface:#FFFFFF; --form-soft:#FFF6F5; --form-ink:#231F20;
   --scrollbar-track:#FBF8F7; --scrollbar-thumb:#EA0029;
   color-scheme:light;
 }
@@ -218,8 +218,8 @@ body.portal-safety{--bg:linear-gradient(165deg,#fef2f2 0%,var(--surface-2) 45%,#
 body.portal-maintenance{--bg:linear-gradient(165deg,#f0fdfa 0%,var(--surface-2) 45%,#ecfdf5 100%)}
 body.portal-production{--bg:linear-gradient(165deg,#fffbeb 0%,var(--surface-2) 45%,#fef3c7 100%)}
 body.portal-factory{
-  --bg:linear-gradient(165deg,#faf5ff 0%,#f5f3ff 45%,var(--border) 100%);
-  --primary:#7C3AED;--primary-dark:#5B21B6;--navy:#4C1D95;--border:var(--border);
+  --bg:linear-gradient(165deg,#faf5ff 0%,#f5f3ff 45%,#ede9fe 100%);
+  --primary:#7C3AED;--primary-dark:#5B21B6;--navy:#4C1D95;
 }
 body.portal-factory .btn-primary{background:linear-gradient(135deg,#7C3AED,#2563EB)!important}
 body.portal-factory .page-title{color:var(--primary-light)}
@@ -1071,7 +1071,7 @@ body.admin-active .p-name,body.admin-active .cw-product-title{display:inline-fle
   --form-shadow-lg:0 10px 36px rgba(76,29,149,.12);
   --form-border:rgba(124,58,237,.14);
   --form-focus:0 0 0 3px rgba(124,58,237,.18);
-  --form-surface:var(--form-surface);
+  --form-surface:#FFFFFF;
   --form-soft:#f8f5ff;
   --form-ink:#1e1b4b;
 }
@@ -1974,13 +1974,6 @@ body.portal-factory .header-nav{background:linear-gradient(90deg,#2f0b57,#160529
 .ph-qc-desc{display:block;font-size:.74rem;color:var(--muted);line-height:1.5}
 .ph-section-label{font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
 
-.ps-tool.edit-portal-btn{
-  background:linear-gradient(135deg,#fffbeb,#fef3c7)!important;
-  border:1px solid #fde68a!important;
-  color:#92400e!important;
-  font-weight:800!important;
-}
-.ps-tool.edit-portal-btn.on,
 #admin-btn.edit-portal-on{
   background:linear-gradient(135deg,#16a34a,#15803d)!important;
   border-color:#16a34a!important;
@@ -3253,6 +3246,16 @@ body.welcome-active #app-welcome-screen{
 }
 body.login-active #login-screen{
   z-index:12100!important;
+}
+/* Explicit hidden state for the login screen: it starts life with inline
+   display:flex (see the element's base style attribute) and is normally
+   kept off-screen only by sitting under the splash/welcome screens'
+   higher z-index — never truly hidden until JS flips its inline display.
+   This safety net guarantees it stays hidden whenever body isn't in the
+   login step, regardless of any timing/animation edge case, without
+   touching any of the existing JS that shows/hides it. */
+body:not(.login-active) #login-screen{
+  display:none!important;
 }
 .welcome-mobile-cta{
   display:none;
@@ -6414,10 +6417,6 @@ function mobileDockGo(action){
       return;
     } else if(action === 'alerts'){
       if(typeof openNotifPanel === 'function') openNotifPanel();
-      else {
-        var btn = document.getElementById('notif-btn');
-        if(btn) btn.click();
-      }
       syncMobileDock('alerts');
       return;
     }
@@ -8859,11 +8858,6 @@ function syncEditPortalButtons(){
     adminBtn.style.background = on ? '#16a34a' : '#fefce8';
     adminBtn.style.color = on ? '#fff' : '#92400e';
     adminBtn.classList.toggle('edit-portal-on', on);
-  }
-  const sideBtn = document.getElementById('edit-portal-btn');
-  if(sideBtn){
-    sideBtn.className = on ? 'ps-tool edit-portal-btn on' : 'ps-tool edit-portal-btn';
-    sideBtn.innerHTML = ico('edit',16) + ' ' + (on ? 'Edit Portal ON' : 'Edit Portal');
   }
   try{
     if(typeof renderPortalSidebar==='function' && currentPortal){
@@ -20770,7 +20764,7 @@ function renderProdValue(){
     {l:'Yield %', v:yieldPct+'%', c:yieldPct>=95?'#16a34a':'#d97706'},
     {l:'Attainment %', v:attainment+'%', c:attainment>=100?'#16a34a':'#dc2626'},
     {l:'Good Units', v:totalGood||'—', c:'#0d9488'},
-    {l:'OEE (placeholder)', v:'—', c:'#64748b', s:'Coming soon'},
+    {l:'OEE', v:'—', c:'#64748b', s:'Planned'},
   ]);
   if(!prodData.prodValueRecords.length){
     html+='<div class="pro-empty">No production value records yet</div>';
