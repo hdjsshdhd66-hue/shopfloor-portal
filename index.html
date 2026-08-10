@@ -1048,6 +1048,10 @@ table button, table select, table input, .fi{ min-height:0; } /* dense grids opt
    page theme, which is what left stray white boxes across the dark theme.
    Low specificity on purpose: any more specific rule above still wins. */
 input, select, textarea{ background:var(--form-surface); color:var(--form-ink); border-color:var(--border); }
+/* Baseline for every long-text field: allow vertical resize only (never
+   horizontal, which can break page layout) and never let a resized box
+   overflow its container. More specific rules above still win. */
+textarea{ resize:vertical; max-width:100%; }
 input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
 .edit-pencil{display:none;cursor:pointer;color:var(--navy);font-size:.85rem;margin-left:6px;opacity:.6}
 .edit-pencil:hover{opacity:1}
@@ -4261,8 +4265,9 @@ body:not(.login-active) #login-screen{
         <label class="choice-chip"><input type="checkbox" id="ncr-pt-pm"/> <span>Packing Material</span></label>
         <label class="choice-chip"><input type="checkbox" id="ncr-pt-sf"/> <span>Semi-finished</span></label>
         <label class="choice-chip"><input type="checkbox" id="ncr-pt-fp"/> <span>Finished Product</span></label>
-        <label class="choice-chip"><input type="checkbox" id="ncr-pt-ot"/> <span>Other</span></label>
+        <label class="choice-chip"><input type="checkbox" id="ncr-pt-ot" onchange="handleOtherCheck(this,'ncr-pt-ot-other')"/> <span>Other</span></label>
       </div>
+      <input type="text" id="ncr-pt-ot-other" placeholder="Specify product type..." style="display:none;margin-top:6px"/>
     </div>
 
     <div class="form-2col">
@@ -4286,8 +4291,9 @@ body:not(.login-active) #login-screen{
           <label class="choice-chip"><input type="checkbox" id="ncr-act-rep"/> <span>Repacking</span></label>
           <label class="choice-chip"><input type="checkbox" id="ncr-act-rbl"/> <span>Re-blending</span></label>
           <label class="choice-chip"><input type="checkbox" id="ncr-act-srt"/> <span>Sorting</span></label>
-          <label class="choice-chip"><input type="checkbox" id="ncr-act-oth"/> <span>Other</span></label>
+          <label class="choice-chip"><input type="checkbox" id="ncr-act-oth" onchange="handleOtherCheck(this,'ncr-act-oth-other')"/> <span>Other</span></label>
         </div>
+        <input type="text" id="ncr-act-oth-other" placeholder="Specify action taken..." style="display:none;margin-top:6px"/>
       </div>
       <div class="form-2col">
         <div class="form-row"><label>Qty Released</label><input type="text" id="ncr-qty-rel" placeholder="e.g. 20 OC"/></div>
@@ -4739,7 +4745,7 @@ body:not(.login-active) #login-screen{
  <div class="form-row"><label>Visitor Email *</label><input type="email" id="fac-email" placeholder="visitor@example.com"/></div>
  <div class="form-row"><label>Vehicle Plate (optional)</label><input type="text" id="fac-plate" placeholder="e.g. ABC 1234"/></div>
  <div class="form-row"><label>Purpose of Visit *</label>
- <select id="fac-purpose">
+ <select id="fac-purpose" onchange="handleOther(this,'fac-purpose-other')">
  <option value="">Select purpose...</option>
  <option>Business Meeting</option>
  <option>Delivery / Supplier</option>
@@ -4748,6 +4754,7 @@ body:not(.login-active) #login-screen{
  <option>Interview</option>
  <option>Other</option>
  </select>
+ <input type="text" id="fac-purpose-other" placeholder="Specify purpose..." style="display:none;margin-top:6px"/>
  </div>
  <div class="form-row"><label>Department</label><input type="text" id="fac-hostdept" placeholder="e.g. Quality, Maintenance..."/></div>
  <div class="form-row"><label>Host / Sponsoring Employee *</label><input type="text" id="fac-host" placeholder="Pladis employee name"/></div>
@@ -5805,7 +5812,7 @@ body:not(.login-active) #login-screen{
       <div style="display:flex;gap:12px">
         <div class="form-row" style="flex:1"><label>Quantity Generated (kg) *</label><input type="number" step="0.1" id="rw-qty" placeholder="0.0"/></div>
         <div class="form-row" style="flex:1"><label>Reason *</label>
-          <select id="rw-reason">
+          <select id="rw-reason" onchange="handleOther(this,'rw-reason-other')">
             <option value="">Select reason...</option>
             <option>Weight Deviation</option>
             <option>Line Changeover / Startup-Shutdown</option>
@@ -5814,6 +5821,7 @@ body:not(.login-active) #login-screen{
             <option>Trial / Development Run</option>
             <option>Other</option>
           </select>
+          <input type="text" id="rw-reason-other" placeholder="Specify reason..." style="display:none;margin-top:6px"/>
         </div>
       </div>
       <div class="form-row"><label>Allergen Profile (comma-separated)</label><input type="text" id="rw-allergens" placeholder="e.g. Milk, Soy, Nuts, Gluten"/></div>
@@ -5911,11 +5919,12 @@ body:not(.login-active) #login-screen{
     <div class="modal-title">Add Quality Issue</div>
     <div class="form-row"><label>Date</label><input type="date" id="mi-date"/></div>
     <div class="form-row"><label>Production Line</label>
-      <select id="mi-line">
+      <select id="mi-line" onchange="handleOther(this,'mi-line-other')">
         <option>Biskrem (Line #03)</option><option>Biscuit #2 – Sesame (Line #02)</option>
         <option>Chocosandwich (Line #01)</option><option>Wafer – Hazelnut (Wafer Line)</option>
         <option>Other</option>
       </select>
+      <input type="text" id="mi-line-other" placeholder="Specify line..." style="display:none;margin-top:6px"/>
     </div>
     <div class="form-row"><label>Parameter / Issue</label><input type="text" id="mi-param" placeholder="e.g. Moisture out of range, Weight deviation..."/></div>
     <div class="form-row"><label>Shift</label>
@@ -10328,7 +10337,7 @@ function editIssue(i){
   const iss = issues[i];
   editingIssueIdx = i;
   document.getElementById('mi-date').value = iss.date||'';
-  document.getElementById('mi-line').value = iss.line||'';
+  setSelOrOtherVal('mi-line','mi-line-other', iss.line||'');
   document.getElementById('mi-param').value = iss.param||'';
   document.getElementById('mi-shift').value = iss.shift||'';
   document.getElementById('mi-action').value = iss.action||'';
@@ -10356,6 +10365,7 @@ function openIssueModal(){
   editingIssueIdx = null;
   ensureIssuesWeek();
   document.getElementById('mi-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('mi-line-other').style.display='none'; document.getElementById('mi-line-other').value='';
   document.getElementById('mi-param').value='';
   document.getElementById('mi-action').value='';
   document.getElementById('mi-reporter').value=(currentUser&&currentUser.name)||'';
@@ -10392,7 +10402,7 @@ function reviewIssueSubmit(){
   if(!document.getElementById('mi-severity').value){ showToast('Select severity','red'); return; }
   openReviewModal('Weekly Issue', [
     ['Date', document.getElementById('mi-date').value],
-    ['Line', document.getElementById('mi-line').value],
+    ['Line', getFieldVal('mi-line','mi-line-other')],
     ['Parameter', document.getElementById('mi-param').value],
     ['Shift', document.getElementById('mi-shift').value],
     ['Severity', document.getElementById('mi-severity').value],
@@ -10408,7 +10418,7 @@ function saveIssue(){
     id: (base && base.id) ? base.id : ('ISS-'+Date.now()+'-'+Math.random().toString(36).slice(2,7)),
     week: week,
     date:document.getElementById('mi-date').value,
-    line:document.getElementById('mi-line').value,
+    line:getFieldVal('mi-line','mi-line-other'),
     param:document.getElementById('mi-param').value||'Unspecified',
     shift:document.getElementById('mi-shift').value,
     severity:document.getElementById('mi-severity').value||'medium',
@@ -10953,6 +10963,23 @@ function openComplaintModal_legacy(){
   /* superseded by openComplaintModal below */
 }
 function closeComplaintModal(){ document.getElementById('complaint-modal').classList.remove('open'); editingComplaintIdx=null; }
+// "Other" handler — auto-opens text box when an "Other" checkbox is ticked
+// (checkbox-group sibling of handleOther, which is for <select>s).
+function handleOtherCheck(chk, otherId){
+  const otherEl = document.getElementById(otherId);
+  if(!otherEl) return;
+  if(chk.checked){ otherEl.style.display='block'; otherEl.focus(); }
+  else { otherEl.style.display='none'; otherEl.value=''; }
+}
+// Builds the saved label for a checkbox-driven "Other" option, e.g.
+// "Other: Vendor return" — or plain "Other" if no detail was typed.
+// Returns false when the checkbox isn't ticked (so callers can .filter(Boolean)).
+function chkOtherLabel(chkId, otherId){
+  const chk = document.getElementById(chkId);
+  if(!chk || !chk.checked) return false;
+  const v = (document.getElementById(otherId)?.value||'').trim();
+  return 'Other' + (v ? ': '+v : '');
+}
 // "Other" handler — auto-opens text box when "Other" selected
 function handleOther(sel, otherId){
   const otherEl = document.getElementById(otherId);
@@ -10973,6 +11000,23 @@ function getFieldVal(selId, otherId){
     return other ? other.value : '';
   }
   return sel.value;
+}
+// Re-open an "Other"-enabled select for editing: if the saved value matches
+// a listed option, select it normally; otherwise select "Other" and restore
+// the saved custom text into the reveal field. Shared by every edit-record
+// function below that has an Other-enabled select.
+function setSelOrOtherVal(selId, otherId, v){
+  const sel = document.getElementById(selId);
+  if(!sel) return;
+  const otherEl = document.getElementById(otherId);
+  const opts = [...sel.options].map(o=>o.value);
+  if(!v || opts.includes(v)){
+    sel.value = v||'';
+    if(otherEl){ otherEl.style.display='none'; }
+  } else {
+    sel.value = 'Other';
+    if(otherEl){ otherEl.style.display='block'; otherEl.value = v; }
+  }
 }
 function updateProdDesc(){
   const item = document.getElementById('cc-item')?.value;
@@ -12363,7 +12407,7 @@ function reviewRWGenerateSubmit(){
   const origproduct = document.getElementById('rw-origproduct').value.trim();
   const origbatch = document.getElementById('rw-origbatch').value.trim();
   const qty = document.getElementById('rw-qty').value;
-  const reason = document.getElementById('rw-reason').value;
+  const reason = getFieldVal('rw-reason','rw-reason-other');
   const usebydate = document.getElementById('rw-usebydate').value;
   if(!origproduct || !origbatch || !qty || !reason || !usebydate){ showToast('Please fill all required fields (*)','red'); return; }
   openReviewModal('Generate Re-Work', [
@@ -12384,7 +12428,7 @@ function saveRWGenerate(){
     origline: document.getElementById('rw-origline').value.trim(),
     proddate: document.getElementById('rw-proddate').value,
     qty: parseFloat(document.getElementById('rw-qty').value)||0,
-    reason: document.getElementById('rw-reason').value,
+    reason: getFieldVal('rw-reason','rw-reason-other'),
     allergens: document.getElementById('rw-allergens').value.trim(),
     location: document.getElementById('rw-location').value.trim(),
     usebydate: document.getElementById('rw-usebydate').value,
@@ -12400,6 +12444,7 @@ function saveRWGenerate(){
   showToast(' Re-work batch logged: '+gen.id,'green');
   ['rw-origproduct','rw-origbatch','rw-origline','rw-qty','rw-allergens','rw-location','rw-remarks'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('rw-reason').value='';
+  document.getElementById('rw-reason-other').style.display='none'; document.getElementById('rw-reason-other').value='';
   document.getElementById('rw-proddate').value='';
   document.getElementById('rw-usebydate').value='';
   rwTab('dashboard');
@@ -16597,20 +16642,36 @@ function editNCR(i){
   ncrClass = n.cls||3;
   document.querySelectorAll('[id^="ncr-cls"]').forEach(b=>b.classList.remove('ok','issue'));
   const b=document.getElementById('ncr-cls'+ncrClass); if(b) b.classList.add(ncrClass<=2?'issue':'ok');
-  ['rm','pm','sf','fp','ot'].forEach((k,idx)=>{
-    const label={rm:'Raw Material',pm:'Packing Material',sf:'Semi-finished',fp:'Finished Product',ot:'Other'}[k];
+  ['rm','pm','sf','fp'].forEach(k=>{
+    const label={rm:'Raw Material',pm:'Packing Material',sf:'Semi-finished',fp:'Finished Product'}[k];
     const el=document.getElementById('ncr-pt-'+k); if(el) el.checked = (n.ptypes||[]).includes(label);
   });
+  {
+    const otherEntry = (n.ptypes||[]).find(x=>x==='Other'||String(x).startsWith('Other:'));
+    const el=document.getElementById('ncr-pt-ot');
+    if(el){ el.checked = !!otherEntry; }
+    const detail = otherEntry && otherEntry.includes(':') ? otherEntry.slice(otherEntry.indexOf(':')+1).trim() : '';
+    const oEl=document.getElementById('ncr-pt-ot-other');
+    if(oEl){ oEl.style.display = otherEntry ? 'block' : 'none'; oEl.value = detail; }
+  }
   document.getElementById('ncr-prod').value = n.prod||'';
   document.getElementById('ncr-item').value = n.item||'';
   document.getElementById('ncr-qty').value = n.qty||'';
   document.getElementById('ncr-batch').value = n.batch||'';
   document.getElementById('ncr-desc').value = n.desc||'';
   document.getElementById('ncr-raised').value = n.raised||'';
-  ['rej','rep','rbl','srt','oth'].forEach(k=>{
-    const label={rej:'Reject',rep:'Repacking',rbl:'Re-blending',srt:'Sorting',oth:'Other'}[k];
+  ['rej','rep','rbl','srt'].forEach(k=>{
+    const label={rej:'Reject',rep:'Repacking',rbl:'Re-blending',srt:'Sorting'}[k];
     const el=document.getElementById('ncr-act-'+k); if(el) el.checked = (n.actions||[]).includes(label);
   });
+  {
+    const otherEntry = (n.actions||[]).find(x=>x==='Other'||String(x).startsWith('Other:'));
+    const el=document.getElementById('ncr-act-oth');
+    if(el){ el.checked = !!otherEntry; }
+    const detail = otherEntry && otherEntry.includes(':') ? otherEntry.slice(otherEntry.indexOf(':')+1).trim() : '';
+    const oEl=document.getElementById('ncr-act-oth-other');
+    if(oEl){ oEl.style.display = otherEntry ? 'block' : 'none'; oEl.value = detail; }
+  }
   document.getElementById('ncr-qty-rel').value = n.qtyRel||'';
   document.getElementById('ncr-qty-rej').value = n.qtyRej||'';
   document.getElementById('ncr-root').value = n.root||'';
@@ -16642,6 +16703,7 @@ function openNCRModal(){
   ['ncr-detected','ncr-prod','ncr-item','ncr-qty','ncr-batch','ncr-desc','ncr-raised','ncr-qty-rel','ncr-qty-rej','ncr-root','ncr-shift'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   ['ncr-pt-rm','ncr-pt-pm','ncr-pt-sf','ncr-pt-fp','ncr-pt-ot','ncr-act-rej','ncr-act-rep','ncr-act-rbl','ncr-act-srt','ncr-act-oth'].forEach(id=>{ const el=document.getElementById(id); if(el) el.checked=false; });
   const locOther=document.getElementById('ncr-location-other'); if(locOther){ locOther.style.display='none'; locOther.value=''; }
+  ['ncr-pt-ot-other','ncr-act-oth-other'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.style.display='none'; el.value=''; } });
   resetCapaRows();
   if(typeof clearFormPhotos==='function') clearFormPhotos('ncr');
   if(typeof mountFormPhotoHosts==='function') mountFormPhotoHosts();
@@ -16694,8 +16756,8 @@ function collectCapaRows(){
 
 function reviewNCRSubmit(){
   const getChk=id=>document.getElementById(id)?.checked;
-  const actions=[getChk('ncr-act-rej')&&'Reject',getChk('ncr-act-rep')&&'Repacking',getChk('ncr-act-rbl')&&'Re-blending',getChk('ncr-act-srt')&&'Sorting',getChk('ncr-act-oth')&&'Other'].filter(Boolean).join(', ');
-  const ptypes=[getChk('ncr-pt-rm')&&'Raw Material',getChk('ncr-pt-pm')&&'Packing Material',getChk('ncr-pt-sf')&&'Semi-finished',getChk('ncr-pt-fp')&&'Finished Product',getChk('ncr-pt-ot')&&'Other'].filter(Boolean).join(', ');
+  const actions=[getChk('ncr-act-rej')&&'Reject',getChk('ncr-act-rep')&&'Repacking',getChk('ncr-act-rbl')&&'Re-blending',getChk('ncr-act-srt')&&'Sorting',chkOtherLabel('ncr-act-oth','ncr-act-oth-other')].filter(Boolean).join(', ');
+  const ptypes=[getChk('ncr-pt-rm')&&'Raw Material',getChk('ncr-pt-pm')&&'Packing Material',getChk('ncr-pt-sf')&&'Semi-finished',getChk('ncr-pt-fp')&&'Finished Product',chkOtherLabel('ncr-pt-ot','ncr-pt-ot-other')].filter(Boolean).join(', ');
   const clsLbl={1:'Class I – Critical',2:'Class II – Important',3:'Class III – Corrective',4:'Class IV – Remedial'};
   openReviewModal('NCR Report', [
     ['NCR #', document.getElementById('ncr-num').value],
@@ -16725,13 +16787,13 @@ function saveNCR(){
   if(getChk('ncr-act-rep'))actions.push('Repacking');
   if(getChk('ncr-act-rbl'))actions.push('Re-blending');
   if(getChk('ncr-act-srt'))actions.push('Sorting');
-  if(getChk('ncr-act-oth'))actions.push('Other');
+  const actOth=chkOtherLabel('ncr-act-oth','ncr-act-oth-other'); if(actOth)actions.push(actOth);
   const ptypes=[];
   if(getChk('ncr-pt-rm'))ptypes.push('Raw Material');
   if(getChk('ncr-pt-pm'))ptypes.push('Packing Material');
   if(getChk('ncr-pt-sf'))ptypes.push('Semi-finished');
   if(getChk('ncr-pt-fp'))ptypes.push('Finished Product');
-  if(getChk('ncr-pt-ot'))ptypes.push('Other');
+  const ptOth=chkOtherLabel('ncr-pt-ot','ncr-pt-ot-other'); if(ptOth)ptypes.push(ptOth);
   let rec={
     num:document.getElementById('ncr-num').value,
     date:document.getElementById('ncr-date').value,
@@ -18022,6 +18084,7 @@ function openWOModal(){
   if(typeof mountFormPhotoHosts==='function') mountFormPhotoHosts();
   document.getElementById('wo-modal').classList.add('open');
   document.getElementById('wo-line').value='';
+  document.getElementById('wo-line-other').style.display='none'; document.getElementById('wo-line-other').value='';
   document.getElementById('wo-equip').value='';
   document.getElementById('wo-desc').value='';
   document.getElementById('wo-priority').value='Medium';
@@ -18041,7 +18104,7 @@ function editWO(i){
   const w = maintData.workOrders[i];
   editingWOIdx = i;
   document.getElementById('wo-modal').classList.add('open');
-  document.getElementById('wo-line').value=w.line||'';
+  setSelOrOtherVal('wo-line','wo-line-other', w.line||'');
   document.getElementById('wo-equip').value=w.equipment||'';
   document.getElementById('wo-desc').value=w.description||'';
   document.getElementById('wo-priority').value=w.priority||'Medium';
@@ -18052,7 +18115,7 @@ function editWO(i){
 }
 function reviewWOSubmit(){
   openReviewModal('Work Order', [
-    ['Line', document.getElementById('wo-line').value],
+    ['Line', getFieldVal('wo-line','wo-line-other')],
     ['Equipment', document.getElementById('wo-equip').value],
     ['Description', document.getElementById('wo-desc').value],
     ['Priority', document.getElementById('wo-priority').value],
@@ -18063,7 +18126,7 @@ function reviewWOSubmit(){
 
 function saveWO(){
   const entry={
-    line:document.getElementById('wo-line').value,
+    line:getFieldVal('wo-line','wo-line-other'),
     equipment:document.getElementById('wo-equip').value,
     description:document.getElementById('wo-desc').value,
     priority:document.getElementById('wo-priority').value,
@@ -18122,6 +18185,7 @@ function openBDModal(){
   if(typeof mountFormPhotoHosts==='function') mountFormPhotoHosts();
   document.getElementById('bd-modal').classList.add('open');
   ['bd-line','bd-equip','bd-cause','bd-action'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('bd-line-other').style.display='none'; document.getElementById('bd-line-other').value='';
   document.getElementById('bd-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('bd-time').value=new Date().toTimeString().slice(0,5);
   document.getElementById('bd-downtime').value='';
@@ -18142,7 +18206,7 @@ function editBD(i){
   if(typeof setFormPhotos==='function') setFormPhotos('bd', b.photos||[]);
   if(typeof mountFormPhotoHosts==='function') mountFormPhotoHosts();
   document.getElementById('bd-modal').classList.add('open');
-  document.getElementById('bd-line').value=b.line||'';
+  setSelOrOtherVal('bd-line','bd-line-other', b.line||'');
   document.getElementById('bd-equip').value=b.equipment||'';
   document.getElementById('bd-cause').value=b.cause||'';
   document.getElementById('bd-action').value=b.action||'';
@@ -18153,7 +18217,7 @@ function editBD(i){
 }
 function reviewBDSubmit(){
   openReviewModal('Breakdown Report', [
-    ['Line', document.getElementById('bd-line').value],
+    ['Line', getFieldVal('bd-line','bd-line-other')],
     ['Equipment', document.getElementById('bd-equip').value],
     ['Date', document.getElementById('bd-date').value],
     ['Time', document.getElementById('bd-time').value],
@@ -18166,7 +18230,7 @@ function reviewBDSubmit(){
 
 function saveBD(){
   const entry={
-    line:document.getElementById('bd-line').value,
+    line:getFieldVal('bd-line','bd-line-other'),
     equipment:document.getElementById('bd-equip').value,
     date:document.getElementById('bd-date').value,
     time:document.getElementById('bd-time').value,
@@ -18294,6 +18358,7 @@ function openCalModal(){
   document.getElementById('cal-modal').classList.add('open');
   document.getElementById('cal-equip').value='';
   document.getElementById('cal-line').value='';
+  document.getElementById('cal-line-other').style.display='none'; document.getElementById('cal-line-other').value='';
   document.getElementById('cal-last').value='';
   document.getElementById('cal-next').value='';
   document.getElementById('cal-cert').value='';
@@ -18302,7 +18367,7 @@ function openCalModal(){
 function saveCalEntry(){
   maintData.calibrationList.unshift({
     equipment: document.getElementById('cal-equip').value.trim(),
-    line: document.getElementById('cal-line').value,
+    line: getFieldVal('cal-line','cal-line-other'),
     lastCal: document.getElementById('cal-last').value,
     nextDue: document.getElementById('cal-next').value,
     certNo: document.getElementById('cal-cert').value.trim(),
@@ -18608,7 +18673,7 @@ function facValidUntilFromDays(numDays, visitDate){
 function reviewFacPassSubmit(){
   const name = document.getElementById('fac-name').value.trim();
   const email = document.getElementById('fac-email').value.trim();
-  const purpose = document.getElementById('fac-purpose').value;
+  const purpose = getFieldVal('fac-purpose','fac-purpose-other');
   const host = document.getElementById('fac-host').value.trim();
   if(!name || !email || !purpose || !host){ showToast('Please fill all required fields (*)','red'); return; }
   if(!document.getElementById('fac-ack-access').checked || !document.getElementById('fac-ack-foodsafety').checked || !document.getElementById('fac-ack-safety').checked){
@@ -18647,7 +18712,7 @@ function saveFacPass(){
     phone: (document.getElementById('fac-phone')||{}).value || '',
     idNum: document.getElementById('fac-idnum').value.trim(),
     plate: document.getElementById('fac-plate').value.trim(),
-    purpose: document.getElementById('fac-purpose').value,
+    purpose: getFieldVal('fac-purpose','fac-purpose-other'),
     host: document.getElementById('fac-host').value.trim(),
     hostDept: document.getElementById('fac-hostdept').value.trim(),
     hostPhone: (document.getElementById('fac-hostphone')||{}).value || '',
@@ -18684,6 +18749,7 @@ function saveFacPass(){
   showToast(' Visitor permit saved for '+pass.name,'green');
   ['fac-name','fac-company','fac-email','fac-idnum','fac-plate','fac-host','fac-hostdept','fac-notes','fac-phone','fac-hostphone','fac-hostemail'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('fac-purpose').value='';
+  document.getElementById('fac-purpose-other').style.display='none'; document.getElementById('fac-purpose-other').value='';
   document.getElementById('fac-visitdate').value='';
   document.getElementById('fac-numdays').value='7';
   document.getElementById('fac-custom-row').style.display='none';
@@ -18803,7 +18869,7 @@ function editFacPass(id){
   set('fac-edit-id', p.id);
   set('fac-name', p.name); set('fac-company', p.company); set('fac-email', p.email);
   set('fac-phone', p.phone); set('fac-idnum', p.idNum); set('fac-plate', p.plate);
-  set('fac-purpose', p.purpose); set('fac-host', p.host); set('fac-hostdept', p.hostDept);
+  setSelOrOtherVal('fac-purpose','fac-purpose-other', p.purpose); set('fac-host', p.host); set('fac-hostdept', p.hostDept);
   set('fac-hostphone', p.hostPhone); set('fac-hostemail', p.hostEmail);
   set('fac-visitdate', p.visitDate); set('fac-numdays', p.numDays!=null?String(p.numDays):'7');
   set('fac-notes', p.notes);
@@ -20429,6 +20495,7 @@ function deleteCleaning(i){
 function openCleanModal(){
   document.getElementById('clean-modal').classList.add('open');
   document.getElementById('clean-line').value='';
+  document.getElementById('clean-line-other').style.display='none'; document.getElementById('clean-line-other').value='';
   document.getElementById('clean-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('clean-shift').value='';
   document.getElementById('clean-by').value=currentUser?.name||'';
@@ -20440,7 +20507,7 @@ function openCleanModal(){
 
 function saveCleaning(){
   const entry={
-    line:document.getElementById('clean-line').value,
+    line:getFieldVal('clean-line','clean-line-other'),
     date:document.getElementById('clean-date').value,
     shift:document.getElementById('clean-shift').value,
     cleanedBy:document.getElementById('clean-by').value,
@@ -20608,6 +20675,7 @@ function openCRModal(){
   editingCRIdx = null;
   document.getElementById('cr-modal').classList.add('open');
   document.getElementById('cr-line').value='';
+  document.getElementById('cr-line-other').style.display='none'; document.getElementById('cr-line-other').value='';
   document.getElementById('cr-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('cr-shift').value='';
   document.getElementById('cr-by').value=currentUser?.name||'';
@@ -20628,7 +20696,7 @@ function editCR(i){
   if(!r){ showToast('Clearance request not found','red'); return; }
   editingCRIdx = i;
   document.getElementById('cr-modal').classList.add('open');
-  document.getElementById('cr-line').value=r.line||'';
+  setSelOrOtherVal('cr-line','cr-line-other', r.line||'');
   document.getElementById('cr-date').value=r.date||'';
   document.getElementById('cr-shift').value=r.shift||'';
   document.getElementById('cr-by').value=r.cleanedBy||'';
@@ -20638,7 +20706,7 @@ function editCR(i){
 }
 function reviewCRSubmit(){
   openReviewModal('Clearance Request', [
-    ['Line', document.getElementById('cr-line').value],
+    ['Line', getFieldVal('cr-line','cr-line-other')],
     ['Date', document.getElementById('cr-date').value],
     ['Shift', document.getElementById('cr-shift').value],
     ['Cleaned By', document.getElementById('cr-by').value],
@@ -20649,7 +20717,7 @@ function reviewCRSubmit(){
 function saveCR(){
   const prev = editingCRIdx!=null ? prodData.clearanceRequests[editingCRIdx] : null;
   const entry={
-    line:document.getElementById('cr-line').value,
+    line:getFieldVal('cr-line','cr-line-other'),
     date:document.getElementById('cr-date').value,
     shift:document.getElementById('cr-shift').value,
     cleanedBy:document.getElementById('cr-by').value,
@@ -20714,6 +20782,7 @@ function openDTModal(){
   editingDTIdx = null;
   document.getElementById('dt-modal').classList.add('open');
   document.getElementById('dt-line').value='';
+  document.getElementById('dt-line-other').style.display='none'; document.getElementById('dt-line-other').value='';
   document.getElementById('dt-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('dt-start').value=new Date().toTimeString().slice(0,5);
   document.getElementById('dt-dur').value='';
@@ -20733,7 +20802,7 @@ function editDT(i){
   const d = prodData.downtimeRecords[i];
   editingDTIdx = i;
   document.getElementById('dt-modal').classList.add('open');
-  document.getElementById('dt-line').value=d.line||'';
+  setSelOrOtherVal('dt-line','dt-line-other', d.line||'');
   document.getElementById('dt-date').value=d.date||'';
   document.getElementById('dt-start').value=d.startTime||'';
   document.getElementById('dt-dur').value=d.duration||'';
@@ -20743,7 +20812,7 @@ function editDT(i){
 }
 function reviewDTSubmit(){
   openReviewModal('Downtime Record', [
-    ['Line', document.getElementById('dt-line').value],
+    ['Line', getFieldVal('dt-line','dt-line-other')],
     ['Date', document.getElementById('dt-date').value],
     ['Start Time', document.getElementById('dt-start').value],
     ['Duration (min)', document.getElementById('dt-dur').value],
@@ -20755,7 +20824,7 @@ function reviewDTSubmit(){
 
 function saveDT(){
   const entry={
-    line:document.getElementById('dt-line').value,
+    line:getFieldVal('dt-line','dt-line-other'),
     date:document.getElementById('dt-date').value,
     startTime:document.getElementById('dt-start').value,
     duration:document.getElementById('dt-dur').value,
@@ -20826,6 +20895,7 @@ function renderProdValue(){
 function openProdValueModal(){
   document.getElementById('prodvalue-modal').classList.add('open');
   document.getElementById('pv-line').value='';
+  document.getElementById('pv-line-other').style.display='none'; document.getElementById('pv-line-other').value='';
   document.getElementById('pv-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('pv-shift').value='';
   document.getElementById('pv-product').value='';
@@ -20837,7 +20907,7 @@ function openProdValueModal(){
 }
 function saveProdValueEntry(){
   prodData.prodValueRecords.unshift({
-    line: document.getElementById('pv-line').value,
+    line: getFieldVal('pv-line','pv-line-other'),
     date: document.getElementById('pv-date').value,
     shift: document.getElementById('pv-shift').value,
     product: document.getElementById('pv-product').value.trim(),
@@ -20891,6 +20961,7 @@ function renderProdScrap(){
 function openScrapModal(){
   document.getElementById('scrap-modal').classList.add('open');
   document.getElementById('sc-line').value='';
+  document.getElementById('sc-line-other').style.display='none'; document.getElementById('sc-line-other').value='';
   document.getElementById('scrap-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('scrap-shift').value='';
   document.getElementById('scrap-product').value='';
@@ -20902,7 +20973,7 @@ function openScrapModal(){
 }
 function saveScrapEntry(){
   prodData.scrapRecords.unshift({
-    line: document.getElementById('sc-line').value,
+    line: getFieldVal('sc-line','sc-line-other'),
     date: document.getElementById('scrap-date').value,
     shift: document.getElementById('scrap-shift').value,
     product: document.getElementById('scrap-product').value.trim(),
@@ -21326,7 +21397,7 @@ try{var _lpgl=localStorage.getItem('pqs_lpglog');if(_lpgl)lpgLog=JSON.parse(_lpg
   <div class="modal" style="max-width:520px">
     <div class="modal-title">New Work Order</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="fg"><label class="fl">Production Line</label><select id="wo-line" class="fi"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Utilities</option><option>Boiler Room</option><option>Compressor Room</option><option>Other</option></select></div>
+      <div class="fg"><label class="fl">Production Line</label><select id="wo-line" class="fi" onchange="handleOther(this,'wo-line-other')"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Utilities</option><option>Boiler Room</option><option>Compressor Room</option><option>Other</option></select><input type="text" id="wo-line-other" class="fi" placeholder="Specify line/area..." style="display:none;margin-top:6px"/></div>
       <div class="fg"><label class="fl">Equipment</label><input id="wo-equip" class="fi" placeholder="Equipment name"/></div>
       <div class="fg" style="grid-column:1/-1"><label class="fl">Description / Problem</label><textarea id="wo-desc" class="fi" rows="3" placeholder="Describe the issue or work needed..." style="resize:vertical"></textarea></div>
       <div class="fg"><label class="fl">Priority</label><select id="wo-priority" class="fi"><option>Low</option><option selected>Medium</option><option>High</option></select></div>
@@ -21346,7 +21417,7 @@ try{var _lpgl=localStorage.getItem('pqs_lpglog');if(_lpgl)lpgLog=JSON.parse(_lpg
   <div class="modal" style="max-width:520px">
     <div class="modal-title">Equipment Breakdown Report</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="fg"><label class="fl">Production Line</label><select id="bd-line" class="fi"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Utilities</option><option>Boiler Room</option><option>Compressor Room</option><option>Other</option></select></div>
+      <div class="fg"><label class="fl">Production Line</label><select id="bd-line" class="fi" onchange="handleOther(this,'bd-line-other')"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Utilities</option><option>Boiler Room</option><option>Compressor Room</option><option>Other</option></select><input type="text" id="bd-line-other" class="fi" placeholder="Specify line/area..." style="display:none;margin-top:6px"/></div>
       <div class="fg"><label class="fl">Equipment</label><input id="bd-equip" class="fi" placeholder="Equipment name"/></div>
       <div class="fg"><label class="fl">Date</label><input type="date" id="bd-date" class="fi"/></div>
       <div class="fg"><label class="fl">Time</label><input type="time" id="bd-time" class="fi"/></div>
@@ -21390,7 +21461,7 @@ try{var _lpgl=localStorage.getItem('pqs_lpglog');if(_lpgl)lpgLog=JSON.parse(_lpg
   <div class="modal" style="max-width:520px">
     <div class="modal-title">Line Cleaning Record</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="fg"><label class="fl">Production Line</label><select id="clean-line" class="fi"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Utilities</option><option>Boiler Room</option><option>Compressor Room</option><option>Other</option></select></div>
+      <div class="fg"><label class="fl">Production Line</label><select id="clean-line" class="fi" onchange="handleOther(this,'clean-line-other')"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Utilities</option><option>Boiler Room</option><option>Compressor Room</option><option>Other</option></select><input type="text" id="clean-line-other" class="fi" placeholder="Specify line/area..." style="display:none;margin-top:6px"/></div>
       <div class="fg"><label class="fl">Date</label><input type="date" id="clean-date" class="fi"/></div>
       <div class="fg"><label class="fl">Shift</label><select id="clean-shift" class="fi"><option value="">Select</option><option>A4</option><option>B4</option><option>C4</option></select></div>
       <div class="fg"><label class="fl">Cleaned By</label><input id="clean-by" class="fi" placeholder="Operator name"/></div>
@@ -21435,7 +21506,7 @@ try{var _lpgl=localStorage.getItem('pqs_lpglog');if(_lpgl)lpgLog=JSON.parse(_lpg
     <div class="modal-title">Clearance Request</div>
     <div style="background:#fef3c7;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:.78rem;color:#92400e">Submit this form after line cleaning is complete. Quality team will review and approve.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="fg"><label class="fl">Production Line</label><select id="cr-line" class="fi"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Utilities</option><option>Boiler Room</option><option>Compressor Room</option><option>Other</option></select></div>
+      <div class="fg"><label class="fl">Production Line</label><select id="cr-line" class="fi" onchange="handleOther(this,'cr-line-other')"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Utilities</option><option>Boiler Room</option><option>Compressor Room</option><option>Other</option></select><input type="text" id="cr-line-other" class="fi" placeholder="Specify line/area..." style="display:none;margin-top:6px"/></div>
       <div class="fg"><label class="fl">Date</label><input type="date" id="cr-date" class="fi"/></div>
       <div class="fg"><label class="fl">Shift</label><select id="cr-shift" class="fi"><option value="">Select</option><option>A4</option><option>B4</option><option>C4</option></select></div>
       <div class="fg"><label class="fl">Requested By</label><input id="cr-by" class="fi" placeholder="Your name"/></div>
@@ -21454,7 +21525,7 @@ try{var _lpgl=localStorage.getItem('pqs_lpglog');if(_lpgl)lpgLog=JSON.parse(_lpg
   <div class="modal" style="max-width:480px">
     <div class="modal-title">Downtime Record</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="fg"><label class="fl">Production Line</label><select id="dt-line" class="fi"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Utilities</option><option>Boiler Room</option><option>Compressor Room</option><option>Other</option></select></div>
+      <div class="fg"><label class="fl">Production Line</label><select id="dt-line" class="fi" onchange="handleOther(this,'dt-line-other')"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Utilities</option><option>Boiler Room</option><option>Compressor Room</option><option>Other</option></select><input type="text" id="dt-line-other" class="fi" placeholder="Specify line/area..." style="display:none;margin-top:6px"/></div>
       <div class="fg"><label class="fl">Date</label><input type="date" id="dt-date" class="fi"/></div>
       <div class="fg"><label class="fl">Start Time</label><input type="time" id="dt-start" class="fi"/></div>
       <div class="fg"><label class="fl">Duration (minutes)</label><input type="number" id="dt-dur" class="fi" placeholder="0"/></div>
@@ -21475,7 +21546,7 @@ try{var _lpgl=localStorage.getItem('pqs_lpglog');if(_lpgl)lpgLog=JSON.parse(_lpg
   <div class="modal" style="max-width:520px">
     <div class="modal-title">Log Production Value</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="fg"><label class="fl">Production Line</label><select id="pv-line" class="fi"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Other</option></select></div>
+      <div class="fg"><label class="fl">Production Line</label><select id="pv-line" class="fi" onchange="handleOther(this,'pv-line-other')"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Other</option></select><input type="text" id="pv-line-other" class="fi" placeholder="Specify line/area..." style="display:none;margin-top:6px"/></div>
       <div class="fg"><label class="fl">Date</label><input type="date" id="pv-date" class="fi"/></div>
       <div class="fg"><label class="fl">Shift</label><select id="pv-shift" class="fi"><option value="">Select</option><option>A4</option><option>B4</option><option>C4</option></select></div>
       <div class="fg"><label class="fl">Product</label><input id="pv-product" class="fi" placeholder="Product name"/></div>
@@ -21498,7 +21569,7 @@ try{var _lpgl=localStorage.getItem('pqs_lpglog');if(_lpgl)lpgLog=JSON.parse(_lpg
   <div class="modal" style="max-width:520px">
     <div class="modal-title">Log Scrap / Waste</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="fg"><label class="fl">Production Line</label><select id="sc-line" class="fi"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Other</option></select></div>
+      <div class="fg"><label class="fl">Production Line</label><select id="sc-line" class="fi" onchange="handleOther(this,'sc-line-other')"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Other</option></select><input type="text" id="sc-line-other" class="fi" placeholder="Specify line/area..." style="display:none;margin-top:6px"/></div>
       <div class="fg"><label class="fl">Date</label><input type="date" id="scrap-date" class="fi"/></div>
       <div class="fg"><label class="fl">Shift</label><select id="scrap-shift" class="fi"><option value="">Select</option><option>A4</option><option>B4</option><option>C4</option></select></div>
       <div class="fg"><label class="fl">Product</label><input id="scrap-product" class="fi" placeholder="Product name"/></div>
@@ -21522,7 +21593,7 @@ try{var _lpgl=localStorage.getItem('pqs_lpglog');if(_lpgl)lpgLog=JSON.parse(_lpg
     <div class="modal-title">Add Calibration Record</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="fg" style="grid-column:1/-1"><label class="fl">Instrument / Equipment</label><input id="cal-equip" class="fi" placeholder="e.g. Check weigher scale, Thermometer..."/></div>
-      <div class="fg"><label class="fl">Line / Area</label><select id="cal-line" class="fi"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1</option><option>Biscuit Line 2</option><option>Biscuit Line 3</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Utilities</option><option>Other</option></select></div>
+      <div class="fg"><label class="fl">Line / Area</label><select id="cal-line" class="fi" onchange="handleOther(this,'cal-line-other')"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1</option><option>Biscuit Line 2</option><option>Biscuit Line 3</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Utilities</option><option>Other</option></select><input type="text" id="cal-line-other" class="fi" placeholder="Specify line/area..." style="display:none;margin-top:6px"/></div>
       <div class="fg"><label class="fl">Status</label><select id="cal-status" class="fi"><option>Pending</option><option>Completed</option><option>Overdue</option></select></div>
       <div class="fg"><label class="fl">Last Calibration</label><input type="date" id="cal-last" class="fi"/></div>
       <div class="fg"><label class="fl">Next Due</label><input type="date" id="cal-next" class="fi"/></div>
