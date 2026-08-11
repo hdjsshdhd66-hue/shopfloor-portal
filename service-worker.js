@@ -3,7 +3,7 @@
 // stale app code: the app shell (index.html) now uses a network-first
 // strategy below, so a fresh deploy reaches already-installed PWAs the next
 // time they're online, even if this line is forgotten.
-const CACHE_VERSION = 'v90';
+const CACHE_VERSION = 'v92';
 const CACHE_NAME = 'shopfloor-cache-' + CACHE_VERSION;
 const ASSETS = [
   './',
@@ -23,8 +23,9 @@ const ASSETS = [
   './brand-jacobs.webp',
   './brand-bn.webp',
   './brand-verkade.webp',
-  './splash-desktop.webp',
-  './splash-mobile.webp'
+  './splash-bg-desktop.webp',
+  './splash-bg-mobile.webp',
+  './pladis-logo.webp'
 ];
 
 // The app shell — always try the network first so a new deploy is picked up

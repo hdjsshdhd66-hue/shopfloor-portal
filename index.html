@@ -316,98 +316,129 @@ body.theme-noir .vm-badge.inside{background:color-mix(in srgb, var(--primary) 24
   #fac-subtabs{display:flex;flex-wrap:wrap;gap:6px}
 }
 /* ========================================
-   SHOP FLOOR OPERATIONS — SPLASH SCREEN
-   Two static brand images (desktop wide / mobile portrait — swapped via
-   <picture> media query, see markup below the login screen).
-   MOBILE (≤900px, unchanged from before): #splash-screen is a column
-   flexbox — .splash-media takes the remaining space above the loading
-   bar via object-fit:contain, so the full image is always shown at its
-   original aspect ratio with the bar never overlapping it.
-   DESKTOP (≥901px): the image instead fills the viewport edge-to-edge
-   (100vw × 100vh, object-fit:cover) with no letterboxing — a small
-   amount of edge cropping is expected/accepted so the frame is always
-   fully covered. The loading bar overlays near the bottom as an
-   absolutely-positioned overlay in this mode. Either way, the loading
-   bar + label are separate HTML/CSS — never baked into the image files.
+   SHOP FLOOR OPERATIONS — SPLASH SCREEN (v92 rebuild)
+   Background: two photographic factory backgrounds (desktop 4K wide /
+   mobile portrait), swapped via <picture> media query — BACKGROUND
+   ARTWORK ONLY, always full-bleed edge-to-edge via object-fit:cover on
+   both breakpoints (a little edge cropping is expected/accepted so the
+   frame is always fully covered, per the brief). Every other element —
+   pladis logo, title, tagline, department badges, the conveyor loading
+   animation, status text — is real HTML/CSS/SVG layered on top, so it
+   stays crisp at any resolution instead of being baked into the photo.
+   Structure:
+     #splash-screen
+       .splash-media          (<picture>/<img> — background photo only)
+       .splash-scrim-top/-bottom (soft gradients so text stays legible
+                                   over the photo without editing it)
+       .splash-fg               (all real UI, in 3 timed stages)
+         .splash-brand             logo + title            (1–2s)
+         .splash-intro              tagline + dept badges    (2–3s)
+         .splash-conveyor-wrap      belt animation + status  (3s → 7s)
+   Full 7s timeline is driven from startIntro() in the script below:
+   0–1s background fade, 1–2s brand, 2–3s intro row, 3s+ conveyor runs
+   continuously, ~6.5s status swaps to "System Ready", 7s fade to Home.
    ======================================== */
 #splash-screen{
   position:fixed; inset:0; z-index:9500; overflow:hidden;
-  display:flex; flex-direction:column; align-items:stretch; justify-content:center;
   background:#05030A;
-  transition:opacity .7s ease, visibility .7s ease;
+  transition:opacity .8s ease, visibility .8s ease;
 }
 #splash-screen.splash-hidden{ opacity:0; visibility:hidden; pointer-events:none; }
-#splash-screen.splash-leaving .splash-img{ transform:scale(1.03); transition:transform .7s cubic-bezier(.22,1,.36,1); }
+#splash-screen.splash-leaving .splash-img{ transform:scale(1.04); transition:transform 1s cubic-bezier(.22,1,.36,1); }
 
-.splash-media{ flex:1 1 auto; min-height:0; display:flex; align-items:center; justify-content:center; margin:0; }
+.splash-media{ position:absolute; inset:0; }
 .splash-img{
-  width:100%; height:100%; object-fit:contain; object-position:center; display:block;
-  animation:splashImgIn .8s cubic-bezier(.22,1,.36,1) both;
+  width:100%; height:100%; object-fit:cover; object-position:center center; display:block;
+  opacity:0; animation:splashBgIn 1s ease-out forwards;
 }
-@keyframes splashImgIn{ from{opacity:0;transform:scale(.98)} to{opacity:1;transform:scale(1)} }
+@keyframes splashBgIn{ to{ opacity:1; } }
 
-/* Loading bar: thin track + a small glowing light traveling across it —
-   no fake percentage, spinner, dots, or large icon. Shared by mobile and
-   desktop; only the container width differs (desktop is narrowed to the
-   requested 220–280px range below). */
-.splash-loading{
-  flex:0 0 auto; align-self:center; width:min(360px,72vw);
-  margin:10px 0 clamp(22px,5vh,54px); text-align:center;
-  opacity:0; animation:splashTitleIn .6s ease-out .5s forwards;
+/* Scrims keep the logo/title readable against a bright ceiling and the
+   conveyor/status readable against the reflective floor — CSS overlays
+   only, the photo itself is never edited. */
+.splash-scrim-top{
+  position:absolute; inset:0 0 auto 0; height:36%; z-index:1; pointer-events:none;
+  background:linear-gradient(to bottom, rgba(5,3,10,.8) 0%, rgba(5,3,10,.32) 62%, transparent 100%);
 }
-.loading-track{
-  position:relative; width:100%; height:2px; border-radius:99px; overflow:hidden;
-  background:rgba(196,181,253,.14);
+.splash-scrim-bottom{
+  position:absolute; inset:auto 0 0 0; height:32%; z-index:1; pointer-events:none;
+  background:linear-gradient(to top, rgba(5,3,10,.88) 0%, rgba(5,3,10,.4) 55%, transparent 100%);
 }
-.loading-fill{
-  position:absolute; top:50%; left:0; width:36%; height:100%; border-radius:99px;
-  transform:translate(-120%,-50%);
-  background:linear-gradient(90deg,transparent,#c4b5fd 45%,#a78bfa 58%,transparent);
-  filter:drop-shadow(0 0 5px rgba(196,181,253,.85)) drop-shadow(0 0 12px rgba(124,58,237,.6));
-  animation:splashLoadSweep 1.8s cubic-bezier(.45,0,.55,1) infinite;
+
+.splash-fg{
+  position:relative; z-index:2; height:100%; width:100%; box-sizing:border-box;
+  display:flex; flex-direction:column; align-items:center;
+  padding:clamp(22px,4.5vh,52px) 16px clamp(18px,4vh,40px);
 }
-@keyframes splashLoadSweep{ 0%{transform:translate(-120%,-50%)} 100%{transform:translate(320%,-50%)} }
-.splash-loading-text{
-  margin-top:12px; font-size:clamp(.6rem,1.6vw,.7rem); font-weight:700; letter-spacing:.14em;
-  color:#e9e3ff; text-transform:uppercase;
-  text-shadow:0 0 12px rgba(167,139,250,.45);
+
+/* Stage 1 (1–2s): pladis logo + title */
+.splash-brand{
+  text-align:center; opacity:0; transform:translateY(-10px);
+  animation:splashFadeUp .8s cubic-bezier(.22,1,.36,1) 1s forwards;
 }
-@keyframes splashTitleIn{ to{opacity:1} }
+.splash-logo{
+  height:clamp(28px,4vh,44px); width:auto; display:block; margin:0 auto 12px;
+  filter:drop-shadow(0 2px 12px rgba(0,0,0,.55));
+}
+.splash-title{
+  font-size:clamp(1.05rem,2.9vw,1.85rem); font-weight:900; letter-spacing:.16em; text-transform:uppercase;
+  color:#f6f3ff; text-shadow:0 2px 18px rgba(0,0,0,.6), 0 0 30px rgba(167,139,250,.35);
+}
+
+/* Stage 2 (2–3s): tagline + department indicators */
+.splash-intro{
+  margin-top:clamp(10px,2.2vh,18px); text-align:center;
+  opacity:0; transform:translateY(-8px);
+  animation:splashFadeUp .8s cubic-bezier(.22,1,.36,1) 2s forwards;
+}
+.splash-tagline{
+  font-size:clamp(.72rem,1.5vw,.95rem); font-weight:600; color:#e9e3ff;
+  text-shadow:0 2px 10px rgba(0,0,0,.55); margin:0 0 clamp(12px,2.4vh,20px);
+}
+.splash-depts{ display:flex; justify-content:center; gap:clamp(8px,1.8vw,18px); flex-wrap:wrap; max-width:820px; }
+.splash-dept{
+  display:flex; align-items:center; gap:6px;
+  padding:6px 12px 6px 6px; border-radius:999px;
+  background:rgba(10,6,20,.52);
+  border:1px solid color-mix(in srgb, var(--dc,#a78bfa) 45%, rgba(255,255,255,.16));
+  box-shadow:0 4px 14px rgba(0,0,0,.32);
+}
+.splash-dept-icon{
+  width:22px; height:22px; border-radius:7px; flex:0 0 auto;
+  display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,var(--dc,#7C3AED),var(--dcd,#4C1D95));
+}
+.splash-dept-icon svg{ width:13px; height:13px; stroke:#fff; }
+.splash-dept span{ font-size:.66rem; font-weight:800; letter-spacing:.02em; color:#fff; white-space:nowrap; }
+
+@keyframes splashFadeUp{ to{ opacity:1; transform:translateY(0); } }
+
+/* Stage 3 (3s onward): miniature production conveyor + status line —
+   fades in once, then runs continuously (no fake percentage). */
+.splash-conveyor-wrap{
+  margin-top:auto; width:min(300px,70vw); text-align:center;
+  opacity:0; animation:splashFadeUp .8s cubic-bezier(.22,1,.36,1) 3s forwards;
+}
+.splash-conveyor{ width:100%; height:auto; display:block; overflow:visible; }
+.conveyor-roller{ transform-box:fill-box; transform-origin:center; animation:conveyorSpin 1.6s linear infinite; }
+@keyframes conveyorSpin{ to{ transform:rotate(360deg); } }
+.conveyor-item{ animation:conveyorMove 4.8s linear infinite; }
+@keyframes conveyorMove{ from{ transform:translate(18px,34px); } to{ transform:translate(282px,34px); } }
+
+.splash-status{
+  margin-top:10px; font-size:clamp(.56rem,1.4vw,.66rem); font-weight:700; letter-spacing:.14em;
+  color:#c4b5fd; text-transform:uppercase; text-shadow:0 0 12px rgba(167,139,250,.4);
+  transition:color .4s ease, text-shadow .4s ease;
+}
+.splash-status.is-ready{ color:#6ee7a8; text-shadow:0 0 14px rgba(74,222,128,.55); }
 
 @media (max-width:900px){
-  .splash-loading{ margin-bottom:calc(env(safe-area-inset-bottom,0px) + clamp(18px,4vh,40px)); width:min(300px,78vw); }
-}
-
-/* DESKTOP — full-viewport cover, no black bars. Scoped to ≥901px, the
-   same breakpoint the <picture> source already uses to pick the desktop
-   image, so mobile's contain/letterbox layout above is untouched. */
-@media (min-width:901px){
-  .splash-media{
-    position:absolute; inset:0; width:100vw; height:100vh;
-    max-width:none; max-height:none; margin:0; padding:0;
-    display:block; overflow:hidden;
-  }
-  .splash-img{
-    width:100vw; height:100vh; max-width:none; max-height:none;
-    object-fit:cover; object-position:center center;
-  }
-  .splash-loading{
-    position:absolute; left:50%; bottom:clamp(30px,6vh,64px); transform:translateX(-50%);
-    width:clamp(220px,20vw,280px); margin:0; z-index:4;
-  }
-  /* Cover-fill puts the bar low over the artwork's own bottom area — this
-     full-width scrim (CSS only, not baked into the image) mutes whatever
-     artwork sits behind that band so the bar and label stay clearly
-     readable, instead of a soft fade that still lets background text
-     bleed through. */
-  .splash-loading::before{
-    content:''; position:absolute; z-index:-1; pointer-events:none;
-    left:50%; top:50%; transform:translate(-50%,-50%);
-    width:100vw; height:132px;
-    background:linear-gradient(to top,
-      rgba(5,3,10,.9) 0%, rgba(5,3,10,.88) 30%,
-      rgba(5,3,10,.6) 62%, rgba(5,3,10,0) 100%);
-  }
+  .splash-title{ font-size:1.2rem; letter-spacing:.12em; }
+  .splash-depts{ gap:10px; max-width:280px; }
+  .splash-dept{ padding:8px; border-radius:50%; }
+  .splash-dept span{ display:none; } /* icon-only badges keep the row compact on phones */
+  .splash-dept-icon{ width:24px; height:24px; }
+  .splash-conveyor-wrap{ width:min(260px,72vw); }
 }
 @media (prefers-reduced-motion: reduce){
   #splash-screen *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; }
@@ -2546,27 +2577,105 @@ try{
 <!-- ============ LOGIN SCREEN ============ -->
 <!-- ============ PORTAL SELECTION SCREEN ============ -->
 <!-- ========================================
-     SHOP FLOOR OPERATIONS — SPLASH SCREEN
-     Static brand artwork (desktop wide / mobile portrait), swapped via
-     <picture> media query — artwork itself never redesigned. Mobile
-     (≤900px) shows it uncropped via object-fit:contain; desktop (≥901px)
-     fills the viewport edge-to-edge via object-fit:cover (see CSS above).
-     Structure:
-       #splash-screen
-         .splash-media   (<picture>/<img> — the splash artwork itself)
-         .splash-loading (HTML/CSS overlay: animated line, then label,
-                           below the image — not part of the images)
+     SHOP FLOOR OPERATIONS — SPLASH SCREEN (v92 rebuild)
+     Two photographic factory backgrounds (desktop wide / mobile portrait,
+     swapped via <picture> media query) as BACKGROUND ARTWORK ONLY, full
+     bleed via object-fit:cover on both breakpoints. Every other element
+     below (.splash-fg and its children) is real HTML/CSS/SVG — the pladis
+     logo image is the same asset already used in the main app header
+     (.header .logo-img), not a new/invented mark. Department badges reuse
+     the exact icon paths + identity colors WELCOME_PORTALS defines for
+     the Home page portal cards. Timed reveal + the 7s total sequence are
+     driven from startIntro() in the script below; see CSS above for the
+     per-stage animation-delays this markup relies on.
      ======================================== -->
 <div id="splash-screen" role="status" aria-live="polite" aria-label="Loading Shop Floor Operations">
 
   <picture class="splash-media">
-    <source media="(max-width:900px)" srcset="./splash-mobile.webp">
-    <img class="splash-img" src="./splash-desktop.webp" alt="pladis Shop Floor Operations"/>
+    <source media="(max-width:900px)" srcset="./splash-bg-mobile.webp">
+    <img class="splash-img" src="./splash-bg-desktop.webp" alt=""/>
   </picture>
+  <div class="splash-scrim-top" aria-hidden="true"></div>
+  <div class="splash-scrim-bottom" aria-hidden="true"></div>
 
-  <div class="splash-loading">
-    <div class="loading-track"><div class="loading-fill" id="splash-fill"></div></div>
-    <div class="splash-loading-text" id="splash-status">INITIALIZING SHOP FLOOR OPERATIONS...</div>
+  <div class="splash-fg">
+    <div class="splash-brand">
+      <img class="splash-logo" src="./pladis-logo.webp" alt="pladis"/>
+      <div class="splash-title">Shop Floor Operations</div>
+    </div>
+
+    <div class="splash-intro">
+      <div class="splash-tagline">One Portal. One Standard. Operational Excellence.</div>
+      <div class="splash-depts">
+        <div class="splash-dept" style="--dc:var(--primary,#7C3AED);--dcd:var(--primary-dark,#4C1D95)">
+          <span class="splash-dept-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+          <span>Quality</span>
+        </div>
+        <div class="splash-dept" style="--dc:#dc2626;--dcd:#5c1410">
+          <span class="splash-dept-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3z"/></svg></span>
+          <span>Safety</span>
+        </div>
+        <div class="splash-dept" style="--dc:#0d9488;--dcd:#063d30">
+          <span class="splash-dept-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4.5 4.5 0 0 0-6.1 6.1L3 18l3 3 5.6-5.6a4.5 4.5 0 0 0 6.1-6.1l-3.2 3.2-2.8-2.8 3.2-3.2z"/></svg></span>
+          <span>Maintenance</span>
+        </div>
+        <div class="splash-dept" style="--dc:#d97706;--dcd:#5c3209">
+          <span class="splash-dept-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14v4"/><path d="M12 9v9"/><path d="M17 5v13"/></svg></span>
+          <span>Production</span>
+        </div>
+        <div class="splash-dept" style="--dc:#2563eb;--dcd:#1e3a8a">
+          <span class="splash-dept-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+          <span>Visitor Management</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="splash-conveyor-wrap">
+      <svg class="splash-conveyor" viewBox="0 0 300 66" aria-hidden="true">
+        <defs>
+          <radialGradient id="convGlow" cx="50%" cy="85%" r="75%">
+            <stop offset="0%" stop-color="#7C3AED" stop-opacity=".5"/>
+            <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
+          </radialGradient>
+          <clipPath id="convClip"><rect x="18" y="16" width="264" height="30" rx="4"/></clipPath>
+        </defs>
+        <ellipse cx="150" cy="58" rx="118" ry="9" fill="url(#convGlow)"/>
+        <line x1="34" y1="46" x2="30" y2="60" stroke="#4c3d73" stroke-width="3" stroke-linecap="round"/>
+        <line x1="266" y1="46" x2="270" y2="60" stroke="#4c3d73" stroke-width="3" stroke-linecap="round"/>
+        <rect x="18" y="30" width="264" height="8" rx="4" fill="#1c1530" stroke="#7C3AED" stroke-opacity=".5"/>
+        <g class="conveyor-roller">
+          <circle cx="30" cy="34" r="12" fill="#100a1e" stroke="#a78bfa" stroke-width="1.4"/>
+          <line x1="30" y1="24" x2="30" y2="44" stroke="#a78bfa" stroke-width="1.2"/>
+          <line x1="20" y1="34" x2="40" y2="34" stroke="#a78bfa" stroke-width="1.2"/>
+        </g>
+        <g class="conveyor-roller">
+          <circle cx="270" cy="34" r="12" fill="#100a1e" stroke="#a78bfa" stroke-width="1.4"/>
+          <line x1="270" y1="24" x2="270" y2="44" stroke="#a78bfa" stroke-width="1.2"/>
+          <line x1="260" y1="34" x2="280" y2="34" stroke="#a78bfa" stroke-width="1.2"/>
+        </g>
+        <g clip-path="url(#convClip)">
+          <g class="conveyor-item" style="animation-delay:0s">
+            <circle r="8" fill="#DBAE6E"/><circle cx="-3" cy="-2" r="1.1" fill="#8a5a24"/><circle cx="3" cy="-1" r="1.1" fill="#8a5a24"/><circle cx="0" cy="3" r="1.1" fill="#8a5a24"/>
+          </g>
+          <g class="conveyor-item" style="animation-delay:-.8s">
+            <rect x="-8" y="-6" width="16" height="12" rx="2" fill="#3b2415"/><line x1="-8" y1="0" x2="8" y2="0" stroke="#5c3a22" stroke-width=".8"/><line x1="0" y1="-6" x2="0" y2="6" stroke="#5c3a22" stroke-width=".8"/>
+          </g>
+          <g class="conveyor-item" style="animation-delay:-1.6s">
+            <circle r="8" fill="#DBAE6E"/><circle cx="-3" cy="-2" r="1.1" fill="#8a5a24"/><circle cx="3" cy="-1" r="1.1" fill="#8a5a24"/><circle cx="0" cy="3" r="1.1" fill="#8a5a24"/>
+          </g>
+          <g class="conveyor-item" style="animation-delay:-2.4s">
+            <rect x="-8" y="-6" width="16" height="12" rx="2" fill="#3b2415"/><line x1="-8" y1="0" x2="8" y2="0" stroke="#5c3a22" stroke-width=".8"/><line x1="0" y1="-6" x2="0" y2="6" stroke="#5c3a22" stroke-width=".8"/>
+          </g>
+          <g class="conveyor-item" style="animation-delay:-3.2s">
+            <circle r="8" fill="#DBAE6E"/><circle cx="-3" cy="-2" r="1.1" fill="#8a5a24"/><circle cx="3" cy="-1" r="1.1" fill="#8a5a24"/><circle cx="0" cy="3" r="1.1" fill="#8a5a24"/>
+          </g>
+          <g class="conveyor-item" style="animation-delay:-4s">
+            <rect x="-8" y="-6" width="16" height="12" rx="2" fill="#3b2415"/><line x1="-8" y1="0" x2="8" y2="0" stroke="#5c3a22" stroke-width=".8"/><line x1="0" y1="-6" x2="0" y2="6" stroke="#5c3a22" stroke-width=".8"/>
+          </g>
+        </g>
+      </svg>
+      <div class="splash-status" id="splash-status">INITIALIZING SHOP FLOOR OPERATIONS...</div>
+    </div>
   </div>
 </div>
 
@@ -18496,11 +18605,23 @@ function startIntro(){
     }
   }catch(e){}
 
+  // Staged 7s startup sequence: background/brand/intro row/conveyor are
+  // timed purely via the CSS animation-delays on .splash-brand/.splash-
+  // intro/.splash-conveyor-wrap above. The one state change that needs
+  // JS (not just a CSS reveal) is the status line swapping from
+  // "Initializing..." to "System Ready" around 6.5s — a plain text/class
+  // change, never a fake percentage.
+  var readyTimer = setTimeout(function(){
+    var statusEl = document.getElementById('splash-status');
+    if(statusEl){ statusEl.textContent = 'SYSTEM READY ✓'; statusEl.classList.add('is-ready'); }
+  }, 6500);
+
   // Fade the splash out (with a slight image scale-up) and reveal the
-  // welcome screen underneath — ~700ms total, matches the spec.
+  // welcome screen underneath.
   function doTransition(){
     if(splash.dataset.leaving) return;
     splash.dataset.leaving = '1';
+    clearTimeout(readyTimer);
     splash.classList.add('splash-leaving');
     setTimeout(function(){
       splash.classList.add('splash-hidden');
@@ -18516,15 +18637,14 @@ function startIntro(){
       }
       if(typeof setShellMode==='function') setShellMode('welcome');
       setTimeout(function(){ if(splash && splash.parentNode) splash.remove(); }, 800);
-    }, 260);
+    }, 400);
   }
   window.triggerIntroEnter = doTransition;
 
-  // This is a fully client-rendered single-file app — everything is already
-  // parsed and running by the time this executes, so there's no separate
-  // "real" loading progress to hook. Use the ~2-3s fallback the splash is
-  // designed around, timed to let the entrance animations play out.
-  setTimeout(doTransition, 2600);
+  // Exact 7-second total splash duration, per the approved sequence:
+  // 0-1s background fade, 1-2s brand, 2-3s tagline/departments, 3s+
+  // conveyor running, ~6.5s "System Ready", fade to Home starts at 7s.
+  setTimeout(doTransition, 7000);
 }
 
 // The splash appears immediately on load and runs automatically — no tap
