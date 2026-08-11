@@ -69,24 +69,40 @@ body.theme-noir{
    Sampled from pladisglobal.com — primary #EA0029, ink #231F20
 ============================================================ */
 body.theme-pladis{
+  /* "Pladis Corporate" — v91 color-only polish. --primary/--primary-dark/
+     --primary-light/--red/--accent and every portal identity hue (Safety/
+     Maintenance/Production/Visitor Management, set elsewhere) are
+     UNCHANGED — same brand red, same semantic danger red, same portal
+     colors. What changed is the neutral "canvas" tokens that were
+     carrying a red tint into places that should read as clean corporate
+     neutral (page background, card/secondary surfaces, borders, shadows,
+     every form input's resting border, the scrollbar) plus --header-bg,
+     which was a solid burgundy->ink panel behind every page's header —
+     now a neutral ink gradient (both stops are lighter/darker shades of
+     the same existing --navy/--text ink #231F20, not a new invented
+     color). --grad is intentionally left red (it drives .btn-primary —
+     the brief explicitly wants primary buttons to stay red) but its
+     handful of large-panel, non-button consumers (footer strip, portal
+     sidebar default, ambient home glow) get a pladis-scoped neutral
+     override further down instead of inheriting the red gradient. */
   --primary:#EA0029; --primary-dark:#A8001E; --primary-light:#FF6B7A;
   --navy:#231F20; --accent:#EA0029; --accent-2:#231F20;
   --green:#16A34A; --red:#EA0029; --amber:#B45309; --gold:#FFDD00;
-  --bg:#FBF8F7;
-  --bg-grad:radial-gradient(circle at 12% 0%, rgba(234,0,41,.05), transparent 42%),
-             linear-gradient(165deg,var(--form-surface) 0%,#FBF3F2 55%,var(--form-surface) 100%);
-  --white:var(--form-surface); --surface-2:#FFF7F6; --border:#EEE0DD;
-  --text:#231F20; --muted:#7A716D;
-  --card-shadow:0 2px 10px rgba(35,31,32,.07), 0 14px 30px rgba(234,0,41,.05);
-  --header-bg:linear-gradient(120deg,#3A0009 0%,#231F20 100%);
+  --bg:#F7F7F6;
+  --bg-grad:radial-gradient(circle at 12% 0%, rgba(234,0,41,.035), transparent 42%),
+             linear-gradient(165deg,var(--form-surface) 0%,#F6F5F4 55%,var(--form-surface) 100%);
+  --white:var(--form-surface); --surface-2:#F6F5F4; --border:#E7E4E2;
+  --text:#231F20; --muted:#716864;
+  --card-shadow:0 2px 10px rgba(35,31,32,.07), 0 14px 30px rgba(35,31,32,.06);
+  --header-bg:linear-gradient(120deg,#3C3637 0%,#0E0C0D 100%);
   --grad:linear-gradient(135deg,#EA0029 0%,#5C0011 55%,#231F20 100%);
   --form-radius:12px; --form-radius-sm:9px;
   --form-shadow:0 4px 20px rgba(35,31,32,.07);
   --form-shadow-lg:0 14px 36px rgba(35,31,32,.1);
-  --form-border:rgba(234,0,41,.18);
-  --form-focus:0 0 0 3px rgba(234,0,41,.18);
-  --form-surface:#FFFFFF; --form-soft:#FFF6F5; --form-ink:#231F20;
-  --scrollbar-track:#FBF8F7; --scrollbar-thumb:#EA0029;
+  --form-border:rgba(35,31,32,.16);
+  --form-focus:0 0 0 3px rgba(234,0,41,.14);
+  --form-surface:#FFFFFF; --form-soft:#F6F5F4; --form-ink:#231F20;
+  --scrollbar-track:#F7F7F6; --scrollbar-thumb:#B9B3AE;
   color-scheme:light;
 }
 
@@ -464,6 +480,11 @@ body.theme-noir .vm-badge.inside{background:color-mix(in srgb, var(--primary) 24
 .pladis-news-card-meta{font-size:.68rem;color:var(--primary);font-weight:700;margin-top:10px}
 
 .pladis-footer-strip{background:var(--grad);border-radius:14px;padding:18px 26px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+/* Pladis theme only: this is a full-width panel, so it gets the same
+   neutral ink treatment as --header-bg instead of the red --grad used
+   here in Violet Noir (where that gradient is violet, not red, and
+   stays as-is). Noir is untouched. */
+body.theme-pladis .pladis-footer-strip{background:linear-gradient(120deg,#3C3637 0%,#0E0C0D 100%)}
 .pladis-footer-brand{color:#fff;font-weight:900;font-size:1.1rem;font-style:italic}
 .pladis-footer-links{display:flex;gap:14px;align-items:center}
 .pladis-footer-links a{color:#fff;text-decoration:none;opacity:.9;transition:opacity .15s;display:flex}
@@ -496,6 +517,11 @@ body.theme-noir .vm-badge.inside{background:color-mix(in srgb, var(--primary) 24
 .welcome-fx-circuit circle{fill:var(--primary);opacity:.55}
 @keyframes welcomeFxFlow{ to{stroke-dashoffset:-280} }
 .welcome-fx-orb{position:absolute;border-radius:50%;filter:blur(64px);opacity:.32;background:var(--grad)}
+/* Pladis theme only: these ambient blurred orbs sit behind the entire
+   Home page — three of them tinting the whole canvas red would work
+   against the "clean corporate neutral" background goal even at low
+   opacity/heavy blur. Muted neutral instead; Noir (violet) unchanged. */
+body.theme-pladis .welcome-fx-orb{background:linear-gradient(135deg,#3C3637,#0E0C0D)}
 .welcome-fx-orb.a{width:420px;height:420px;top:-140px;left:-120px;animation:welcomeFxOrb 15s ease-in-out infinite}
 .welcome-fx-orb.b{width:480px;height:480px;top:18%;right:-180px;animation:welcomeFxOrb 19s ease-in-out infinite reverse}
 .welcome-fx-orb.c{width:340px;height:340px;bottom:-150px;left:32%;animation:welcomeFxOrb 17s ease-in-out infinite 2s}
@@ -714,6 +740,15 @@ body.theme-noir .vm-badge.inside{background:color-mix(in srgb, var(--primary) 24
 }
 /* ══ Portal glass sidebar ══ */
 .portal-sidebar{position:fixed;top:16px;left:16px;bottom:16px;width:268px;z-index:250;display:none;flex-direction:column;gap:6px;padding:0 12px 12px;border-radius:28px;border:1px solid rgba(255,255,255,.12);background:var(--grad);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);box-shadow:0 24px 60px rgba(0,0,0,.35);color:rgba(255,255,255,.95);overflow:hidden}
+/* Safety/Maintenance/Production/Visitor Management each already override
+   this with their own portal-identity color further below (unaffected
+   here). Quality has no such override, so in pladis theme it was
+   falling through to the same solid red --grad as every button — a
+   268px-wide, full-height panel on every single Quality-portal page.
+   Compound selector (theme+portal, 3 classes) so this always wins over
+   the single-class body.portal-safety/etc. rules regardless of source
+   order, and never matches those other portals. Noir is untouched. */
+body.theme-pladis.portal-quality .portal-sidebar{background:linear-gradient(165deg,#3C3637 0%,#1a1717 55%,#0E0C0D 100%)}
 body.has-portal-sidebar .portal-sidebar{display:flex}
 body.has-portal-sidebar .header{margin-left:292px}
 body.has-portal-sidebar .view{margin-left:292px}
@@ -1195,7 +1230,7 @@ select.fi,select.cw-sel,.form-row select,#cw-product{
 .form-row input:focus,.form-row select:focus,.form-row textarea:focus,
 .cw-inp:focus,.db-week-sel:focus{
   outline:none!important;
-  border-color:#7C3AED!important;
+  border-color:var(--primary)!important;
   box-shadow:var(--form-focus)!important;
   background-color:var(--form-surface)!important;
 }
@@ -5206,7 +5241,7 @@ body:not(.login-active) #login-screen{
     </div>
     <div class="nm-form-actions">
       <button type="button" class="btn-ghost" onclick="document.getElementById('incident-modal').classList.remove('open')">Cancel</button>
-      <button type="button" class="btn-primary" style="background:#dc2626" onclick="reviewIncidentSubmit()">Save Report</button>
+      <button type="button" class="btn-primary" onclick="reviewIncidentSubmit()">Save Report</button>
     </div>
   </div>
 </div>
@@ -12931,7 +12966,7 @@ function renderIncidentInvestigation(){
     +'<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">'
     +'<button type="button" class="btn-ghost" data-prev-wired="1" onclick="showPreviousIncidents()">Previous Records</button>'
     +'<button type="button" class="btn-ghost" style="border-color:#fecaca;color:#991b1b;font-weight:800" onclick="openIncidentModal(\'initial\')">+ Initial (F.HSE.01)</button>'
-    +'<button type="button" class="btn-primary" style="background:#dc2626" onclick="openIncidentModal(\'final\')">+ Final (F/HSE/135)</button>'
+    +'<button type="button" class="btn-primary" onclick="openIncidentModal(\'final\')">+ Final (F/HSE/135)</button>'
     +'</div></div>';
   html+='<div class="page-sub" style="margin-bottom:14px">Same category — two report types used on site: <b>Initial Incident Report (F.HSE.01)</b> and <b>Final Report (F/HSE/135)</b></div>';
   if(!safetyData.incidentInvestigations.length){
@@ -22297,7 +22332,7 @@ try{var _lpgl=localStorage.getItem('pqs_lpglog');if(_lpgl)lpgLog=JSON.parse(_lpg
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button type="button" onclick="document.getElementById('noise-modal').classList.remove('open')" class="btn-ghost">Cancel</button>
-      <button type="button" onclick="saveNoiseReading()" class="btn-primary" style="background:#dc2626">Save Reading</button>
+      <button type="button" onclick="saveNoiseReading()" class="btn-primary">Save Reading</button>
     </div>
   </div>
 </div>
@@ -23809,7 +23844,7 @@ function renderNoiseLevel(){
   ]);
   html+='<div class="view-head-bar" style="margin:14px 0 10px;gap:8px;flex-wrap:wrap">'
     +'<div class="page-title" style="margin:0">Noise Readings</div>'
-    +'<button type="button" class="btn-primary" style="margin-left:auto;background:#dc2626" onclick="openNoiseModal()">+ Add Spot Reading</button>'
+    +'<button type="button" class="btn-primary" style="margin-left:auto" onclick="openNoiseModal()">+ Add Spot Reading</button>'
     +'<button type="button" class="btn-ghost" onclick="startNoiseSurvey()">New Full Survey</button>'
     +'<button type="button" class="btn-ghost" onclick="printNoiseSurvey()">Print Report</button>'
     +'</div>';
