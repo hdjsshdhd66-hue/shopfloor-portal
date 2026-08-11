@@ -4773,6 +4773,7 @@ body:not(.login-active) #login-screen{
       <div id="ra-team-rows"></div>
       <button type="button" class="btn-ghost" onclick="raAddTeamMember()" style="font-size:.75rem"> + Add Team Member</button>
     </div>
+    <div class="ra-warn" id="ra-validation-banner" style="margin-bottom:10px"></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button type="button" class="btn-primary" onclick="reviewRiskAssessmentSubmit()"> Save Risk Assessment</button>
       <button type="button" class="btn-ghost" onclick="closeRAForm()">Cancel</button>
@@ -16634,15 +16635,46 @@ function raGetWho(id){
 // All three use only the existing 1–5×1–5×raRiskInfo() scale. Suggestions
 // never overwrite a value the user (or an earlier suggestion) already set,
 // unless the user explicitly clicks "Recalculate Suggestion" (force=true).
-function raSuggestOriginalLS(text, impact){
+// Baseline Severity per Hazard/Aspect — the hazard type's typical inherent
+// consequence potential, independent of any control. This is what makes the
+// Original Risk suggestion genuinely hazard-aware (Electrical/Height/Fire/
+// Explosion-type hazards start higher than Slip/Trip/Fall or Potable Water)
+// instead of a flat 3 for everything. It is only a starting point: explicit
+// consequence language in Why-present/Impact/Exposure below can move it
+// further in either direction, and it is always manually overridable.
+const RA_HAZARD_SEVERITY_BASE = {
+  "Electrical Hazard":4, "Machine and Equipment Hazard":4, "Hazardous Energy":4,
+  "Explosion Hazard":4, "Fire Hazard":4, "Working at Height":4, "Confined Spaces Hazard":4,
+  "Process Safety Management":4, "Powered Industrial Trucks":4, "Automated Guided Vehicles":4,
+  "Fleet collision":4, "Traffic Management":4, "Ammonia Hazard":4, "Chemical Hazard":4,
+  "Asbestos Hazard":4, "Radiate":4,
+  "Manual Handling":3, "Slip / Trip / Fall":3, "Falling Object":3, "Noise Hazard":3,
+  "Occupational Violence":3, "Equipment failure":3, "Low clearance":3,
+  "Parking Vehicles & trailers":3, "Leaking":3, "Spill":3, "Industrial Hygiene":3,
+  "Air Quality":3, "Biological hazard":3, "Ergonomics":3, "Stress / Pressure":3,
+  "Weather condition":3, "Work environment":3, "Working / Driving long hours":3,
+  "Operate / Use by unauthorize / untrained people":3,
+  "Potable Water":2, "Storm water":2, "Wastewater":2, "Waste":2,
+  "Resource (water, Electricity, Fuel, …)":2, "Farm / Environmental Protection":2,
+};
+function raSuggestOriginalLS(hazard, text, impact, exposure){
   text = ((text||'')+' '+(impact||'')).toLowerCase();
-  let s = 3, l = 3;
+  let s = RA_HAZARD_SEVERITY_BASE[hazard] || 3, l = 3;
+  // Explicit consequence language can move Severity further, in either
+  // direction, on top of the hazard's baseline (e.g. a Slip/Trip/Fall
+  // described only as minor stays Low; an Electrical Hazard explicitly
+  // described as a fatality risk moves to Extreme regardless of baseline).
   if(/death|fatal|amputat|explos|electrocut|third degree|3rd degree|permanent disabl/.test(text)) s = 5;
-  else if(/fracture|broken bone|second degree|2nd degree|chronic|serious/.test(text)) s = 4;
-  else if(/minor|irritation|bruis|discomfort/.test(text)) s = 2;
+  else if(/fracture|broken bone|second degree|2nd degree|chronic|serious/.test(text)) s = Math.max(s, 4);
+  else if(/minor|irritation|bruis|discomfort/.test(text)) s = Math.min(s, 2);
   if(/daily|every shift|constant|continuous|frequently|always/.test(text)) l = 4;
   else if(/rare|occasional|seldom|infrequent/.test(text)) l = 2;
-  return { l, s };
+  // Documented Chemical/Exposure detail confirms a real, describable
+  // exposure pathway exists — nudges Likelihood only, never Severity on its
+  // own (Who May Be Affected is deliberately not read here at all: more
+  // people selected must never, by itself, increase either L or S).
+  if(exposure && (exposure.chem || (exposure.routes && exposure.routes.length))) l = Math.max(l, 3);
+  return { l: Math.min(5,Math.max(1,l)), s: Math.min(5,Math.max(1,s)) };
 }
 const RA_CTRL_KEYWORDS = {
   elimination:   /elimin/i,
@@ -16672,7 +16704,11 @@ function raSuggestOriginal(id, force){
   if(!why || !who.length || !hazard) return;
   const olSel = row.querySelector('.ra-ol'), osSel = row.querySelector('.ra-os');
   if(!force && (olSel.value || osSel.value)) return; // never overwrite a value the user already has
-  const sug = raSuggestOriginalLS(why, impact); // never reads Existing/Further Controls — see note above
+  const exposure = {
+    chem: row.querySelector('.ra-exp-chem')?.value.trim() || '',
+    routes: raGetExposureRoutes(id),
+  };
+  const sug = raSuggestOriginalLS(hazard, why, impact, exposure); // never reads Existing/Further Controls — see note above
   olSel.value = sug.l; osSel.value = sug.s;
   row.querySelector('.ra-o-suggest-note')?.classList.add('show');
   raRecalc(id);
@@ -16778,7 +16814,7 @@ function addRARow(data){
   const id = 'ra-row-'+(raRowCount++);
   const whoArr = data.whoArr || (data.who ? [data.who] : []);
   const expRoutes = data.expRoutes || [];
-  const routeChip = (label) => `<label class="choice-chip"><input type="checkbox" class="ra-exp-route" value="${label}" ${expRoutes.includes(label)?'checked':''}/> <span>${label}</span></label>`;
+  const routeChip = (label) => `<label class="choice-chip"><input type="checkbox" class="ra-exp-route" value="${label}" onchange="raSuggestOriginal('${id}')" ${expRoutes.includes(label)?'checked':''}/> <span>${label}</span></label>`;
   const html = `
   <div class="ra-row" id="${id}" style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;position:relative;overflow:visible">
     <div style="font-size:.7rem;font-weight:800;color:var(--primary);margin-bottom:6px">Hazard #${raRowCount}</div>
@@ -16796,7 +16832,7 @@ function addRARow(data){
     <details class="ra-exposure">
       <summary>Chemical / Exposure Details</summary>
       <div class="ra-exposure-body">
-        <div><label style="font-size:.68rem;font-weight:700;color:#6b7280">Chemical Name</label><input type="text" class="fi ra-exp-chem" value="${(data.expChem||'').replace(/"/g,'&quot;')}"/></div>
+        <div><label style="font-size:.68rem;font-weight:700;color:#6b7280">Chemical Name</label><input type="text" class="fi ra-exp-chem" value="${(data.expChem||'').replace(/"/g,'&quot;')}" onblur="raSuggestOriginal('${id}')"/></div>
         <div><label style="font-size:.68rem;font-weight:700;color:#6b7280">Physical Status</label><select class="fi ra-exp-phys">
           <option value="">Select…</option>
           <option ${data.expPhys==='Solid'?'selected':''}>Solid</option>
@@ -16976,9 +17012,55 @@ function closeRAForm(){
   renderRAHistory();
 }
 let editingRA = null;
-function reviewRiskAssessmentSubmit(){
+// Validates the header + every hazard row before the review/save step.
+// Returns {errors:[...], firstInvalidEl} — never mutates any field to force
+// a pass (no silently-assigned ratings). Conditional rules: entering
+// Existing Control Measures requires Residual L/S; entering Further Control
+// Measures requires Expected L/S. Chemical/Exposure fields stay fully
+// optional for every hazard, per the approved scope.
+function raValidate(){
+  const errors = [];
+  let firstInvalidEl = null;
+  const need = (cond, msg, el) => { if(cond){ errors.push(msg); if(!firstInvalidEl && el) firstInvalidEl = el; } };
+  need(!document.getElementById('ra-activity').value.trim(), 'Activity / Area is required.', document.getElementById('ra-activity'));
+  need(!document.getElementById('ra-dept').value.trim(), 'Department is required.', document.getElementById('ra-dept'));
+  need(!document.getElementById('ra-location').value.trim(), 'Location is required.', document.getElementById('ra-location'));
+  need(!document.getElementById('ra-number').value.trim(), 'Risk Assessment No. is required.', document.getElementById('ra-number'));
+  need(!document.getElementById('ra-date').value, 'Date is required.', document.getElementById('ra-date'));
+  need(!raGetReasons().length, 'Select at least one Reason for the Risk Assessment.', document.getElementById('ra-reason-grid'));
+
   const rows = [...document.querySelectorAll('.ra-row')];
-  if(!rows.length){ showToast('Add at least one hazard row','red'); return; }
+  need(!rows.length, 'Add at least one hazard row.', null);
+  rows.forEach((row,i)=>{
+    const n = i+1;
+    need(!row.querySelector('.ra-hazard').value, `Hazard ${n}: Hazard / Aspect is required.`, row.querySelector('.ra-hazard'));
+    need(!row.querySelector('.ra-why').value.trim(), `Hazard ${n}: Why the Hazard / Aspect is Present is required.`, row.querySelector('.ra-why'));
+    need(!row.querySelector('.ra-impact').value, `Hazard ${n}: Potential Risk / Impact is required.`, row.querySelector('.ra-impact'));
+    need(!raGetWho(row.id).length, `Hazard ${n}: select at least one Who May Be Affected.`, row.querySelector('.ra-who-grid'));
+    const ol = row.querySelector('.ra-ol').value, os = row.querySelector('.ra-os').value;
+    need(!ol || !os, `Hazard ${n}: Original Likelihood and Severity are required.`, row.querySelector('.ra-ol'));
+    if(row.querySelector('.ra-controls').value.trim()){
+      const rl = row.querySelector('.ra-rl').value, rs = row.querySelector('.ra-rs').value;
+      need(!rl || !rs, `Hazard ${n}: Existing Control Measures were entered — Residual Likelihood and Severity are required.`, row.querySelector('.ra-rl'));
+    }
+    if(row.querySelector('.ra-further').value.trim()){
+      const el = row.querySelector('.ra-el').value, es = row.querySelector('.ra-es').value;
+      need(!el || !es, `Hazard ${n}: Further Control Measures were entered — Expected Likelihood and Severity are required.`, row.querySelector('.ra-el'));
+    }
+  });
+  return { errors, firstInvalidEl };
+}
+function reviewRiskAssessmentSubmit(){
+  const { errors, firstInvalidEl } = raValidate();
+  const banner = document.getElementById('ra-validation-banner');
+  if(errors.length){
+    if(banner){ banner.innerHTML = '<b>Please fix before saving:</b><br>'+errors.map(e=>'⚠ '+e).join('<br>'); banner.classList.add('show'); }
+    showToast(errors.length===1 ? errors[0] : `${errors.length} issues need attention — see details above Save`, 'red');
+    if(firstInvalidEl){ firstInvalidEl.scrollIntoView({behavior:'smooth', block:'center'}); try{ firstInvalidEl.focus({preventScroll:true}); }catch(e){} }
+    return;
+  }
+  if(banner){ banner.classList.remove('show'); banner.innerHTML=''; }
+  const rows = [...document.querySelectorAll('.ra-row')];
   const fields = [
     ['Activity / Area', document.getElementById('ra-activity').value],
     ['Department', document.getElementById('ra-dept').value],
@@ -18058,14 +18140,41 @@ function __exportExcelSafetyWork(){
       addStyledSheet(wb, 'CAPA', ['Timestamp','Category','Issue/Observation','Location','Corrective Action','Responsible Dept','Responsible Person','Due Date','Actual Completion','Status'], rows, RED);
     }
     if(typeof riskAssessments!=='undefined' && riskAssessments.length){
+      // One row per hazard, full F/HSE/108 structure — reuses raRiskInfo()
+      // for every category cell (Original/Residual/Expected), the same
+      // single source the matrix/form/print all read from.
+      const ratingCell = (l,s) => {
+        const score = (l&&s) ? l*s : 0;
+        if(!score) return ['','','',''];
+        const info = raRiskInfo(score);
+        return [l, s, score, cellStatus(info.label, info.bg.replace('#',''), 'FFFFFF')];
+      };
       const rows = [];
       riskAssessments.forEach(ra=>{
-        (ra.rows||[]).forEach(r=>{
-          const oScore=(r.ol&&r.os)?r.ol*r.os:0, info=raRiskInfo(oScore||1);
-          rows.push([ra.timestamp||today, ra.activity||'', ra.dept||'', ra.location||'', r.hazard||'', r.impact||'', r.who||'', cellStatus(info.label, info.bg.replace('#',''), 'FFFFFF'), r.controls||'']);
+        const reasons = (ra.reasons||[]).join('; ');
+        (ra.rows||[]).forEach((r,idx)=>{
+          rows.push([
+            ra.createdAt||ra.timestamp||today, ra.raNumber||'', ra.raDate||'', ra.activity||'', ra.dept||'', ra.location||'', ra.freq||'', reasons, ra.createdBy||ra.author||'',
+            idx+1, r.hazard||'', r.why||'', r.impact||'', r.who||'', r.standard||'',
+            r.expChem||'', r.expPhys||'', r.expQty||'', r.expFreq||'', r.expTime||'', (r.expRoutes||[]).join('; '),
+            ...ratingCell(r.ol, r.os),
+            r.controls||'', r.controlsCat||'',
+            ...ratingCell(r.rl, r.rs),
+            r.further||'', r.furtherCat||'',
+            ...ratingCell(r.el, r.es),
+          ]);
         });
       });
-      addStyledSheet(wb, 'Risk Assessment', ['Timestamp','Activity/Area','Department','Location','Hazard','Potential Impact','Who Affected','Original Risk','Existing Controls'], rows, RED);
+      addStyledSheet(wb, 'Risk Assessment', [
+        'Timestamp','Risk Assessment No.','Date','Activity/Area','Department','Location','Activity Frequency','Reason for Risk Assessment','Author',
+        'Hazard No.','Hazard/Aspect','Why Hazard/Aspect is Present','Potential Risk/Impact','Who May Be Affected','Standard Name',
+        'Chemical Name','Physical Status','Exposure Quantity','Exposure Frequency','Exposure Time','Exposure Routes',
+        'Original Likelihood','Original Severity','Original Score','Original Category',
+        'Existing Control Measures','Existing Control Category',
+        'Residual Likelihood','Residual Severity','Residual Score','Residual Category',
+        'Further Control Measures','Further Control Category',
+        'Expected Likelihood','Expected Severity','Expected Score','Expected Category',
+      ], rows, RED);
     }
 
     if(!wb.SheetNames.length){ showToast('No Safety data to export yet','red'); return; }
