@@ -302,16 +302,17 @@ body.theme-noir .vm-badge.inside{background:color-mix(in srgb, var(--primary) 24
 /* ========================================
    SHOP FLOOR OPERATIONS — SPLASH SCREEN
    Two static brand images (desktop wide / mobile portrait — swapped via
-   <picture> media query, see markup below the login screen), shown at
-   full original aspect ratio via object-fit:contain — never cropped,
-   never stretched. #splash-screen is a column flexbox: .splash-media
-   takes the remaining space above the fixed-height loading bar, so the
-   image always shrinks to leave the bar clear of its own artwork
-   (including the image's own bottom tagline) instead of overlapping it,
-   at any viewport size. The backdrop color matches the images' own
-   near-black background so any letterboxing blends in rather than
-   reading as visible white space. The loading bar + label are separate
-   HTML/CSS — never baked into the image files themselves.
+   <picture> media query, see markup below the login screen).
+   MOBILE (≤900px, unchanged from before): #splash-screen is a column
+   flexbox — .splash-media takes the remaining space above the loading
+   bar via object-fit:contain, so the full image is always shown at its
+   original aspect ratio with the bar never overlapping it.
+   DESKTOP (≥901px): the image instead fills the viewport edge-to-edge
+   (100vw × 100vh, object-fit:cover) with no letterboxing — a small
+   amount of edge cropping is expected/accepted so the frame is always
+   fully covered. The loading bar overlays near the bottom as an
+   absolutely-positioned overlay in this mode. Either way, the loading
+   bar + label are separate HTML/CSS — never baked into the image files.
    ======================================== */
 #splash-screen{
   position:fixed; inset:0; z-index:9500; overflow:hidden;
@@ -329,31 +330,68 @@ body.theme-noir .vm-badge.inside{background:color-mix(in srgb, var(--primary) 24
 }
 @keyframes splashImgIn{ from{opacity:0;transform:scale(.98)} to{opacity:1;transform:scale(1)} }
 
+/* Loading bar: thin track + a small glowing light traveling across it —
+   no fake percentage, spinner, dots, or large icon. Shared by mobile and
+   desktop; only the container width differs (desktop is narrowed to the
+   requested 220–280px range below). */
 .splash-loading{
   flex:0 0 auto; align-self:center; width:min(360px,72vw);
   margin:10px 0 clamp(22px,5vh,54px); text-align:center;
   opacity:0; animation:splashTitleIn .6s ease-out .5s forwards;
 }
-.splash-loading-text{
-  font-size:clamp(.6rem,1.6vw,.72rem); font-weight:800; letter-spacing:.22em;
-  color:#c4b5fd; text-transform:uppercase; margin-bottom:10px;
-  text-shadow:0 0 16px rgba(167,139,250,.55);
-}
 .loading-track{
-  width:100%; height:3px; border-radius:99px; overflow:hidden;
-  background:rgba(124,58,237,.18);
-  box-shadow:0 0 14px rgba(124,58,237,.45), 0 0 2px rgba(196,181,253,.5);
+  position:relative; width:100%; height:2px; border-radius:99px; overflow:hidden;
+  background:rgba(196,181,253,.14);
 }
 .loading-fill{
-  height:100%; width:40%; border-radius:99px;
-  background:linear-gradient(90deg,transparent,#c4b5fd,#7C3AED,transparent);
-  animation:splashLoadSweep 1.3s ease-in-out infinite;
+  position:absolute; top:50%; left:0; width:36%; height:100%; border-radius:99px;
+  transform:translate(-120%,-50%);
+  background:linear-gradient(90deg,transparent,#c4b5fd 45%,#a78bfa 58%,transparent);
+  filter:drop-shadow(0 0 5px rgba(196,181,253,.85)) drop-shadow(0 0 12px rgba(124,58,237,.6));
+  animation:splashLoadSweep 1.8s cubic-bezier(.45,0,.55,1) infinite;
 }
-@keyframes splashLoadSweep{ 0%{transform:translateX(-110%)} 100%{transform:translateX(210%)} }
+@keyframes splashLoadSweep{ 0%{transform:translate(-120%,-50%)} 100%{transform:translate(320%,-50%)} }
+.splash-loading-text{
+  margin-top:12px; font-size:clamp(.6rem,1.6vw,.7rem); font-weight:700; letter-spacing:.14em;
+  color:#e9e3ff; text-transform:uppercase;
+  text-shadow:0 0 12px rgba(167,139,250,.45);
+}
 @keyframes splashTitleIn{ to{opacity:1} }
 
 @media (max-width:900px){
   .splash-loading{ margin-bottom:calc(env(safe-area-inset-bottom,0px) + clamp(18px,4vh,40px)); width:min(300px,78vw); }
+}
+
+/* DESKTOP — full-viewport cover, no black bars. Scoped to ≥901px, the
+   same breakpoint the <picture> source already uses to pick the desktop
+   image, so mobile's contain/letterbox layout above is untouched. */
+@media (min-width:901px){
+  .splash-media{
+    position:absolute; inset:0; width:100vw; height:100vh;
+    max-width:none; max-height:none; margin:0; padding:0;
+    display:block; overflow:hidden;
+  }
+  .splash-img{
+    width:100vw; height:100vh; max-width:none; max-height:none;
+    object-fit:cover; object-position:center center;
+  }
+  .splash-loading{
+    position:absolute; left:50%; bottom:clamp(30px,6vh,64px); transform:translateX(-50%);
+    width:clamp(220px,20vw,280px); margin:0; z-index:4;
+  }
+  /* Cover-fill puts the bar low over the artwork's own bottom area — this
+     full-width scrim (CSS only, not baked into the image) mutes whatever
+     artwork sits behind that band so the bar and label stay clearly
+     readable, instead of a soft fade that still lets background text
+     bleed through. */
+  .splash-loading::before{
+    content:''; position:absolute; z-index:-1; pointer-events:none;
+    left:50%; top:50%; transform:translate(-50%,-50%);
+    width:100vw; height:132px;
+    background:linear-gradient(to top,
+      rgba(5,3,10,.9) 0%, rgba(5,3,10,.88) 30%,
+      rgba(5,3,10,.6) 62%, rgba(5,3,10,0) 100%);
+  }
 }
 @media (prefers-reduced-motion: reduce){
   #splash-screen *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; }
@@ -2447,12 +2485,14 @@ try{
 <!-- ========================================
      SHOP FLOOR OPERATIONS — SPLASH SCREEN
      Static brand artwork (desktop wide / mobile portrait), swapped via
-     <picture> media query — never redesigned or cropped, shown at full
-     aspect ratio via object-fit:contain. Structure:
+     <picture> media query — artwork itself never redesigned. Mobile
+     (≤900px) shows it uncropped via object-fit:contain; desktop (≥901px)
+     fills the viewport edge-to-edge via object-fit:cover (see CSS above).
+     Structure:
        #splash-screen
          .splash-media   (<picture>/<img> — the splash artwork itself)
-         .splash-loading (HTML/CSS overlay: label + animated progress bar
-                           — not part of the images)
+         .splash-loading (HTML/CSS overlay: animated line, then label,
+                           below the image — not part of the images)
      ======================================== -->
 <div id="splash-screen" role="status" aria-live="polite" aria-label="Loading Shop Floor Operations">
 
@@ -2462,8 +2502,8 @@ try{
   </picture>
 
   <div class="splash-loading">
-    <div class="splash-loading-text" id="splash-status">INITIALIZING SHOP FLOOR OPERATIONS...</div>
     <div class="loading-track"><div class="loading-fill" id="splash-fill"></div></div>
+    <div class="splash-loading-text" id="splash-status">INITIALIZING SHOP FLOOR OPERATIONS...</div>
   </div>
 </div>
 
