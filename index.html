@@ -17251,10 +17251,17 @@ function deleteRiskAssessment(i){
 function printRiskAssessment(i){
   const ra = riskAssessments[i];
   if(!ra){ showToast('Risk assessment not found','red'); return; }
+  // Renders a rating cell; when a stage has no L/S entered yet (e.g. Residual/Expected
+  // before Existing/Further Controls are filled in), show a neutral "Not yet rated"
+  // note instead of a fabricated score/label — raRiskInfo() is still the single
+  // source for the color+label whenever a real score exists.
+  const ratingCellHtml = (l,s) => {
+    const score = (l&&s) ? l*s : 0;
+    if(!score) return `<td style="border:1px solid #999;padding:6px;text-align:center;background:#f3f4f6;color:#6b7280;font-style:italic">Not yet rated</td>`;
+    const info = raRiskInfo(score);
+    return `<td style="border:1px solid #999;padding:6px;text-align:center;background:${info.bg};color:${info.fg};font-weight:700">${l}×${s}=${score}<br>${info.label}</td>`;
+  };
   const rowsHtml = (ra.rows||[]).map((r,idx)=>{
-    const oScore = (r.ol&&r.os)?r.ol*r.os:0, oInfo = raRiskInfo(oScore||1);
-    const rScore = (r.rl&&r.rs)?r.rl*r.rs:0, rInfo = raRiskInfo(rScore||1);
-    const eScore = (r.el&&r.es)?r.el*r.es:0, eInfo = raRiskInfo(eScore||1);
     const hasExposure = r.expChem || r.expPhys || r.expQty || r.expFreq || r.expTime || (r.expRoutes&&r.expRoutes.length);
     const exposureTxt = hasExposure ? [r.expChem, r.expPhys, r.expQty&&('Qty: '+r.expQty), r.expFreq&&('Freq: '+r.expFreq), r.expTime&&('Time: '+r.expTime), r.expRoutes&&r.expRoutes.length&&('Route: '+r.expRoutes.join('/'))].filter(Boolean).join('<br>') : '—';
     return `<tr>
@@ -17264,11 +17271,11 @@ function printRiskAssessment(i){
       <td style="border:1px solid #999;padding:6px">${r.who||'—'}</td>
       <td style="border:1px solid #999;padding:6px">${r.standard||'—'}</td>
       <td style="border:1px solid #999;padding:6px;font-size:.7rem">${exposureTxt}</td>
-      <td style="border:1px solid #999;padding:6px;text-align:center;background:${oInfo.bg};color:${oInfo.fg};font-weight:700">${r.ol||'-'}×${r.os||'-'}=${oScore||'-'}<br>${oInfo.label}</td>
+      ${ratingCellHtml(r.ol, r.os)}
       <td style="border:1px solid #999;padding:6px;font-size:.72rem">${(r.controls||'—').replace(/\n/g,'<br>')}</td>
-      <td style="border:1px solid #999;padding:6px;text-align:center;background:${rInfo.bg};color:${rInfo.fg};font-weight:700">${r.rl||'-'}×${r.rs||'-'}=${rScore||'-'}<br>${rInfo.label}</td>
+      ${ratingCellHtml(r.rl, r.rs)}
       <td style="border:1px solid #999;padding:6px;font-size:.72rem">${(r.further||'—').replace(/\n/g,'<br>')}</td>
-      <td style="border:1px solid #999;padding:6px;text-align:center;background:${eInfo.bg};color:${eInfo.fg};font-weight:700">${r.el||'-'}×${r.es||'-'}=${eScore||'-'}<br>${eInfo.label}</td>
+      ${ratingCellHtml(r.el, r.es)}
     </tr>`;
   }).join('');
   const teamHtml = (ra.team||[]).filter(m=>m.name||m.title||m.signature||m.date).map(m=>`<tr>
