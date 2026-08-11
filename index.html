@@ -1972,8 +1972,24 @@ body.theme-noir .choice-chip:has(input:checked){background:color-mix(in srgb, va
 }
 body.theme-noir .legend-pill{background:color-mix(in srgb, var(--primary) 20%, var(--form-surface));color:var(--primary-light)}
 
-/* Soft empty states across portals */
-.view .empty-state,[id$="-list"]:empty::before{content:none}
+/* ============================================================
+   EMPTY STATES — one shared, theme-aware component for every list/
+   table/card that can legitimately contain zero records. Replaces a
+   dead rule that matched no real element (emptyState() never applied
+   its own class, so `content:none` on `.empty-state` never suppressed
+   anything in practice) with an actual visual style used by the
+   emptyState() helper and the BI dashboard card helpers below.
+   ============================================================ */
+.empty-state{
+  text-align:center;padding:36px 20px;border-radius:12px;
+  background:var(--form-surface);border:1px dashed var(--border);
+  color:var(--muted);
+}
+.empty-state .empty-state-icon{font-size:2.2rem;margin-bottom:10px;opacity:.75}
+.empty-state .empty-state-title{font-weight:700;color:var(--text);margin-bottom:5px}
+.empty-state .empty-state-hint{font-size:.82rem;color:var(--muted)}
+/* Compact variant for smaller inline cards (BI dashboard widgets) */
+.empty-state.empty-state-sm{padding:16px;border-style:solid;font-size:.8rem}
 
 /* Metal detector screen polish (keeps print structure) */
 #view-md > div:first-child{
@@ -7785,6 +7801,16 @@ function remapViewForPortal(v, portal){
   return v;
 }
 function nav(v){
+  // Unsaved-changes guard: leaving a dirty Risk Assessment form via any
+  // internal navigation (another nav button, portal menu item, a "Back"
+  // link — anything that routes through nav()) prompts the same
+  // confirmation as its own Cancel button. Declining aborts the
+  // navigation entirely — nothing else in nav() runs, so the form stays
+  // exactly as the user left it.
+  var _raWrap = document.getElementById('ra-form-wrap');
+  if(_raWrap && _raWrap.style.display!=='none' && _raWrap.offsetParent!==null && typeof window.confirmLeaveDirty==='function'){
+    if(!window.confirmLeaveDirty(_raWrap)) return;
+  }
   if(currentPortal) v = remapViewForPortal(v, currentPortal);
   // Removed from all portals (keep system simple)
   if(v==='auditmode' || v==='execdash') v = 'dailyhub';
@@ -9722,10 +9748,10 @@ function historyBtnHTML(kind, i){
   return '<button type="button" class="btn-ghost" style="font-size:.72rem;padding:4px 8px" onclick="showRecordHistory(\''+kind+'\','+i+')" title="Change history">History</button>';
 }
 function emptyState(icon, title, hint){
-  return '<div style="text-align:center;padding:44px 20px;color:#94a3b8">'
-    + '<div style="font-size:2.4rem;margin-bottom:10px">'+(icon||'📋')+'</div>'
-    + '<div style="font-weight:700;color:#64748b;margin-bottom:6px">'+(title||'No records yet')+'</div>'
-    + (hint ? '<div style="font-size:.82rem">'+hint+'</div>' : '')
+  return '<div class="empty-state">'
+    + '<div class="empty-state-icon">'+(icon||'📋')+'</div>'
+    + '<div class="empty-state-title">'+(title||'No records yet')+'</div>'
+    + (hint ? '<div class="empty-state-hint">'+hint+'</div>' : '')
     + '</div>';
 }
 
@@ -12970,7 +12996,7 @@ function renderRWDashboard(){
 
   html += `<div style="font-weight:800;color:#1e3a5f;font-size:.95rem;margin-bottom:10px">Available Re-Work Inventory</div>`;
   if(!available.length){
-    html += `<div style="text-align:center;padding:30px;color:var(--muted);background:#fff;border-radius:12px;border:1px dashed #e5e7eb">No re-work currently available. Log a batch from the Generate tab.</div>`;
+    html += `<div class="empty-state">No re-work currently available. Log a batch from the Generate tab.</div>`;
   } else {
     html += available.map(g=>{
       const i = reworkData.generated.indexOf(g);
@@ -13026,7 +13052,7 @@ function renderRWHistory(){
       </div>`;
     }).join('');
   }
-  wrap.innerHTML = html || '<div style="text-align:center;padding:30px;color:var(--muted);background:#fff;border-radius:12px">No history yet.</div>';
+  wrap.innerHTML = html || '<div class="empty-state">No history yet.</div>';
 }
 
 // ── Trace / Search (forward + backward) ──
@@ -13068,7 +13094,7 @@ function runRWTrace(){
     });
   }
   if(!matchedGen.length && !matchedUse.length){
-    html = `<div style="text-align:center;padding:30px;color:var(--muted);background:#fff;border-radius:12px">No records found for "${q}".</div>`;
+    html = `<div class="empty-state">No records found for "${q}".</div>`;
   }
   wrap.innerHTML = html;
 }
@@ -15393,7 +15419,7 @@ function renderScoringDash(){
   var wrap = document.getElementById('scoring-dash');
   if(!wrap) return;
   if(!scoringList||!scoringList.length){
-    wrap.innerHTML='<div style="text-align:center;padding:50px;color:var(--muted);background:#fff;border-radius:12px">No evaluations yet</div>';
+    wrap.innerHTML='<div class="empty-state">No evaluations yet</div>';
     return;
   }
 
@@ -15476,7 +15502,7 @@ function renderScoring(){
   var wrap = document.getElementById('scoring-list');
   if(!wrap) return;
   if(!scoringList || !scoringList.length){
-    wrap.innerHTML = '<div style="text-align:center;padding:50px;color:var(--muted);background:#fff;border-radius:12px"><div style="font-size:.9rem;font-weight:700;margin-bottom:6px">No evaluations yet</div><div style="font-size:.82rem">Click + New Evaluation to start</div></div>';
+    wrap.innerHTML = '<div class="empty-state"><div class="empty-state-title">No evaluations yet</div><div class="empty-state-hint">Click + New Evaluation to start</div></div>';
     return;
   }
   var resultColors = {Exceeding:'#16a34a',Good:'#2563eb',Unsatisfactory:'#dc2626'};
@@ -15731,7 +15757,7 @@ function portalBiProdKpis(items){
 
 function portalBiActivityCard(title, rows){
   if(!rows || !rows.length){
-    return '<div class="pbi-card"><div class="pbi-card-title">'+portalBiEsc(title)+'</div><div style="color:#94a3b8;padding:16px;text-align:center;font-size:.8rem">No activity yet</div></div>';
+    return '<div class="pbi-card"><div class="pbi-card-title">'+portalBiEsc(title)+'</div><div class="empty-state empty-state-sm">No activity yet</div></div>';
   }
   return '<div class="pbi-card"><div class="pbi-card-title">'+portalBiEsc(title)+'</div>'
     + rows.map(function(r){
@@ -15745,7 +15771,7 @@ function portalBiActivityCard(title, rows){
 
 function portalBiDetailTable(title, headers, rows, headBg){
   if(!rows || !rows.length){
-    return '<div class="pbi-card"><div class="pbi-card-title">'+portalBiEsc(title)+'</div><div style="color:#94a3b8;padding:16px;text-align:center">No data</div></div>';
+    return '<div class="pbi-card"><div class="pbi-card-title">'+portalBiEsc(title)+'</div><div class="empty-state empty-state-sm">No data</div></div>';
   }
   var h = '<div class="pbi-card" style="overflow:auto"><div class="pbi-card-title">'+portalBiEsc(title)+'</div><table class="pbi-table"><thead><tr>';
   headers.forEach(function(x){ h += '<th style="background:'+(headBg||'#1e3a5f')+'">'+portalBiEsc(x)+'</th>'; });
@@ -18879,38 +18905,74 @@ function dismissToast(){
 
 // ============================================================
 // UNSAVED CHANGES PROTECTION — generic, opt-out-free guard for every
-// .modal-overlay in the app. Tracks real user edits (input/change events;
-// programmatic pre-fill for "edit existing record" flows does NOT trigger
-// these, so opening a record for editing never falsely counts as dirty).
-// Only intercepts a Cancel/Close-labelled .btn-ghost inside a modal that
-// has unsaved edits — Save buttons (.btn-primary) are never intercepted,
-// so successful Save/Submit flows are completely unaffected. The dirty
-// flag is cleared automatically the moment a modal's own "open" class is
-// toggled (by any existing close/save code, unchanged), so no per-form
-// wiring was needed and no existing workflow was touched.
+// .modal-overlay in the app, plus the one full-page form in the app that
+// isn't a modal: the Risk Assessment form (#ra-form-wrap). Tracks real
+// user edits (input/change events; programmatic pre-fill for "edit
+// existing record" flows does NOT trigger these, so opening a record for
+// editing never falsely counts as dirty). Only intercepts a Cancel/Close-
+// labelled .btn-ghost, or internal navigation via nav(), when the current
+// modal/form actually has unsaved edits — Save buttons (.btn-primary) are
+// never intercepted, so successful Save/Submit flows are unaffected. The
+// dirty flag clears automatically the moment a modal's "open" class (or
+// the RA form-wrap's visibility) is toggled by any existing close/save
+// code, unchanged — no per-form wiring was needed.
+//
+// Deliberately NOT extended to session-style views the user fills in
+// gradually over a shift (Metal Detector log, Check Weigher, Line
+// Clearance, Daily Checklist, etc.) — those aren't a single "complete
+// then Save/Cancel" form the way a modal or the RA form is, and warning
+// every time someone taps between tabs mid-shift would break, not help,
+// that normal workflow. See the final report for the full list.
 // ============================================================
 (function(){
   var dirty = new Set();
-  function keyOf(ov){ return ov.id || ov; }
+  function keyOf(el){ return el.id || el; }
+  function raWrap(){ return document.getElementById('ra-form-wrap'); }
+  function dirtyScope(target){
+    var ov = target.closest && target.closest('.modal-overlay.open');
+    if(ov) return ov;
+    var ra = raWrap();
+    // offsetParent!==null (actually rendered, not just its own inline
+    // style saying 'block' while the ancestor .view got hidden) matters
+    // here: hiding the view forces a native blur on whatever field still
+    // has focus, which fires a real 'change' event on a text input whose
+    // value changed since focus — without this check that blur-on-leave
+    // would immediately re-mark the form dirty right after a confirmed
+    // "leave without saving", undoing the very confirmation that just ran.
+    if(ra && ra.style.display!=='none' && ra.offsetParent!==null && ra.contains(target)) return ra;
+    return null;
+  }
   function markDirty(e){
-    var ov = e.target.closest && e.target.closest('.modal-overlay.open');
-    if(ov) dirty.add(keyOf(ov));
+    var scope = dirtyScope(e.target);
+    if(scope) dirty.add(keyOf(scope));
   }
   document.addEventListener('input', markDirty, true);
   document.addEventListener('change', markDirty, true);
 
+  function resolveEl(elOrId){ return typeof elOrId==='string' ? document.getElementById(elOrId) : elOrId; }
+  // Exposed so nav() (and anything else with its own close/leave path) can
+  // ask "is this form/modal dirty, and if so did the user confirm leaving?"
+  // without duplicating the confirm text or the dirty bookkeeping.
+  window.confirmLeaveDirty = function(elOrId){
+    var el = resolveEl(elOrId);
+    if(!el || !dirty.has(keyOf(el))) return true;
+    var ok = confirm('You have unsaved changes. Leave without saving?\n\nلديك تغييرات غير محفوظة. هل تريد المغادرة بدون حفظ؟');
+    if(ok) dirty.delete(keyOf(el));
+    return ok;
+  };
+  window.isFormDirty = function(elOrId){ var el = resolveEl(elOrId); return !!el && dirty.has(keyOf(el)); };
+
   var skipGuard = false;
   document.addEventListener('click', function(e){
     if(skipGuard) return;
-    var btn = e.target.closest && e.target.closest('.modal-overlay.open .btn-ghost');
+    var btn = e.target.closest && e.target.closest('.modal-overlay.open .btn-ghost, #ra-form-wrap .btn-ghost');
     if(!btn) return;
     if(!/cancel|close/i.test(btn.textContent||'')) return;
-    var ov = btn.closest('.modal-overlay.open');
-    if(!ov || !dirty.has(keyOf(ov))) return;
+    var scope = btn.closest('.modal-overlay.open') || raWrap();
+    if(!scope || !dirty.has(keyOf(scope))) return;
     e.preventDefault();
     e.stopImmediatePropagation();
-    if(confirm('You have unsaved changes. Leave without saving?\n\nلديك تغييرات غير محفوظة. هل تريد المغادرة بدون حفظ؟')){
-      dirty.delete(keyOf(ov));
+    if(window.confirmLeaveDirty(scope)){
       skipGuard = true;
       btn.click();
       skipGuard = false;
@@ -18937,6 +18999,14 @@ function dismissToast(){
       });
     });
   }).observe(document.body, {childList:true, subtree:true});
+
+  // The RA form-wrap has no "open" class — it toggles style.display
+  // instead (closeRAForm(), called by both Cancel and a successful save,
+  // sets it to 'none'). Watch that the same way, for the same reason.
+  var ra = raWrap();
+  if(ra){
+    new MutationObserver(function(){ dirty.delete(keyOf(ra)); }).observe(ra, {attributes:true, attributeFilter:['style']});
+  }
 })();
 
 renderHome();
@@ -21378,7 +21448,7 @@ function buildProdBiGauge(pct, label, color){
     +'</div>';
 }
 function buildProdBiVBars(items, color){
-  if(!items || !items.length) return '<div style="color:#94a3b8;padding:20px;text-align:center">No data</div>';
+  if(!items || !items.length) return '<div class="empty-state empty-state-sm">No data</div>';
   var max = Math.max.apply(null, items.map(function(i){ return i.v; }).concat([1]));
   var w = Math.max(320, items.length*46), h=180, padT=24, padB=28, padL=8, padR=8;
   var plotH = h-padT-padB, barW=28, gap=(w-padL-padR)/items.length;
@@ -21393,7 +21463,7 @@ function buildProdBiVBars(items, color){
   return '<svg width="100%" height="'+h+'" viewBox="0 0 '+w+' '+h+'">'+bars+'</svg>';
 }
 function buildProdBiLossBars(cats){
-  if(!cats || !cats.length) return '<div style="color:#94a3b8;padding:16px;text-align:center">No loss categories</div>';
+  if(!cats || !cats.length) return '<div class="empty-state empty-state-sm">No loss categories</div>';
   var max = Math.max.apply(null, cats.map(function(c){ return c.pct; }).concat([0.1]));
   var w = Math.max(520, cats.length*34), h=200, padT=28, padB=70, padL=10, padR=10;
   var plotH=h-padT-padB, gap=(w-padL-padR)/cats.length, barW=18;
