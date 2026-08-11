@@ -1,7 +1,7 @@
 # IT Handover — Shop Floor Digital Portal (pladis KSA)
 
-**App version:** `1.0` · **Build:** `v93` · **Service worker cache:** `v93`
-**Document date:** 2026-08-11
+**App version:** `1.0` · **Build:** `v94` · **Service worker cache:** `v94`
+**Document date:** 2026-08-11 (updated after the index.html/styles.css/app.js file separation)
 
 ---
 
@@ -31,9 +31,19 @@ integration is required before this can be treated as the company's system of re
 
 ## 3. Current frontend architecture
 
-- **Single static file**: `index.html` — all HTML, CSS and JavaScript are inline in one
-  file (~2 MB). No build step, bundler, or framework (no React/Vue/webpack). Edits are
-  made directly to this file and deployed as a static asset.
+- **Three static files, mechanically separated from a single original file**:
+  `index.html` (markup only, ~3,100 lines), `styles.css` (all document-level CSS,
+  ~3,500 lines), `app.js` (all application JavaScript, ~19,500 lines). This split was
+  a pure file-move for maintainability — no logic, functions, variables, or execution
+  order changed. No build step, bundler, or framework (no React/Vue/webpack/npm/
+  TypeScript). Edits are made directly to these files and deployed as static assets.
+  `index.html` loads `styles.css` via a normal `<link rel="stylesheet">` and `app.js`
+  via a single plain `<script src="./app.js">` at the end of `<body>` (no `defer`/
+  `async`/`type="module"` — a classic, parser-blocking script, same semantics as the
+  inline script it replaced). One small script — reading the saved theme from
+  `localStorage` and setting the body class before first paint, to avoid a flash of
+  the wrong theme — deliberately stays inline in `index.html` rather than moving to
+  `app.js`, since that would add a network round-trip before first paint.
 - **Third-party libraries** (vendored, no CDN/network dependency): `xlsx.full.min.js`
   (Excel export), `qrcode.min.js`, `JsBarcode.all.min.js`.
 - **No server-rendering, no API calls today** — every screen renders from in-memory
@@ -48,9 +58,13 @@ integration is required before this can be treated as the company's system of re
 
 - `manifest.json` — installable PWA metadata (icons, standalone display, theme colors).
 - `service-worker.js` — caches the app shell and static assets
-  (`CACHE_NAME = 'shopfloor-cache-' + CACHE_VERSION`, currently `v93`).
-  - **App shell (`index.html`) uses network-first**: an online client always fetches the
-    latest deploy and only falls back to the cached copy when offline. This means most
+  (`CACHE_NAME = 'shopfloor-cache-' + CACHE_VERSION`, currently `v94`).
+  - **App shell — `index.html`, `styles.css` and `app.js` — uses network-first**: an
+    online client always fetches the latest deploy of all three and only falls back to
+    the cached copy when offline. All three are treated identically here (not just
+    `index.html`) specifically so a client can never end up running a fresh
+    `index.html` against a stale, cache-first `app.js`/`styles.css` after a deploy —
+    that gap was caught and closed when the file separation above shipped. Most
     deploys reach installed devices automatically without needing a cache-version bump.
   - **Static assets** (icons, vendored libraries, brand/splash images) use
     cache-first-with-background-refresh — appropriate since they rarely change.
@@ -62,9 +76,10 @@ Currently served as a **static site via GitHub Pages** with a custom domain (`CN
 `shopfloordigitaloperation.com`). This is adequate for a pilot but not for enterprise
 production:
 
-- IT should host the static bundle (`index.html`, `manifest.json`, `service-worker.js`,
-  icons, images, vendored JS) behind the company's standard web infrastructure
-  (reverse proxy / CDN / internal web server), with its own deployment pipeline.
+- IT should host the static bundle (`index.html`, `styles.css`, `app.js`,
+  `manifest.json`, `service-worker.js`, icons, images, vendored JS) behind the
+  company's standard web infrastructure (reverse proxy / CDN / internal web server),
+  with its own deployment pipeline.
 - No server-side rendering or app-server process is required for the **frontend
   itself** — it can continue to be served as static files — but see §8–§9 for the
   backend services that must sit alongside it.
@@ -196,11 +211,13 @@ production requires: enterprise hosting (§5) + HTTPS (§6) + real auth (§7) + 
 
 ## 17. Service worker cache/version management
 
-`CACHE_VERSION` in `service-worker.js` and `APP_BUILD` in `index.html` are paired
+`CACHE_VERSION` in `service-worker.js` and `APP_BUILD` in `app.js` are paired
 release identifiers and should be bumped together on every deploy (see `APP_VERSION`'s
-in-code comment). Because the app shell fetch strategy is network-first, a cache-version
-bump is mostly a clean-break/housekeeping step (forces old cached asset buckets to be
-deleted) rather than the only mechanism keeping clients current — but keeping both
+in-code comment). Because the app shell fetch strategy is network-first — and, since
+the file separation, that now explicitly includes `styles.css`/`app.js` alongside
+`index.html`, not just `index.html` alone — a cache-version bump is mostly a
+clean-break/housekeeping step (forces old cached asset buckets to be deleted) rather
+than the only mechanism keeping clients current — but keeping both
 numbers aligned makes it trivial for IT to confirm which build a given device is
 running (visible via the in-app IT Integration panel and in exported bundle filenames).
 
