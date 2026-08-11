@@ -1,13 +1,16 @@
 // CACHE_VERSION still gets bumped on every deploy as a clean break point for
 // old caches, but it is no longer the only thing standing between users and
-// stale app code: the app shell (index.html) now uses a network-first
-// strategy below, so a fresh deploy reaches already-installed PWAs the next
-// time they're online, even if this line is forgotten.
-const CACHE_VERSION = 'v93';
+// stale app code: the app shell (index.html, styles.css, app.js — see
+// APP_SHELL_PATHS below) now uses a network-first strategy, so a fresh
+// deploy reaches already-installed PWAs the next time they're online, even
+// if this line is forgotten.
+const CACHE_VERSION = 'v94';
 const CACHE_NAME = 'shopfloor-cache-' + CACHE_VERSION;
 const ASSETS = [
   './',
   './index.html',
+  './styles.css',
+  './app.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
@@ -30,13 +33,23 @@ const ASSETS = [
 
 // The app shell — always try the network first so a new deploy is picked up
 // on the very next load while online; fall back to cache only when offline
-// or the network request fails.
-const APP_SHELL_PATHS = ['/', '/index.html'];
+// or the network request fails. As of the index.html/styles.css/app.js
+// separation, styles.css and app.js are just as much "the app" as
+// index.html itself — a client that got a fresh index.html over the
+// network but then served a stale, cache-first app.js/styles.css would be
+// running a broken hybrid of two releases, so both are treated the same as
+// index.html here, not as ordinary static assets.
+const APP_SHELL_PATHS = ['/', '/index.html', '/styles.css', '/app.js'];
 function isAppShellRequest(req) {
   if (req.mode === 'navigate') return true;
   try {
     const url = new URL(req.url);
-    return APP_SHELL_PATHS.some((p) => url.pathname === p || url.pathname.endsWith('/index.html'));
+    return APP_SHELL_PATHS.some((p) =>
+      url.pathname === p ||
+      url.pathname.endsWith('/index.html') ||
+      url.pathname.endsWith('/styles.css') ||
+      url.pathname.endsWith('/app.js')
+    );
   } catch (e) {
     return false;
   }
