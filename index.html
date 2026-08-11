@@ -16706,7 +16706,9 @@ function raSuggestLS(baseL, baseS, text, category){
   if(hit('substitution')){ dL -= 1; dS -= 1; }
   if(hit('engineering')){ dL -= 1; }
   if(hit('administrative')){ dL -= 1; }
-  if(hit('ppe')){ dS -= 1; } // PPE reduces potential injury severity only — never likelihood, never on its own down to Low
+  // Deliberately no PPE-based reduction here: PPE presence alone must never
+  // be assumed to lower Severity — it is recognized only as a control
+  // category (dropdown), not as an automatic consequence-reducing factor.
   dL = Math.max(-2, dL); dS = Math.max(-2, dS); // conservative cap — controls existing alone never wipes out risk
   return { l: Math.min(5, Math.max(1, baseL + dL)), s: Math.min(5, Math.max(1, baseS + dS)) };
 }
@@ -17025,7 +17027,10 @@ function raGetReasons(){
   const otherChk = document.getElementById('ra-reason-other-chk');
   if(otherChk && otherChk.checked){
     const v = (document.getElementById('ra-reason-other')?.value||'').trim();
-    if(v) arr.push(v); else arr.push('Other');
+    // A blank Other description is never stored as a bare "Other" placeholder
+    // — raValidate() requires the description before save is allowed, so this
+    // only ever omits it during the transient, not-yet-valid state.
+    if(v) arr.push(v);
   }
   return arr;
 }
@@ -17108,7 +17113,12 @@ function raValidate(){
   need(!document.getElementById('ra-location').value.trim(), 'Location is required.', document.getElementById('ra-location'));
   need(!document.getElementById('ra-number').value.trim(), 'Risk Assessment No. is required.', document.getElementById('ra-number'));
   need(!document.getElementById('ra-date').value, 'Date is required.', document.getElementById('ra-date'));
-  need(!raGetReasons().length, 'Select at least one Reason for the Risk Assessment.', document.getElementById('ra-reason-grid'));
+  const raReasonOtherChk = document.getElementById('ra-reason-other-chk');
+  const raReasonOtherBlank = !!(raReasonOtherChk && raReasonOtherChk.checked && !document.getElementById('ra-reason-other').value.trim());
+  // A checked-but-blank Other still counts as "a reason selected" here so the
+  // generic message below doesn't double up with the specific one right after it.
+  need(!(raGetReasons().length + (raReasonOtherBlank?1:0)), 'Select at least one Reason for the Risk Assessment.', document.getElementById('ra-reason-grid'));
+  need(raReasonOtherBlank, 'Please specify the other reason for the Risk Assessment.', document.getElementById('ra-reason-other'));
 
   const rows = [...document.querySelectorAll('.ra-row')];
   need(!rows.length, 'Add at least one hazard row.', null);
