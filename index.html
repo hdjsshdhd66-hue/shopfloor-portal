@@ -409,7 +409,7 @@ body.theme-noir .vm-badge.inside{background:color-mix(in srgb, var(--primary) 24
   background:linear-gradient(135deg,var(--dc,#7C3AED),var(--dcd,#4C1D95));
 }
 .splash-dept-icon svg{ width:13px; height:13px; stroke:#fff; }
-.splash-dept span{ font-size:.66rem; font-weight:800; letter-spacing:.02em; color:#fff; white-space:nowrap; }
+.splash-dept-name{ font-size:.66rem; font-weight:800; letter-spacing:.02em; color:#fff; white-space:nowrap; }
 
 @keyframes splashFadeUp{ to{ opacity:1; transform:translateY(0); } }
 
@@ -424,6 +424,10 @@ body.theme-noir .vm-badge.inside{background:color-mix(in srgb, var(--primary) 24
 @keyframes conveyorSpin{ to{ transform:rotate(360deg); } }
 .conveyor-item{ animation:conveyorMove 4.8s linear infinite; }
 @keyframes conveyorMove{ from{ transform:translate(18px,34px); } to{ transform:translate(282px,34px); } }
+/* Subtle belt-fabric motion (in addition to the rollers spinning and the
+   items travelling) — a faint marching dash along the belt surface. */
+.conveyor-belt{ stroke-dasharray:3 5; animation:conveyorBeltFlow 1.1s linear infinite; }
+@keyframes conveyorBeltFlow{ to{ stroke-dashoffset:-8; } }
 
 .splash-status{
   margin-top:10px; font-size:clamp(.56rem,1.4vw,.66rem); font-weight:700; letter-spacing:.14em;
@@ -434,11 +438,21 @@ body.theme-noir .vm-badge.inside{background:color-mix(in srgb, var(--primary) 24
 
 @media (max-width:900px){
   .splash-title{ font-size:1.2rem; letter-spacing:.12em; }
-  .splash-depts{ gap:10px; max-width:280px; }
-  .splash-dept{ padding:8px; border-radius:50%; }
-  .splash-dept span{ display:none; } /* icon-only badges keep the row compact on phones */
-  .splash-dept-icon{ width:24px; height:24px; }
-  .splash-conveyor-wrap{ width:min(260px,72vw); }
+  /* pladis wordmark is brand red everywhere else in the app (incl. the
+     desktop splash, left untouched) — mobile splash only, force it to
+     read white against the dark factory photo. brightness(0) collapses
+     the opaque glyph to black while keeping its alpha shape, invert(1)
+     flips that to white — no separate white logo asset needed. */
+  .splash-logo{ filter:brightness(0) invert(1) drop-shadow(0 2px 10px rgba(0,0,0,.5)); }
+  .splash-depts{ gap:11px; max-width:300px; }
+  .splash-dept{ padding:7px; border-radius:50%; }
+  .splash-dept-name{ display:none; } /* icon-only badges keep the row compact on phones */
+  .splash-dept-icon{ width:28px; height:28px; }
+  .splash-dept-icon svg{ width:16px; height:16px; }
+  /* Conveyor ~19% wider (260px -> 310px) and lifted further off the true
+     bottom edge / home-indicator safe area for easier reading on phones. */
+  .splash-conveyor-wrap{ width:min(310px,82vw); }
+  .splash-fg{ padding-bottom:calc(env(safe-area-inset-bottom,0px) + clamp(30px,7vh,56px)); }
 }
 @media (prefers-reduced-motion: reduce){
   #splash-screen *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; }
@@ -2609,23 +2623,23 @@ try{
       <div class="splash-depts">
         <div class="splash-dept" style="--dc:var(--primary,#7C3AED);--dcd:var(--primary-dark,#4C1D95)">
           <span class="splash-dept-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
-          <span>Quality</span>
+          <span class="splash-dept-name">Quality</span>
         </div>
         <div class="splash-dept" style="--dc:#dc2626;--dcd:#5c1410">
           <span class="splash-dept-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3z"/></svg></span>
-          <span>Safety</span>
+          <span class="splash-dept-name">Safety</span>
         </div>
         <div class="splash-dept" style="--dc:#0d9488;--dcd:#063d30">
           <span class="splash-dept-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4.5 4.5 0 0 0-6.1 6.1L3 18l3 3 5.6-5.6a4.5 4.5 0 0 0 6.1-6.1l-3.2 3.2-2.8-2.8 3.2-3.2z"/></svg></span>
-          <span>Maintenance</span>
+          <span class="splash-dept-name">Maintenance</span>
         </div>
         <div class="splash-dept" style="--dc:#d97706;--dcd:#5c3209">
           <span class="splash-dept-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14v4"/><path d="M12 9v9"/><path d="M17 5v13"/></svg></span>
-          <span>Production</span>
+          <span class="splash-dept-name">Production</span>
         </div>
         <div class="splash-dept" style="--dc:#2563eb;--dcd:#1e3a8a">
           <span class="splash-dept-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-          <span>Visitor Management</span>
+          <span class="splash-dept-name">Visitor Management</span>
         </div>
       </div>
     </div>
@@ -2642,7 +2656,7 @@ try{
         <ellipse cx="150" cy="58" rx="118" ry="9" fill="url(#convGlow)"/>
         <line x1="34" y1="46" x2="30" y2="60" stroke="#4c3d73" stroke-width="3" stroke-linecap="round"/>
         <line x1="266" y1="46" x2="270" y2="60" stroke="#4c3d73" stroke-width="3" stroke-linecap="round"/>
-        <rect x="18" y="30" width="264" height="8" rx="4" fill="#1c1530" stroke="#7C3AED" stroke-opacity=".5"/>
+        <rect class="conveyor-belt" x="18" y="30" width="264" height="8" rx="4" fill="#1c1530" stroke="#7C3AED" stroke-opacity=".5"/>
         <g class="conveyor-roller">
           <circle cx="30" cy="34" r="12" fill="#100a1e" stroke="#a78bfa" stroke-width="1.4"/>
           <line x1="30" y1="24" x2="30" y2="44" stroke="#a78bfa" stroke-width="1.2"/>
@@ -2653,24 +2667,27 @@ try{
           <line x1="270" y1="24" x2="270" y2="44" stroke="#a78bfa" stroke-width="1.2"/>
           <line x1="260" y1="34" x2="280" y2="34" stroke="#a78bfa" stroke-width="1.2"/>
         </g>
+        <!-- Items alternate a tea biscuit (oval, embossed rim, 5-dot docking
+             pattern) and a chocolate tablet (rounded rect, break-line grid,
+             faint gloss streak) — stylized vector shapes, not images. -->
         <g clip-path="url(#convClip)">
           <g class="conveyor-item" style="animation-delay:0s">
-            <circle r="8" fill="#DBAE6E"/><circle cx="-3" cy="-2" r="1.1" fill="#8a5a24"/><circle cx="3" cy="-1" r="1.1" fill="#8a5a24"/><circle cx="0" cy="3" r="1.1" fill="#8a5a24"/>
+            <ellipse rx="8.5" ry="7" fill="#DEB477"/><ellipse rx="8.5" ry="7" fill="none" stroke="#B98A4E" stroke-width=".7" opacity=".8"/><circle cx="0" cy="-3.2" r="1" fill="#9C6F3D"/><circle cx="0" cy="3.2" r="1" fill="#9C6F3D"/><circle cx="-4" cy="0" r="1" fill="#9C6F3D"/><circle cx="4" cy="0" r="1" fill="#9C6F3D"/><circle cx="0" cy="0" r="1" fill="#9C6F3D"/>
           </g>
           <g class="conveyor-item" style="animation-delay:-.8s">
-            <rect x="-8" y="-6" width="16" height="12" rx="2" fill="#3b2415"/><line x1="-8" y1="0" x2="8" y2="0" stroke="#5c3a22" stroke-width=".8"/><line x1="0" y1="-6" x2="0" y2="6" stroke="#5c3a22" stroke-width=".8"/>
+            <rect x="-8.5" y="-6.5" width="17" height="13" rx="1.5" fill="#3E2415"/><rect x="-8.5" y="-6.5" width="17" height="13" rx="1.5" fill="none" stroke="#5c3a22" stroke-width=".7"/><line x1="-2.8" y1="-6.5" x2="-2.8" y2="6.5" stroke="#5c3a22" stroke-width=".8"/><line x1="2.8" y1="-6.5" x2="2.8" y2="6.5" stroke="#5c3a22" stroke-width=".8"/><line x1="-8.5" y1="0" x2="8.5" y2="0" stroke="#5c3a22" stroke-width=".8"/><line x1="-8.5" y1="-4.4" x2="8.5" y2="-4.4" stroke="#8a6440" stroke-width=".35" opacity=".6"/>
           </g>
           <g class="conveyor-item" style="animation-delay:-1.6s">
-            <circle r="8" fill="#DBAE6E"/><circle cx="-3" cy="-2" r="1.1" fill="#8a5a24"/><circle cx="3" cy="-1" r="1.1" fill="#8a5a24"/><circle cx="0" cy="3" r="1.1" fill="#8a5a24"/>
+            <ellipse rx="8.5" ry="7" fill="#DEB477"/><ellipse rx="8.5" ry="7" fill="none" stroke="#B98A4E" stroke-width=".7" opacity=".8"/><circle cx="0" cy="-3.2" r="1" fill="#9C6F3D"/><circle cx="0" cy="3.2" r="1" fill="#9C6F3D"/><circle cx="-4" cy="0" r="1" fill="#9C6F3D"/><circle cx="4" cy="0" r="1" fill="#9C6F3D"/><circle cx="0" cy="0" r="1" fill="#9C6F3D"/>
           </g>
           <g class="conveyor-item" style="animation-delay:-2.4s">
-            <rect x="-8" y="-6" width="16" height="12" rx="2" fill="#3b2415"/><line x1="-8" y1="0" x2="8" y2="0" stroke="#5c3a22" stroke-width=".8"/><line x1="0" y1="-6" x2="0" y2="6" stroke="#5c3a22" stroke-width=".8"/>
+            <rect x="-8.5" y="-6.5" width="17" height="13" rx="1.5" fill="#3E2415"/><rect x="-8.5" y="-6.5" width="17" height="13" rx="1.5" fill="none" stroke="#5c3a22" stroke-width=".7"/><line x1="-2.8" y1="-6.5" x2="-2.8" y2="6.5" stroke="#5c3a22" stroke-width=".8"/><line x1="2.8" y1="-6.5" x2="2.8" y2="6.5" stroke="#5c3a22" stroke-width=".8"/><line x1="-8.5" y1="0" x2="8.5" y2="0" stroke="#5c3a22" stroke-width=".8"/><line x1="-8.5" y1="-4.4" x2="8.5" y2="-4.4" stroke="#8a6440" stroke-width=".35" opacity=".6"/>
           </g>
           <g class="conveyor-item" style="animation-delay:-3.2s">
-            <circle r="8" fill="#DBAE6E"/><circle cx="-3" cy="-2" r="1.1" fill="#8a5a24"/><circle cx="3" cy="-1" r="1.1" fill="#8a5a24"/><circle cx="0" cy="3" r="1.1" fill="#8a5a24"/>
+            <ellipse rx="8.5" ry="7" fill="#DEB477"/><ellipse rx="8.5" ry="7" fill="none" stroke="#B98A4E" stroke-width=".7" opacity=".8"/><circle cx="0" cy="-3.2" r="1" fill="#9C6F3D"/><circle cx="0" cy="3.2" r="1" fill="#9C6F3D"/><circle cx="-4" cy="0" r="1" fill="#9C6F3D"/><circle cx="4" cy="0" r="1" fill="#9C6F3D"/><circle cx="0" cy="0" r="1" fill="#9C6F3D"/>
           </g>
           <g class="conveyor-item" style="animation-delay:-4s">
-            <rect x="-8" y="-6" width="16" height="12" rx="2" fill="#3b2415"/><line x1="-8" y1="0" x2="8" y2="0" stroke="#5c3a22" stroke-width=".8"/><line x1="0" y1="-6" x2="0" y2="6" stroke="#5c3a22" stroke-width=".8"/>
+            <rect x="-8.5" y="-6.5" width="17" height="13" rx="1.5" fill="#3E2415"/><rect x="-8.5" y="-6.5" width="17" height="13" rx="1.5" fill="none" stroke="#5c3a22" stroke-width=".7"/><line x1="-2.8" y1="-6.5" x2="-2.8" y2="6.5" stroke="#5c3a22" stroke-width=".8"/><line x1="2.8" y1="-6.5" x2="2.8" y2="6.5" stroke="#5c3a22" stroke-width=".8"/><line x1="-8.5" y1="0" x2="8.5" y2="0" stroke="#5c3a22" stroke-width=".8"/><line x1="-8.5" y1="-4.4" x2="8.5" y2="-4.4" stroke="#8a6440" stroke-width=".35" opacity=".6"/>
           </g>
         </g>
       </svg>
