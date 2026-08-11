@@ -574,6 +574,50 @@ body.theme-pladis .welcome-fx-orb{background:linear-gradient(135deg,#3C3637,#0E0
 @media (max-width:640px){.welcome-fx-grid{background-size:40px 40px}.welcome-fx-orb{filter:blur(38px);opacity:.24}}
 @media (prefers-reduced-motion:reduce){.welcome-fx *{animation:none!important}}
 
+/* ========================================
+   HOME / PORTAL SELECTION — atmospheric factory background
+   Reuses the exact same splash-screen photo assets as background artwork
+   only, blurred and scaled behind the whole page. This is a separate,
+   fixed, non-interactive layer — it never sits behind (or is confused
+   with) any Splash-specific UI (logo/title/departments/conveyor), none
+   of which exists here. Actual Home content (cards, header, text, stats,
+   news) is untouched by the blur — only this pseudo-element layer is
+   filtered.
+   ======================================== */
+.welcome-photo-bg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.welcome-photo-bg::before{
+  content:'';position:absolute;inset:0;
+  background-image:url('./splash-bg-desktop.webp');
+  background-size:cover;background-position:center center;background-repeat:no-repeat;
+  filter:blur(18px);
+  transform:scale(1.05);
+  transform-origin:center;
+  opacity:var(--wpb-img-opacity,.16);
+}
+.welcome-photo-bg::after{
+  content:'';position:absolute;inset:0;
+  background:var(--wpb-overlay);
+}
+/* Light "pladis" theme: keep the factory as a very faint atmospheric hint
+   only — a soft near-white overlay so it never competes with, or reduces
+   contrast for, the opaque card surfaces that sit on top of it. */
+body.theme-pladis .welcome-photo-bg{
+  --wpb-img-opacity:.10;
+  --wpb-overlay:linear-gradient(180deg, rgba(247,247,246,.90) 0%, rgba(247,247,246,.95) 60%, rgba(247,247,246,.97) 100%);
+}
+/* Violet Noir: same blur, a touch more visible, deep black/violet tint so
+   bright factory highlights never fight with foreground content. */
+body.theme-noir .welcome-photo-bg{
+  --wpb-img-opacity:.24;
+  --wpb-overlay:linear-gradient(180deg, rgba(11,7,18,.72) 0%, rgba(11,7,18,.82) 55%, rgba(11,7,18,.88) 100%);
+}
+@media (max-width:900px){
+  .welcome-photo-bg::before{background-image:url('./splash-bg-mobile.webp')}
+}
+@media (prefers-reduced-motion:reduce){
+  .welcome-photo-bg::before{transition:none}
+}
+
 /* ============================================================
    HOME / PORTAL SELECTION — redesign (v90)
    Single centered column: compact hero -> "Choose Your Workspace" card
@@ -898,6 +942,29 @@ body.printing-permit .fac-permit-toolbar{display:none!important}
 }
 .nm-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .nm-cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+/* Category checkbox + label row — checkbox stays its normal compact
+   size (never inflated by generic form-field sizing rules) and always
+   sits immediately beside its label, left-aligned, with a comfortable
+   touch-friendly row height via padding rather than by resizing the
+   checkbox itself. */
+.nm-cat-grid .nm-cat-row{
+  /* Higher-specificity compound selector — beats the generic
+     `.form-row label{display:block;text-transform:uppercase;...}`
+     field-label styling that these rows would otherwise inherit
+     from their ancestor .form-row, which was also detaching the
+     checkbox from its label. */
+  display:flex;align-items:center;gap:8px;
+  min-height:44px;padding:4px 6px;border-radius:8px;
+  font-size:.85rem;font-weight:400;text-transform:none;letter-spacing:normal;
+  color:var(--text);
+  cursor:pointer;transition:background-color .12s;
+}
+.nm-cat-grid .nm-cat-row:hover{background:var(--surface-2)}
+.nm-cat-grid .nm-cat-row input[type="checkbox"]{
+  flex:0 0 auto;width:17px;height:17px;min-height:0;
+  accent-color:var(--primary);cursor:pointer;
+}
+.nm-cat-grid .nm-cat-row span{min-width:0;line-height:1.35;color:var(--text)}
 .ii-type-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
 .ii-type-tabs button{flex:1;min-width:140px;border:1.5px solid var(--border);background:var(--form-surface);color:#991b1b;border-radius:10px;padding:10px 12px;font-weight:800;font-size:.82rem;cursor:pointer;font-family:inherit}
 .ii-type-tabs button.active{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border-color:#b91c1c}
@@ -1127,8 +1194,12 @@ td{padding:7px 10px;border-bottom:1px solid var(--surface-2);vertical-align:midd
 .modal{background:var(--white);border-radius:14px;padding:24px;width:90%;max-width:500px;box-shadow:0 8px 32px rgba(0,0,0,.18)}
 .modal-title{font-weight:800;font-size:1rem;color:var(--navy);margin-bottom:16px}
 .form-row{margin-bottom:12px}
-.form-row label{display:block;font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
-.form-row input,.form-row select,.form-row textarea{width:100%;border:1px solid var(--border);border-radius:7px;padding:8px 10px;min-height:40px;font-size:.85rem;outline:none;font-family:inherit;background:var(--form-surface);color:var(--form-ink)}
+.form-row label:not(.nm-cat-row){display:block;font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.form-row input:not([type="checkbox"]):not([type="radio"]),.form-row select,.form-row textarea{width:100%;border:1px solid var(--border);border-radius:7px;padding:8px 10px;min-height:40px;font-size:.85rem;outline:none;font-family:inherit;background:var(--form-surface);color:var(--form-ink)}
+/* Checkboxes/radios inside .form-row (e.g. category lists) must never
+   inherit the text-field sizing above — that was stretching them into
+   large, distorted squares. Keep them their normal compact native size. */
+.form-row input[type="checkbox"],.form-row input[type="radio"]{width:16px;height:16px;min-height:0;flex:0 0 auto;accent-color:var(--primary)}
 .form-row textarea{min-height:70px;resize:vertical}
 /* Touch targets — standalone controls (not dense in-table inputs) get a
    comfortable minimum height for tablet/gloved use on the factory floor */
@@ -1234,9 +1305,21 @@ body.admin-active .p-name,body.admin-active .cw-product-title{display:inline-fle
 .view-head .page-title{margin:0!important;flex:1;min-width:200px}
 .view-head-actions{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
 
+/* Compact sticky action bar for long, full-page forms (e.g. Risk
+   Assessment) — keeps Save/Cancel reachable without hunting to the very
+   bottom of a form with many repeatable rows. Reusable utility class;
+   only applied where a form is genuinely long. Not used inside modals,
+   which already have their own scroll+sticky pattern (.nm-responsive-modal). */
+.view-sticky-actions{
+  display:flex;gap:10px;flex-wrap:wrap;
+  position:sticky;bottom:0;z-index:5;
+  margin:14px -4px 0;padding:12px 4px calc(env(safe-area-inset-bottom,0px) + 12px);
+  background:linear-gradient(0deg, var(--bg) 62%, transparent);
+}
+
 /* Unified fields */
 .fg{display:flex;flex-direction:column;gap:5px!important}
-.fl,.form-row label{
+.fl,.form-row label:not(.nm-cat-row){
   font-size:.68rem!important;
   letter-spacing:.06em;
   color:#6d28d9!important;
@@ -1251,7 +1334,7 @@ body.theme-noir .fl,body.theme-noir .form-row label{
   color:var(--primary-light)!important;
 }
 .fi,.cw-sel,.ho-input,.ho-textarea,.fail-rem,
-.form-row input,.form-row select,.form-row textarea,
+.form-row input:not([type="checkbox"]):not([type="radio"]),.form-row select,.form-row textarea,
 .db-week-sel{
   border:1.5px solid var(--border)!important;
   border-radius:var(--form-radius-sm)!important;
@@ -2544,6 +2627,110 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
 .qr-box{display:inline-flex;flex-direction:column;align-items:center;gap:6px;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px}
 .qr-box img{background:#fff;border-radius:6px;padding:4px} /* QR quiet-zone must stay white to stay scannable */
 .offline-chip{position:fixed;bottom:18px;right:18px;z-index:10030;display:none;background:#b91c1c;color:#fff;padding:8px 14px;border-radius:99px;font-weight:800;font-size:.75rem;box-shadow:0 8px 20px rgba(185,28,28,.35)}
+
+/* ============================================================
+   TOAST NOTIFICATIONS — one consistent system-wide component.
+   Semantic colors stay correct (success=green, warning=amber,
+   error=red, info=blue) regardless of theme; position, spacing,
+   typography and animation are identical across every portal.
+   ============================================================ */
+.qms-toast{
+  position:fixed;left:50%;bottom:26px;z-index:99999;
+  display:flex;align-items:center;gap:10px;
+  max-width:min(420px,88vw);
+  background:var(--form-surface);color:var(--text);
+  border:1px solid var(--border);border-left:4px solid var(--muted);
+  border-radius:12px;padding:11px 12px 11px 14px;
+  font-size:.83rem;font-weight:700;line-height:1.4;
+  box-shadow:0 14px 34px rgba(0,0,0,.24);
+  opacity:0;transform:translate(-50%,10px);pointer-events:none;
+  transition:opacity .22s ease, transform .22s ease;
+}
+.qms-toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.qms-toast-icon{
+  flex:0 0 auto;width:21px;height:21px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.68rem;font-weight:900;color:#fff;background:var(--muted);
+}
+.qms-toast-msg{flex:1;min-width:0}
+.qms-toast-close{
+  flex:0 0 auto;background:none;border:none;min-height:0;
+  color:var(--muted);font-size:1.05rem;line-height:1;cursor:pointer;padding:2px 4px;
+}
+.qms-toast-success{border-left-color:var(--green)}
+.qms-toast-success .qms-toast-icon{background:var(--green)}
+.qms-toast-error{border-left-color:var(--red)}
+.qms-toast-error .qms-toast-icon{background:var(--red)}
+.qms-toast-warning{border-left-color:var(--amber)}
+.qms-toast-warning .qms-toast-icon{background:var(--amber)}
+.qms-toast-info{border-left-color:var(--accent-2)}
+.qms-toast-info .qms-toast-icon{background:var(--accent-2)}
+@media (max-width:640px){
+  .qms-toast{bottom:calc(env(safe-area-inset-bottom,0px) + 16px)}
+}
+@media (prefers-reduced-motion:reduce){
+  .qms-toast{transition:opacity .05s linear}
+}
+
+/* ============================================================
+   BACK TO TOP — appears only after real scroll depth on long
+   pages/forms; never shown on short pages since they never reach
+   the threshold. Kept clear of Save buttons (left free), the
+   mobile portal-sidebar toggle (bottom-left) and the offline chip
+   (stacked above it, same right edge) and mobile safe areas.
+   ============================================================ */
+.back-to-top{
+  position:fixed;right:18px;bottom:70px;z-index:9000;
+  width:42px;height:42px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--form-surface);color:var(--primary);
+  border:1px solid var(--border);box-shadow:0 8px 22px rgba(0,0,0,.18);
+  opacity:0;transform:translateY(8px) scale(.9);pointer-events:none;
+  transition:opacity .2s ease, transform .2s ease;
+  cursor:pointer;
+}
+.back-to-top.show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.back-to-top:hover{transform:translateY(-2px) scale(1.05);box-shadow:0 10px 26px rgba(0,0,0,.22)}
+@media (max-width:640px){
+  .back-to-top{right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 78px);width:40px;height:40px}
+}
+@media print{ .back-to-top{display:none!important} }
+@media (prefers-reduced-motion:reduce){ .back-to-top{transition:opacity .05s linear} }
+
+/* ============================================================
+   MODAL ENTRANCE — short fade + very small scale-in, standardized
+   across every .modal-overlay in the app (no per-modal markup
+   changes needed).
+   ============================================================ */
+.modal-overlay.open .modal{animation:qmsModalIn .16s cubic-bezier(.22,1,.36,1) both}
+@keyframes qmsModalIn{from{opacity:0;transform:scale(.97) translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){ .modal-overlay.open .modal{animation:none} }
+
+/* ============================================================
+   THEME TRANSITION — Light ↔ Violet Noir switches smoothly on the
+   surfaces users look at most, using the existing --dur/--ease
+   tokens (fast, no layout-dimension animation, so nothing shifts
+   or reflows during the switch).
+   ============================================================ */
+.modal, .header, .portal-sidebar, .view-toolbar, .cards-grid > *,
+.ph-quicklinks > *, .welcome-portal-item, .wh-hero, .welcome-side,
+input, select, textarea{
+  transition:background-color var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+/* ============================================================
+   ACCESSIBILITY POLISH — consistent disabled-state readability
+   for any control that doesn't already define its own (more
+   specific rules above, e.g. .btn-primary:disabled, still win).
+   ============================================================ */
+button:disabled, .btn-ghost:disabled, input:disabled, select:disabled, textarea:disabled{
+  opacity:.55;cursor:not-allowed;
+}
+
+/* Global safety-net wrapper for any <table> not already inside a
+   dedicated wrapper — see the wrapOverflowTables() script. Contains
+   horizontal scroll to the table itself; never the whole page. */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
 .offline-chip.on{display:flex;align-items:center;gap:8px}
 
 .app-version-badge,.app-version-panel,.home-theme-switch{display:none!important}
@@ -3006,12 +3193,17 @@ body{overflow-x:hidden}
   .ps-nav button.ps-item,.ps-sub button,.ps-foot button.ps-tool{
     min-height:44px;
   }
-  input,select,textarea,.fi,.ho-input,.ho-textarea,.cw-inp,.fail-rem,
+  input:not([type="checkbox"]):not([type="radio"]),select,textarea,.fi,.ho-input,.ho-textarea,.cw-inp,.fail-rem,
   .login-input-dark,.login-select-dark{
     font-size:16px!important; /* prevent iOS zoom */
     min-height:44px;
     border-radius:12px!important;
   }
+  /* Checkboxes/radios must stay their normal compact size on mobile too —
+     this text-field sizing (large min-height + heavy border-radius) was
+     the root cause of category checkboxes rendering as big empty rounded
+     squares instead of a normal checkbox glyph. */
+  input[type="checkbox"],input[type="radio"]{width:18px;height:18px;min-height:0;flex:0 0 auto}
   textarea{min-height:96px}
   .form-row{margin-bottom:12px}
   .form-row label,.fl,.login-label-dark{font-size:.72rem!important;margin-bottom:5px}
@@ -3462,6 +3654,7 @@ body:not(.login-active) #login-screen{
 
 <!-- ============ GLOBAL WELCOME SCREEN (shown once, after intro, before portal selection) ============ -->
 <div id="app-welcome-screen" class="" style="display:none;position:fixed;inset:0;background:#f5f3ff;z-index:12000;overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <div class="welcome-photo-bg" aria-hidden="true"></div>
   <div class="welcome-fx" aria-hidden="true">
     <div class="welcome-fx-grid"></div>
     <svg class="welcome-fx-circuit" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
@@ -4788,7 +4981,7 @@ body:not(.login-active) #login-screen{
       <button type="button" class="btn-ghost" onclick="raAddTeamMember()" style="font-size:.75rem"> + Add Team Member</button>
     </div>
     <div class="ra-warn" id="ra-validation-banner" style="margin-bottom:10px"></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <div class="view-sticky-actions">
       <button type="button" class="btn-primary" onclick="reviewRiskAssessmentSubmit()"> Save Risk Assessment</button>
       <button type="button" class="btn-ghost" onclick="closeRAForm()">Cancel</button>
     </div>
@@ -5158,10 +5351,10 @@ body:not(.login-active) #login-screen{
     <div class="form-row"><label>Location of Incident</label><input type="text" id="nm-location" placeholder="Exact location"/></div>
     <div class="form-row"><label>Category (select one or more)</label>
       <div class="nm-cat-grid">
-        <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:400"><input type="checkbox" id="nm-cat-act"/> Unsafe Act — تصرف غير آمن</label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:400"><input type="checkbox" id="nm-cat-cond"/> Unsafe Condition — وضع غير آمن</label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:400"><input type="checkbox" id="nm-cat-equip"/> Unsafe Equipment — معدّة غير آمنة</label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:400"><input type="checkbox" id="nm-cat-use"/> Unsafe Use of Equipment</label>
+        <label class="nm-cat-row"><input type="checkbox" id="nm-cat-act"/><span>Unsafe Act — تصرف غير آمن</span></label>
+        <label class="nm-cat-row"><input type="checkbox" id="nm-cat-cond"/><span>Unsafe Condition — وضع غير آمن</span></label>
+        <label class="nm-cat-row"><input type="checkbox" id="nm-cat-equip"/><span>Unsafe Equipment — معدّة غير آمنة</span></label>
+        <label class="nm-cat-row"><input type="checkbox" id="nm-cat-use"/><span>Unsafe Use of Equipment</span></label>
       </div>
     </div>
     <div class="form-row"><label>Description of Near Miss (Details)</label><textarea id="nm-desc" rows="3" placeholder="Describe what happened in detail..."></textarea></div>
@@ -18587,17 +18780,164 @@ function confirmReviewSubmit(){
   if(fn) fn();
 }
 
+// Standardized toast: one consistent position/typography/animation for all
+// four semantic kinds (success/warning/error/info) across every portal,
+// both themes, mobile and desktop. `color` kept as the parameter name for
+// backward compatibility with the ~40 existing call sites that pass
+// 'green'/'red'/'ok' — those map onto the new kinds below so no callers
+// needed to change.
 function showToast(msg, color='green'){
-  const existing = document.getElementById('qms-toast');
+  var KIND_MAP = {green:'success', ok:'success', success:'success', red:'error', error:'error', amber:'warning', warning:'warning', blue:'info', info:'info'};
+  var kind = KIND_MAP[color] || 'success';
+  var ICONS = {success:'✓', error:'✕', warning:'!', info:'i'};
+  var existing = document.getElementById('qms-toast');
   if(existing) existing.remove();
-  const toast = document.createElement('div');
+  clearTimeout(window._qmsToastTimer);
+  var toast = document.createElement('div');
   toast.id = 'qms-toast';
-  toast.style.cssText = `position:fixed;bottom:24px;right:24px;background:${color==='green'?'#16a34a':'#dc2626'};color:#fff;padding:12px 20px;border-radius:10px;font-weight:700;font-size:.85rem;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);transition:opacity .4s`;
-  toast.textContent = msg;
+  toast.className = 'qms-toast qms-toast-'+kind;
+  toast.setAttribute('role','status');
+  toast.setAttribute('aria-live','polite');
+  var icon = document.createElement('span');
+  icon.className = 'qms-toast-icon';
+  icon.setAttribute('aria-hidden','true');
+  icon.textContent = ICONS[kind];
+  var text = document.createElement('span');
+  text.className = 'qms-toast-msg';
+  text.textContent = msg;
+  var close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'qms-toast-close';
+  close.setAttribute('aria-label','Dismiss notification');
+  close.textContent = '×';
+  close.onclick = dismissToast;
+  toast.appendChild(icon); toast.appendChild(text); toast.appendChild(close);
   document.body.appendChild(toast);
-  setTimeout(()=>{ toast.style.opacity='0'; setTimeout(()=>toast.remove(), 400); }, 3500);
+  requestAnimationFrame(function(){ toast.classList.add('show'); });
+  window._qmsToastTimer = setTimeout(dismissToast, 3800);
+}
+function dismissToast(){
+  var t = document.getElementById('qms-toast');
+  if(!t) return;
+  clearTimeout(window._qmsToastTimer);
+  t.classList.remove('show');
+  setTimeout(function(){ if(t && t.parentNode) t.remove(); }, 260);
 }
 
+// ============================================================
+// BACK TO TOP — one global control, shown only past real scroll depth.
+// ============================================================
+(function(){
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'back-to-top';
+  btn.setAttribute('aria-label','Back to top');
+  btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+  document.body.appendChild(btn);
+  var ticking = false;
+  function update(){
+    var y = window.scrollY || document.documentElement.scrollTop || 0;
+    btn.classList.toggle('show', y > 480);
+    ticking = false;
+  }
+  window.addEventListener('scroll', function(){
+    if(!ticking){ requestAnimationFrame(update); ticking = true; }
+  }, {passive:true});
+  btn.addEventListener('click', function(){
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({top:0, behavior: reduce ? 'auto' : 'smooth'});
+  });
+})();
+
+// ============================================================
+// TABLE RESPONSIVENESS SAFETY NET — any <table> rendered anywhere in the
+// app (present now or injected later via innerHTML by any render function)
+// gets auto-wrapped in a horizontally-scrollable container so a wide data
+// table can never force the whole page to scroll sideways. Tables that
+// already have a dedicated wrapper (.table-wrap/.md-table-wrap/.cw-table-wrap)
+// are left alone. Purely structural — no table markup, data or IDs change.
+// ============================================================
+(function(){
+  function wrapOverflowTables(root){
+    (root||document).querySelectorAll('table').forEach(function(t){
+      if(t.closest('.table-wrap, .md-table-wrap, .cw-table-wrap')) return;
+      var wrap = document.createElement('div');
+      wrap.className = 'table-wrap';
+      t.parentNode.insertBefore(wrap, t);
+      wrap.appendChild(t);
+    });
+  }
+  wrapOverflowTables(document);
+  var pending = false;
+  var mo = new MutationObserver(function(){
+    if(pending) return;
+    pending = true;
+    requestAnimationFrame(function(){ wrapOverflowTables(document); pending = false; });
+  });
+  mo.observe(document.body, {childList:true, subtree:true});
+})();
+
+// ============================================================
+// UNSAVED CHANGES PROTECTION — generic, opt-out-free guard for every
+// .modal-overlay in the app. Tracks real user edits (input/change events;
+// programmatic pre-fill for "edit existing record" flows does NOT trigger
+// these, so opening a record for editing never falsely counts as dirty).
+// Only intercepts a Cancel/Close-labelled .btn-ghost inside a modal that
+// has unsaved edits — Save buttons (.btn-primary) are never intercepted,
+// so successful Save/Submit flows are completely unaffected. The dirty
+// flag is cleared automatically the moment a modal's own "open" class is
+// toggled (by any existing close/save code, unchanged), so no per-form
+// wiring was needed and no existing workflow was touched.
+// ============================================================
+(function(){
+  var dirty = new Set();
+  function keyOf(ov){ return ov.id || ov; }
+  function markDirty(e){
+    var ov = e.target.closest && e.target.closest('.modal-overlay.open');
+    if(ov) dirty.add(keyOf(ov));
+  }
+  document.addEventListener('input', markDirty, true);
+  document.addEventListener('change', markDirty, true);
+
+  var skipGuard = false;
+  document.addEventListener('click', function(e){
+    if(skipGuard) return;
+    var btn = e.target.closest && e.target.closest('.modal-overlay.open .btn-ghost');
+    if(!btn) return;
+    if(!/cancel|close/i.test(btn.textContent||'')) return;
+    var ov = btn.closest('.modal-overlay.open');
+    if(!ov || !dirty.has(keyOf(ov))) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if(confirm('You have unsaved changes. Leave without saving?\n\nلديك تغييرات غير محفوظة. هل تريد المغادرة بدون حفظ؟')){
+      dirty.delete(keyOf(ov));
+      skipGuard = true;
+      btn.click();
+      skipGuard = false;
+    }
+  }, true);
+
+  // Any transition of a modal's own "open" class — opened fresh, or closed
+  // by existing Save/Submit/Cancel code — clears its dirty flag, so a
+  // reopened modal always starts clean and a successful save never
+  // triggers the warning on a later, unrelated close.
+  var watched = new WeakSet();
+  function watch(ov){
+    if(watched.has(ov)) return;
+    watched.add(ov);
+    new MutationObserver(function(){ dirty.delete(keyOf(ov)); }).observe(ov, {attributes:true, attributeFilter:['class']});
+  }
+  document.querySelectorAll('.modal-overlay').forEach(watch);
+  new MutationObserver(function(muts){
+    muts.forEach(function(m){
+      m.addedNodes && m.addedNodes.forEach(function(n){
+        if(n.nodeType!==1) return;
+        if(n.classList && n.classList.contains('modal-overlay')) watch(n);
+        n.querySelectorAll && n.querySelectorAll('.modal-overlay').forEach(watch);
+      });
+    });
+  }).observe(document.body, {childList:true, subtree:true});
+})();
 
 renderHome();
 // ============================================================
