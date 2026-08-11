@@ -1673,9 +1673,9 @@ body.theme-noir .ncr-empty{border-color:var(--border)}
 .ra-guide-table{width:100%;border-collapse:collapse;font-size:.72rem}
 .ra-guide-table th,.ra-guide-table td{border:1px solid var(--border);padding:7px 8px;text-align:left;vertical-align:top}
 .ra-guide-table th{background:var(--surface-2);color:var(--text);font-weight:800;white-space:nowrap}
-.ra-guide-table td:first-child{white-space:nowrap;font-weight:800;color:#fff;text-align:center}
+.ra-guide-table td:first-child{white-space:nowrap;font-weight:800;text-align:center}
 .ra-guide-wrap{overflow-x:auto}
-.ra-guidance-card{border-radius:8px;padding:10px 12px;margin-bottom:8px;color:#fff}
+.ra-guidance-card{border-radius:8px;padding:10px 12px;margin-bottom:8px}
 .ra-guidance-card b{display:block;font-size:.78rem;margin-bottom:3px}
 .ra-guidance-card span{font-size:.72rem;line-height:1.45;opacity:.96}
 .ra-matrix-wrap{overflow-x:auto}
@@ -1683,7 +1683,7 @@ body.theme-noir .ncr-empty{border-color:var(--border)}
 .ra-matrix th,.ra-matrix td{border:1px solid var(--border);text-align:center;padding:6px 4px;min-width:38px}
 .ra-matrix thead th{background:var(--surface-2);color:var(--text);font-weight:800}
 .ra-matrix tbody th{background:var(--surface-2);color:var(--text);font-weight:800}
-.ra-matrix td{color:#fff;font-weight:800}
+.ra-matrix td{font-weight:800}
 .ra-matrix-axis{font-size:.66rem;color:var(--muted);font-weight:700;text-align:center;margin-top:4px}
 .ra-matrix-legend{display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:10px}
 .ra-matrix-legend span{display:inline-flex;align-items:center;gap:5px;font-size:.68rem;color:var(--muted);font-weight:650}
@@ -1730,7 +1730,7 @@ body.theme-noir .choice-chip:has(input:checked){background:color-mix(in srgb, va
 .ra-highrisk-card b{color:var(--red)}
 .ra-reduction{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding:10px;border-radius:8px;background:var(--surface-2)}
 .ra-reduction-step{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.68rem;color:var(--muted);font-weight:700;min-width:76px}
-.ra-reduction-step b{font-size:.7rem;color:var(--text);font-weight:800;padding:3px 9px;border-radius:6px;color:#fff}
+.ra-reduction-step b{font-size:.7rem;font-weight:800;padding:3px 9px;border-radius:6px}
 .ra-reduction-arrow{font-size:.85rem;color:var(--muted);display:flex;flex-direction:column;align-items:center;font-weight:700;text-align:center;line-height:1.2}
 .pmt-doc{border:2px solid #7C3AED;border-radius:12px;margin-bottom:0;overflow:visible;box-shadow:0 4px 20px rgba(76,29,149,.08)}
 .pmt-doc-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;border-bottom:1px solid var(--border);background:linear-gradient(180deg,var(--form-surface),var(--surface-2))}
@@ -16432,12 +16432,16 @@ const RA_LIKELIHOOD_GUIDE = [
 // Source of truth: workbook sheet "5x5 Matix and Guidlines", rows 30-35
 // (Category / Risk Rating / Implications) — these ranges match raRiskInfo()
 // exactly; both read from the one source below, nothing is duplicated.
+// repScore is a representative score inside each band, used only to look up
+// the correct foreground text color from raRiskInfo() (the single source —
+// see its comment) when rendering these cards; it does not change the
+// range/bg shown, both of which stay exactly as sourced from the workbook.
 const RA_RISK_IMPLICATIONS = [
-  {cat:'Extreme',       range:'≥ 20',     bg:'#7f1d1d', text:'Work should not be started or continued until the risk has been reduced. If it is not possible to reduce risk even with unlimited resources, work has to remain prohibited.'},
-  {cat:'High',          range:'11 to 19', bg:'#dc2626', text:'Having potentially serious and dangerous hazards, which require control measures to be implemented urgently. Work should not be started until the risk has been reduced. Considerable resources may have to be allocated to reduce the risk. Where the risk involves work in progress, urgent action should be taken.'},
-  {cat:'Medium',        range:'05 to 10', bg:'#d97706', text:'There is a significant risk; controls must be implemented that are not considered "lower order" in the hierarchy of controls. Risk reduction measures should be implemented within a defined time period.'},
-  {cat:'Low',            range:'02 to 04', bg:'#ca8a04', text:'The overall risk is low, but significant enough to require control measures be implemented. Consideration may be given to a more cost-effective solution or improvement that imposes no additional cost burden. Monitoring is required to ensure that the controls are maintained.'},
-  {cat:'Insignificant',  range:'≤ 01',     bg:'#16a34a', text:'Presenting very little risk to the environment or to the health and safety of people; no further risk control measures needed.'},
+  {cat:'Extreme',       range:'≥ 20',     bg:'#7f1d1d', repScore:20, text:'Work should not be started or continued until the risk has been reduced. If it is not possible to reduce risk even with unlimited resources, work has to remain prohibited.'},
+  {cat:'High',          range:'11 to 19', bg:'#dc2626', repScore:11, text:'Having potentially serious and dangerous hazards, which require control measures to be implemented urgently. Work should not be started until the risk has been reduced. Considerable resources may have to be allocated to reduce the risk. Where the risk involves work in progress, urgent action should be taken.'},
+  {cat:'Medium',        range:'05 to 10', bg:'#d97706', repScore:5, text:'There is a significant risk; controls must be implemented that are not considered "lower order" in the hierarchy of controls. Risk reduction measures should be implemented within a defined time period.'},
+  {cat:'Low',            range:'02 to 04', bg:'#ca8a04', repScore:2, text:'The overall risk is low, but significant enough to require control measures be implemented. Consideration may be given to a more cost-effective solution or improvement that imposes no additional cost burden. Monitoring is required to ensure that the controls are maintained.'},
+  {cat:'Insignificant',  range:'≤ 01',     bg:'#16a34a', repScore:1, text:'Presenting very little risk to the environment or to the health and safety of people; no further risk control measures needed.'},
 ];
 // Source of truth: workbook sheet "risk assessment form", cells AK6:AY10
 // ("Reason for the Risk Assessment"). "Other" is handled via the usual
@@ -16526,12 +16530,20 @@ function raAppendHint(id, field, idx){
   el.value = (el.value.trim() ? el.value.trim()+'\n' : '') + hints[idx];
   document.querySelectorAll('.ra-suggest-picker').forEach(p=>p.remove());
 }
+// Single source for every Risk Rating color in the app (matrix, badges, the
+// risk reduction visual, print, Excel export, dashboards) — nowhere else
+// defines its own foreground/background for a risk band. Extreme/High keep
+// white text (both clear white-on-bg AA contrast, and "visually strong" per
+// the approved brief). Medium/Low/Insignificant's brighter amber/green
+// backgrounds fail white-text contrast (2.9–3.3:1) so they use a dark ink
+// instead (5.4–6.6:1) — verified against WCAG AA, category ranges/colors
+// themselves unchanged.
 function raRiskInfo(score){
   if(score>=20) return {label:'Extreme',  bg:'#7f1d1d', fg:'#fff'};
   if(score>=11) return {label:'High',     bg:'#dc2626', fg:'#fff'};
-  if(score>=5)  return {label:'Medium',   bg:'#d97706', fg:'#fff'};
-  if(score>=2)  return {label:'Low',      bg:'#ca8a04', fg:'#fff'};
-  return               {label:'Insignificant', bg:'#16a34a', fg:'#fff'};
+  if(score>=5)  return {label:'Medium',   bg:'#d97706', fg:'#111827'};
+  if(score>=2)  return {label:'Low',      bg:'#ca8a04', fg:'#111827'};
+  return               {label:'Insignificant', bg:'#16a34a', fg:'#111827'};
 }
 function raOptions(arr, sel){
   return '<option value="">Select…</option>' + arr.map(v=>`<option ${v===sel?'selected':''}>${v}</option>`).join('');
@@ -16551,7 +16563,7 @@ function raBuildMatrixHtml(){
     let cells = `<th>${s}</th>`;
     for(let l=1; l<=5; l++){
       const info = raRiskInfo(l*s);
-      cells += `<td style="background:${info.bg}" title="L${l} × S${s} = ${l*s} — ${info.label}">${l*s}</td>`;
+      cells += `<td style="background:${info.bg};color:${info.fg}" title="L${l} × S${s} = ${l*s} — ${info.label}">${l*s}</td>`;
     }
     rows += `<tr>${cells}</tr>`;
   }
@@ -16574,21 +16586,24 @@ function raBuildMatrixHtml(){
 function raBuildLikelihoodGuideHtml(){
   const rows = RA_LIKELIHOOD_GUIDE.map(g=>{
     const info = raRiskInfo(g.score); // single source for the score->color mapping, same as everywhere else
-    return `<tr><td style="background:${info.bg}">${g.score} – ${g.label}</td><td>${g.desc.replace(/</g,'&lt;')}</td></tr>`;
+    return `<tr><td style="background:${info.bg};color:${info.fg}">${g.score} – ${g.label}</td><td>${g.desc.replace(/</g,'&lt;')}</td></tr>`;
   }).join('');
   return `<div class="ra-guide-wrap"><table class="ra-guide-table"><thead><tr><th>Score</th><th>Probability of Occurrence</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function raBuildSeverityGuideHtml(){
   const rows = RA_SEVERITY_GUIDE.map(g=>{
     const info = raRiskInfo(g.score);
-    return `<tr><td style="background:${info.bg}">${g.score} – ${g.label}</td><td style="white-space:pre-wrap">${g.desc.replace(/</g,'&lt;')}</td><td>${g.injury}</td></tr>`;
+    return `<tr><td style="background:${info.bg};color:${info.fg}">${g.score} – ${g.label}</td><td style="white-space:pre-wrap">${g.desc.replace(/</g,'&lt;')}</td><td>${g.injury}</td></tr>`;
   }).join('');
   return `<div class="ra-guide-wrap"><table class="ra-guide-table"><thead><tr><th>Score</th><th>Severity - Degree of Injury or Potential Injury</th><th>Injury Classification</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 // ---- Risk Rating Guidance — what each category means for the work,
 // straight from RA_RISK_IMPLICATIONS (the same list the matrix legend uses). ----
 function raBuildRiskGuidanceHtml(){
-  return RA_RISK_IMPLICATIONS.map(g=>`<div class="ra-guidance-card" style="background:${g.bg}"><b>${g.cat} — ${g.range}</b><span>${g.text.replace(/</g,'&lt;')}</span></div>`).join('');
+  return RA_RISK_IMPLICATIONS.map(g=>{
+    const fg = raRiskInfo(g.repScore).fg;
+    return `<div class="ra-guidance-card" style="background:${g.bg};color:${fg}"><b>${g.cat} — ${g.range}</b><span>${g.text.replace(/</g,'&lt;')}</span></div>`;
+  }).join('');
 }
 // ---- Hierarchy of Controls Reference — reuses the existing RA_HIERARCHY
 // text already defined for the "Suggest" hint picker, just presented as an
@@ -16784,7 +16799,7 @@ function raUpdateReductionAndWarnings(id){
     wrap.innerHTML = stages.map(([label,score],i)=>{
       const info = score ? raRiskInfo(score) : null;
       const arrow = i>0 ? `<div class="ra-reduction-arrow">↓<br>${arrows[i]}</div>` : '';
-      return arrow + `<div class="ra-reduction-step">${label}<b style="background:${info?info.bg:'#9ca3af'}">${info?`${score} · ${info.label}`:'–'}</b></div>`;
+      return arrow + `<div class="ra-reduction-step">${label}<b style="background:${info?info.bg:'#9ca3af'};color:${info?info.fg:'#fff'}">${info?`${score} · ${info.label}`:'–'}</b></div>`;
     }).join('');
   }
   const msgs = [];
@@ -16817,9 +16832,16 @@ function addRARow(data){
   const routeChip = (label) => `<label class="choice-chip"><input type="checkbox" class="ra-exp-route" value="${label}" onchange="raSuggestOriginal('${id}')" ${expRoutes.includes(label)?'checked':''}/> <span>${label}</span></label>`;
   const html = `
   <div class="ra-row" id="${id}" style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;position:relative;overflow:visible">
-    <div style="font-size:.7rem;font-weight:800;color:var(--primary);margin-bottom:6px">Hazard #${raRowCount}</div>
-    <button type="button" onclick="document.getElementById('${id}').remove()" style="position:absolute;top:8px;right:8px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:4px 9px;font-size:.7rem;font-weight:700;cursor:pointer;z-index:2"> Remove</button>
-    <div class="ra-pair-grid" style="padding-right:70px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <div class="ra-hazard-num" style="font-size:.7rem;font-weight:800;color:var(--primary)">Hazard #${raRowCount}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button type="button" onclick="raMoveHazard('${id}',-1)" title="Move up" style="background:var(--surface-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 7px;font-size:.7rem;cursor:pointer">↑</button>
+        <button type="button" onclick="raMoveHazard('${id}',1)" title="Move down" style="background:var(--surface-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 7px;font-size:.7rem;cursor:pointer">↓</button>
+        <button type="button" onclick="raDuplicateHazard('${id}')" title="Duplicate this hazard" style="background:#eef2ff;color:#3730a3;border:none;border-radius:6px;padding:4px 8px;font-size:.7rem;font-weight:700;cursor:pointer">⧉ Duplicate</button>
+        <button type="button" onclick="raRemoveHazard('${id}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:4px 9px;font-size:.7rem;font-weight:700;cursor:pointer"> Remove</button>
+      </div>
+    </div>
+    <div class="ra-pair-grid">
       <div><label style="font-size:.7rem;font-weight:700;color:#6b7280">Hazard / Aspect</label><select class="fi ra-hazard" onchange="raOnHazardChange('${id}')">${raOptions(RA_HAZARDS,data.hazard)}</select></div>
       <div><label style="font-size:.7rem;font-weight:700;color:#6b7280">Potential Risk / Impact</label><select class="fi ra-impact" onchange="raSuggestOriginal('${id}')">${raOptions(RA_IMPACTS,data.impact)}</select></div>
     </div>
@@ -16913,6 +16935,7 @@ function addRARow(data){
   </div>`;
   document.getElementById('ra-rows').insertAdjacentHTML('beforeend', html);
   raRecalc(id);
+  if(typeof raRenumberHazards==='function') raRenumberHazards();
 }
 function raRecalc(id){
   const row = document.getElementById(id);
@@ -16927,6 +16950,64 @@ function raRecalc(id){
     } else { badge.textContent='–'; badge.style.background='transparent'; badge.style.color='#6b7280'; }
   });
   raUpdateReductionAndWarnings(id);
+}
+// ---- Hazard row management: remove (with confirm), duplicate, reorder ----
+function raRenumberHazards(){
+  document.querySelectorAll('#ra-rows .ra-row').forEach((row,i)=>{
+    const badge = row.querySelector('.ra-hazard-num');
+    if(badge) badge.textContent = 'Hazard #'+(i+1);
+  });
+}
+function raRemoveHazard(id){
+  const rows = document.querySelectorAll('#ra-rows .ra-row');
+  if(rows.length<=1){
+    showToast('At least one hazard row is required — clear its fields or use Duplicate instead of removing the last one.','red');
+    return;
+  }
+  if(!confirm('Remove this hazard from the Risk Assessment?')) return;
+  document.getElementById(id)?.remove();
+  raRenumberHazards();
+}
+function raDuplicateHazard(id){
+  const row = document.getElementById(id);
+  if(!row) return;
+  // Copies every field into a fresh row with its own new DOM id — editing
+  // the copy afterwards never touches the original row's elements.
+  const data = {
+    hazard: row.querySelector('.ra-hazard').value,
+    impact: row.querySelector('.ra-impact').value,
+    why: row.querySelector('.ra-why').value,
+    whoArr: raGetWho(id),
+    standard: row.querySelector('.ra-standard').value,
+    expChem: row.querySelector('.ra-exp-chem')?.value||'',
+    expPhys: row.querySelector('.ra-exp-phys')?.value||'',
+    expQty: row.querySelector('.ra-exp-qty')?.value||'',
+    expFreq: row.querySelector('.ra-exp-freq')?.value||'',
+    expTime: row.querySelector('.ra-exp-time')?.value||'',
+    expRoutes: raGetExposureRoutes(id),
+    ol: row.querySelector('.ra-ol').value, os: row.querySelector('.ra-os').value,
+    controls: row.querySelector('.ra-controls').value,
+    controlsCat: row.querySelector('.ra-controls-cat')?.value||'',
+    rl: row.querySelector('.ra-rl').value, rs: row.querySelector('.ra-rs').value,
+    further: row.querySelector('.ra-further').value,
+    furtherCat: row.querySelector('.ra-further-cat')?.value||'',
+    el: row.querySelector('.ra-el').value, es: row.querySelector('.ra-es').value,
+  };
+  addRARow(data);
+  raRenumberHazards();
+  showToast(' Hazard duplicated — edit the copy independently','green');
+}
+function raMoveHazard(id, dir){
+  const row = document.getElementById(id);
+  if(!row) return;
+  if(dir<0){
+    const prev = row.previousElementSibling;
+    if(prev && prev.classList.contains('ra-row')) row.parentNode.insertBefore(row, prev);
+  } else {
+    const next = row.nextElementSibling;
+    if(next && next.classList.contains('ra-row')) row.parentNode.insertBefore(next, row);
+  }
+  raRenumberHazards();
 }
 // ---- Reason for the Risk Assessment (form-level, multi-select + Other) ----
 function raRenderReasonChips(selected, otherVal){
@@ -17106,6 +17187,18 @@ function saveRiskAssessment(){
       el:row.querySelector('.ra-el').value, es:row.querySelector('.ra-es').value,
     };
   });
+  // Created* is set once and preserved across every future edit; Updated*
+  // always reflects this save. Backward compatibility: an older record only
+  // has timestamp/author (from before this distinction existed) — the first
+  // time such a record is edited, that timestamp/author becomes its
+  // createdAt/createdBy rather than being overwritten with "now"/the
+  // current editor, so it never looks like it was just created by whoever
+  // happens to edit it next.
+  const now = new Date().toISOString();
+  const userName = currentUser ? currentUser.name : '—';
+  const prev = (editingRA!=null) ? riskAssessments[editingRA] : null;
+  const createdAt = prev ? (prev.createdAt || prev.timestamp || now) : now;
+  const createdBy = prev ? (prev.createdBy || prev.author || userName) : userName;
   const rec = {
     activity:document.getElementById('ra-activity').value,
     dept:document.getElementById('ra-dept').value,
@@ -17116,8 +17209,12 @@ function saveRiskAssessment(){
     reasons:raGetReasons(),
     team:raGetTeam(),
     rows, photos: (typeof getFormPhotos==='function'?getFormPhotos('ra'):[]).slice(),
-    timestamp:new Date().toISOString(),
-    author: currentUser?currentUser.name:'—'
+    createdAt, createdBy, updatedAt: now, updatedBy: userName,
+    // Kept as aliases of createdAt/createdBy for any older code path that
+    // still reads timestamp/author directly (e.g. a record opened from an
+    // even earlier export) — always mirrors the create metadata, never the
+    // update metadata.
+    timestamp: createdAt, author: createdBy,
   };
   if(editingRA!=null){ riskAssessments[editingRA] = rec; } else { riskAssessments.push(rec); }
   saveState();
@@ -17133,7 +17230,7 @@ function renderRAHistory(){
     return `<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
       <div>
         <div style="font-weight:800;color:var(--navy)">${ra.activity||'(untitled area)'} <span style="font-weight:600;color:#6b7280;font-size:.78rem">— ${ra.dept||''}</span></div>
-        <div style="font-size:.72rem;color:#9ca3af">${new Date(ra.timestamp).toLocaleString()} · ${ra.rows.length} hazard(s) · by ${ra.author||'—'}</div>
+        <div style="font-size:.72rem;color:#9ca3af">Created ${new Date(ra.createdAt||ra.timestamp).toLocaleString()} by ${ra.createdBy||ra.author||'—'} · ${ra.rows.length} hazard(s)${(ra.updatedAt && ra.updatedAt!==(ra.createdAt||ra.timestamp)) ? ' · Updated '+new Date(ra.updatedAt).toLocaleString()+' by '+(ra.updatedBy||'—') : ''}</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <span style="background:${info.bg};color:${info.fg};padding:4px 10px;border-radius:6px;font-size:.72rem;font-weight:800">${info.label}</span>
@@ -17180,19 +17277,40 @@ function printRiskAssessment(i){
       <td style="border:1px solid #999;padding:6px">${m.signature||'—'}</td>
       <td style="border:1px solid #999;padding:6px">${m.date||'—'}</td>
     </tr>`).join('') || `<tr><td colspan="4" style="border:1px solid #999;padding:6px;text-align:center;color:#666">No team members recorded</td></tr>`;
-  const css = 'table{width:100%;border-collapse:collapse;font-size:.8rem}th{background:linear-gradient(135deg,#4C1D95,#7C3AED);color:#fff;padding:6px;border:1px solid #999}h2{color:#1e3a5f;margin:0 0 8px}h3{color:#1e3a5f;margin:16px 0 8px}';
+  // A4 landscape, scoped to this print job only — openPrintPreview() writes
+  // this CSS into its own fresh iframe document each time it's called, so
+  // this @page rule never touches any other portal's print view.
+  const css = `
+    @page{ size:A4 landscape; margin:8mm; }
+    table{width:100%;border-collapse:collapse;font-size:.76rem;table-layout:fixed}
+    th{background:linear-gradient(135deg,#4C1D95,#7C3AED);color:#fff;padding:6px;border:1px solid #999;font-size:.72rem}
+    td{word-wrap:break-word;overflow-wrap:break-word;vertical-align:top}
+    tbody tr{page-break-inside:avoid;break-inside:avoid}
+    h2{color:#1e3a5f;margin:0 0 8px}
+    h3{color:#1e3a5f;margin:16px 0 8px;page-break-before:auto}
+    .ra-hazard-table col.c-hazard{width:8%} .ra-hazard-table col.c-why{width:12%}
+    .ra-hazard-table col.c-impact{width:8%} .ra-hazard-table col.c-who{width:9%}
+    .ra-hazard-table col.c-std{width:9%} .ra-hazard-table col.c-exp{width:9%}
+    .ra-hazard-table col.c-risk{width:6%} .ra-hazard-table col.c-ctrl{width:12%}
+  `;
   const body = `
   <h2>Risk Assessment — Document Ref.: F/HSE/108</h2>
   <p><b>Activity/Area:</b> ${ra.activity||'—'} &nbsp; <b>Department:</b> ${ra.dept||'—'} &nbsp; <b>Location:</b> ${ra.location||'—'} &nbsp; <b>Frequency:</b> ${ra.freq||'—'}</p>
-  <p><b>Risk Assessment No.:</b> ${ra.raNumber||'—'} &nbsp; <b>Date:</b> ${ra.raDate||new Date(ra.timestamp).toLocaleDateString()} &nbsp; <b>Author:</b> ${ra.author||'—'}</p>
+  <p><b>Risk Assessment No.:</b> ${ra.raNumber||'—'} &nbsp; <b>Date:</b> ${ra.raDate||new Date(ra.createdAt||ra.timestamp).toLocaleDateString()} &nbsp; <b>Created by:</b> ${ra.createdBy||ra.author||'—'}${(ra.updatedAt && ra.updatedAt!==(ra.createdAt||ra.timestamp)) ? ' &nbsp; <b>Last updated:</b> '+new Date(ra.updatedAt).toLocaleString()+' by '+(ra.updatedBy||'—') : ''}</p>
   <p><b>Reason for the Risk Assessment:</b> ${(ra.reasons&&ra.reasons.length)?ra.reasons.join('; '):'—'}</p>
-  <table><thead><tr>
+  <table class="ra-hazard-table">
+    <colgroup>
+      <col class="c-hazard"/><col class="c-why"/><col class="c-impact"/><col class="c-who"/><col class="c-std"/><col class="c-exp"/>
+      <col class="c-risk"/><col class="c-ctrl"/><col class="c-risk"/><col class="c-ctrl"/><col class="c-risk"/>
+    </colgroup>
+    <thead><tr>
     <th>Hazard / Aspect</th><th>Why Present</th><th>Potential Risk / Impact</th><th>Who May Be Affected</th><th>Standard Name</th><th>Chemical / Exposure</th>
     <th>Original Risk<br>(before controls)</th><th>Existing Control Measures</th><th>Residual Risk<br>(with existing controls)</th><th>Further Control Measures</th><th>Expected Risk<br>(with further controls)</th>
   </tr></thead><tbody>${rowsHtml}</tbody></table>
   <h3>Risk Assessment Team</h3>
   <table><thead><tr><th>Name</th><th>Title</th><th>Signature</th><th>Date</th></tr></thead><tbody>${teamHtml}</tbody></table>
-  <p style="font-size:.7rem;color:#666;margin-top:10px">Note: if this page is not enough or more hazards are associated with the activity or area being assessed, use another page and sign each of them by the whole team members.</p>`;
+  <p style="font-size:.7rem;color:#666;margin-top:10px">Note: if this page is not enough or more hazards are associated with the activity or area being assessed, use another page and sign each of them by the whole team members.</p>
+  <p style="font-size:.65rem;color:#999;margin-top:4px">Page numbering follows your browser's print dialog (enable "Headers and footers" for "Page X of Y") — this app does not inject its own page counters into the printed output.</p>`;
   openPrintPreview('Risk Assessment — '+(ra.activity||''), body, css);
 }
 
@@ -18147,7 +18265,7 @@ function __exportExcelSafetyWork(){
         const score = (l&&s) ? l*s : 0;
         if(!score) return ['','','',''];
         const info = raRiskInfo(score);
-        return [l, s, score, cellStatus(info.label, info.bg.replace('#',''), 'FFFFFF')];
+        return [l, s, score, cellStatus(info.label, info.bg.replace('#',''), info.fg.replace('#',''))];
       };
       const rows = [];
       riskAssessments.forEach(ra=>{
