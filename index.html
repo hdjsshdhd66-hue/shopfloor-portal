@@ -1825,7 +1825,7 @@ try{
     <button type="button" class="btn-ghost" onclick="printNearMissQrPoster()">Print QR Poster</button>
     <button type="button" class="btn-primary" onclick="openNearMissModal()"> New Report</button>
   </div>
-  <div class="page-sub">F.HSE.100 — Rev 02 · 09.02.2026 — Filed by Observer + HSE Team</div>
+  <div class="page-sub">F.HSE.100 — Issued 26.08.2013 · Rev 00 · 26.08.2013 — Filed by Observer + HSE Team</div>
   <div id="nm-qr-preview" class="pro-panel" style="margin-bottom:14px"></div>
   <div id="nearmiss-list"></div>
 </div>
@@ -1838,24 +1838,28 @@ try{
     <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:.8rem;font-weight:750;color:#92400e">Part (A) — Filed by the Observer</div>
     <div class="nm-form-grid">
       <div class="form-row"><label>Observer Name & ID</label><input type="text" id="nm-observer" placeholder="Name / Employee ID"/></div>
-      <div class="form-row"><label>Observer Position</label><input type="text" id="nm-position" placeholder="Job title"/></div>
-      <div class="form-row"><label>Date & Time</label><input type="datetime-local" id="nm-datetime"/></div>
-      <div class="form-row"><label>Line / Area</label><input type="text" id="nm-area" placeholder="Production line or area"/></div>
+      <div class="form-row"><label>Position</label><input type="text" id="nm-position" placeholder="Job title"/></div>
+      <div class="form-row"><label>Department</label>
+        <select id="nm-department"><option value="">Select</option><option>HSE</option><option>Production</option><option>Maintenance</option><option>QA_FS</option><option>Administration</option><option>Facilities</option><option>HR</option><option>IT</option><option>Planning</option><option>Procurement</option><option>WH</option><option>SGS</option><option>Others</option></select>
+      </div>
+      <div class="form-row"><label>Date of Near Miss</label><input type="date" id="nm-date"/></div>
+      <div class="form-row"><label>Time of Near Miss</label><input type="time" id="nm-time"/></div>
+      <div class="form-row"><label>Line / Area (internal use)</label><input type="text" id="nm-area" placeholder="Production line or area"/></div>
       <div class="form-row"><label>Area Owner</label><input type="text" id="nm-areaowner" placeholder="Area responsible person"/></div>
-      <div class="form-row"><label>Area Owner Informed?</label>
+      <div class="form-row"><label>Did you inform the Area Owner or his backup?</label>
         <select id="nm-informed"><option value="">Select</option><option>Yes</option><option>No</option></select>
       </div>
     </div>
-    <div class="form-row"><label>Location of Incident</label><input type="text" id="nm-location" placeholder="Exact location"/></div>
-    <div class="form-row"><label>Category (select one or more)</label>
+    <div class="form-row"><label>Place and Type of the Hazard</label><input type="text" id="nm-location" placeholder="Exact location and type of hazard"/></div>
+    <div class="form-row"><label>Check All Appropriate Condition (select one or more)</label>
       <div class="nm-cat-grid">
         <label class="nm-cat-row"><input type="checkbox" id="nm-cat-act"/><span>Unsafe Act — تصرف غير آمن</span></label>
+        <label class="nm-cat-row"><input type="checkbox" id="nm-cat-equip"/><span>Unsafe Equipment — جهاز غير آمن</span></label>
         <label class="nm-cat-row"><input type="checkbox" id="nm-cat-cond"/><span>Unsafe Condition — وضع غير آمن</span></label>
-        <label class="nm-cat-row"><input type="checkbox" id="nm-cat-equip"/><span>Unsafe Equipment — معدّة غير آمنة</span></label>
-        <label class="nm-cat-row"><input type="checkbox" id="nm-cat-use"/><span>Unsafe Use of Equipment</span></label>
+        <label class="nm-cat-row"><input type="checkbox" id="nm-cat-use"/><span>Unsafe Use of Equipment — استخدام غير آمن للجهاز</span></label>
       </div>
     </div>
-    <div class="form-row"><label>Description of Near Miss (Details)</label><textarea id="nm-desc" rows="3" placeholder="Describe what happened in detail..."></textarea></div>
+    <div class="form-row"><label>Describe the Near Miss</label><textarea id="nm-desc" rows="3" placeholder="Describe what happened in detail..."></textarea></div>
     <div class="form-row"><label>Suggestions</label><textarea id="nm-suggestions" rows="2" placeholder="Your suggestions to prevent recurrence..."></textarea></div>
     <div class="form-row"><label> Attach Photo (optional)</label>
       <input type="file" id="nm-photo" accept="image/*" onchange="previewNMPhoto(event)" style="border:1.5px solid var(--border);border-radius:8px;padding:8px;width:100%;box-sizing:border-box"/>
@@ -1863,12 +1867,40 @@ try{
     </div>
     <div id="fp-host-nearmiss" class="fp-host" data-photo-id="nearmiss"></div>
     <div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;margin:14px 0;font-size:.8rem;font-weight:700;color:#15803d">Part (B) — Filed by HSE Team</div>
-    <div class="form-row"><label>Cause of Near Miss</label><textarea id="nm-cause" rows="2" placeholder="Root cause analysis..."></textarea></div>
-    <div class="form-row"><label>Corrective Action</label><textarea id="nm-action" rows="2" placeholder="Action taken or planned..."></textarea></div>
+    <div class="form-row"><label>Causes of Near Miss</label><textarea id="nm-cause" rows="2" placeholder="Root cause analysis..."></textarea></div>
+    <div class="form-row"><label>Assigned Corrective Action</label><textarea id="nm-action" rows="2" placeholder="Action taken or planned..."></textarea></div>
+    <div class="nm-form-grid">
+      <div class="form-row"><label>Who Will Make the Corrective Action</label><input type="text" id="nm-resp" placeholder="Responsible person"/></div>
+      <div class="form-row">
+        <label>When</label>
+        <div class="nm-cat-grid">
+          <label class="nm-cat-row"><input type="radio" name="nm-when" id="nm-when-now" value="now" onchange="toggleNMWhenDays()"/><span>Now (Urgent)</span></label>
+          <label class="nm-cat-row"><input type="radio" name="nm-when" id="nm-when-48h" value="48h" onchange="toggleNMWhenDays()"/><span>Within 48 Hours</span></label>
+          <label class="nm-cat-row"><input type="radio" name="nm-when" id="nm-when-during" value="during" onchange="toggleNMWhenDays()"/><span>During ___ Days</span></label>
+        </div>
+        <input type="number" id="nm-when-days" min="1" placeholder="Number of days" style="display:none;margin-top:8px"/>
+      </div>
+    </div>
+    <div class="nm-form-grid">
+      <div class="form-row"><label>Name / Signature (HSE Reviewer)</label><input type="text" id="nm-signature" placeholder="Typed name"/></div>
+      <div class="form-row"><label>Date</label><input type="date" id="nm-sign-date"/></div>
+    </div>
     </div>
     <div class="nm-form-actions">
       <button type="button" class="btn-ghost" onclick="document.getElementById('nearmiss-modal').classList.remove('open')">Cancel</button>
       <button type="button" class="btn-primary" onclick="reviewNearMissSubmit()">Save Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- Near Miss Details Modal (read-only, Part A / Part B grouped) -->
+<div class="modal-overlay" id="nearmiss-details-modal">
+  <div class="modal nm-responsive-modal" style="max-width:640px">
+    <div class="modal-title">Near Miss Details — F.HSE.100</div>
+    <div class="nm-form-scroll" id="nearmiss-details-body"></div>
+    <div class="nm-form-actions">
+      <button type="button" class="btn-ghost" onclick="document.getElementById('nearmiss-details-modal').classList.remove('open')">Close</button>
+      <button type="button" class="btn-primary" id="nearmiss-details-print-btn">Print</button>
     </div>
   </div>
 </div>

@@ -942,7 +942,8 @@ body.printing-permit .fac-permit-toolbar{display:none!important}
   cursor:pointer;transition:background-color .12s;
 }
 .nm-cat-grid .nm-cat-row:hover{background:var(--surface-2)}
-.nm-cat-grid .nm-cat-row input[type="checkbox"]{
+.nm-cat-grid .nm-cat-row input[type="checkbox"],
+.nm-cat-grid .nm-cat-row input[type="radio"]{
   flex:0 0 auto;width:17px;height:17px;min-height:0;
   accent-color:var(--primary);cursor:pointer;
 }
