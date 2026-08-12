@@ -586,6 +586,7 @@ try{
  <button type="button" class="nav-btn safety-nav-btn" data-view="riskassess" onclick="nav('riskassess')" style="background:#fef2f2;color:#dc2626;font-weight:700"> Risk Assessment</button>
  <button type="button" class="nav-btn safety-nav-btn" data-view="noiselevel" onclick="nav('noiselevel')" style="background:#fef2f2;color:#dc2626;font-weight:700"> Noise Level</button>
  <button type="button" class="nav-btn safety-nav-btn" data-view="lightlevel" onclick="nav('lightlevel')" style="background:#fef2f2;color:#dc2626;font-weight:700"> Light Level</button>
+ <button type="button" class="nav-btn safety-nav-btn" data-view="training" onclick="nav('training')" style="background:#fef2f2;color:#dc2626;font-weight:700"> Training &amp; TBT</button>
 
  <!-- Maintenance nav buttons -->
  <button type="button" class="nav-btn maint-nav-btn" data-view="mainthome" onclick="nav('mainthome')" style="background:#f0fdf4;color:#065f46;font-weight:700"> Home</button>
@@ -2619,6 +2620,105 @@ try{
 <div id="view-hsecalendar" class="view"><div id="hsecalendar-body"></div></div>
 <div id="view-noiselevel" class="view"><div id="noiselevel-body"></div></div>
 <div id="view-lightlevel" class="view"><div id="lightlevel-body"></div></div>
+
+<!-- ============ SAFETY — TRAINING & TBT MANAGEMENT ============ -->
+<div id="view-training" class="view">
+  <div class="page-title">Training &amp; TBT Management</div>
+  <div class="page-sub">EHS Training Matrix · Training Attendance (F/HSE/102) · Toolbox Talk (F/HSE/101) — Safety Portal</div>
+  <div id="training-body"></div>
+</div>
+
+<!-- Training Attendance Form (F/HSE/102) -->
+<div class="modal-overlay" id="training-attendance-modal">
+  <div class="modal nm-responsive-modal" style="max-width:900px">
+    <div class="modal-title" id="training-attendance-modal-title">New Training Attendance — F/HSE/102</div>
+    <div class="nm-form-scroll">
+      <div class="nm-form-grid">
+        <div class="form-row"><label>Training Title</label><input type="text" id="trn-att-title"/></div>
+        <div class="form-row"><label>Trainer Name</label><input type="text" id="trn-att-trainer"/></div>
+        <div class="form-row"><label>Starting Date</label><input type="date" id="trn-att-date"/></div>
+        <div class="form-row"><label>Starting Time</label><input type="time" id="trn-att-time"/></div>
+        <div class="form-row"><label>Total Training Hours</label><input type="number" min="0" step="0.5" id="trn-att-hours"/></div>
+        <div class="form-row"><label>Link to Training Matrix Course (optional)</label><select id="trn-att-course"></select></div>
+      </div>
+      <div class="form-row" style="margin-top:6px">
+        <label>Attendees</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <button type="button" class="btn-ghost" onclick="trnOpenPicker()">+ Add From Employee List</button>
+          <button type="button" class="btn-ghost" onclick="trnAddManualAttendee()">+ Add Manual / Contractor</button>
+        </div>
+        <div id="trn-att-attendees"></div>
+      </div>
+    </div>
+    <div class="nm-form-actions">
+      <button type="button" class="btn-ghost" onclick="trnCloseAttendanceForm()">Cancel</button>
+      <button type="button" class="btn-primary" onclick="trnSaveAttendance()">Save Attendance</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toolbox Talk Form (F/HSE/101) -->
+<div class="modal-overlay" id="training-tbt-modal">
+  <div class="modal nm-responsive-modal" style="max-width:900px">
+    <div class="modal-title" id="training-tbt-modal-title">New Toolbox Talk — F/HSE/101</div>
+    <div class="nm-form-scroll">
+      <div class="nm-form-grid">
+        <div class="form-row"><label>Facility / Function (Part A)</label><input type="text" id="trn-tbt-facility"/></div>
+        <div class="form-row"><label>Conducted By (Part B)</label><input type="text" id="trn-tbt-conductor"/></div>
+        <div class="form-row"><label>Date</label><input type="date" id="trn-tbt-date"/></div>
+        <div class="form-row"><label>Time</label><input type="time" id="trn-tbt-time"/></div>
+        <div class="form-row"><label>Link to Training Matrix Course (optional)</label><select id="trn-tbt-course"></select></div>
+        <div class="form-row"><label>Trainer Name (Part C)</label><input type="text" id="trn-tbt-trainer"/></div>
+      </div>
+      <div class="form-row"><label>Topic Description</label><textarea id="trn-tbt-topicdesc" rows="2"></textarea></div>
+      <div class="form-row">
+        <label>Toolbox Talk – Topics to be Discussed</label>
+        <div class="trn-topics-grid">
+          <input type="text" id="trn-tbt-topic1" placeholder="1."/><input type="text" id="trn-tbt-topic2" placeholder="2."/>
+          <input type="text" id="trn-tbt-topic3" placeholder="3."/><input type="text" id="trn-tbt-topic4" placeholder="4."/>
+          <input type="text" id="trn-tbt-topic5" placeholder="5."/><input type="text" id="trn-tbt-topic6" placeholder="6."/>
+          <input type="text" id="trn-tbt-topic7" placeholder="7."/><input type="text" id="trn-tbt-topic8" placeholder="8."/>
+          <input type="text" id="trn-tbt-topic9" placeholder="9."/><input type="text" id="trn-tbt-topic10" placeholder="10."/>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:6px">
+        <label>Attendees</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <button type="button" class="btn-ghost" onclick="trnOpenPicker()">+ Add From Employee List</button>
+          <button type="button" class="btn-ghost" onclick="trnAddManualAttendee()">+ Add Manual / Contractor</button>
+        </div>
+        <div id="trn-tbt-attendees"></div>
+      </div>
+    </div>
+    <div class="nm-form-actions">
+      <button type="button" class="btn-ghost" onclick="trnCloseTBTForm()">Cancel</button>
+      <button type="button" class="btn-primary" onclick="trnSaveTBT()">Save Toolbox Talk</button>
+    </div>
+  </div>
+</div>
+
+<!-- Employee picker (shared by both Training forms) -->
+<div class="modal-overlay" id="training-picker-modal">
+  <div class="modal nm-responsive-modal" style="max-width:640px">
+    <div class="modal-title">Add Attendees From Training Matrix</div>
+    <div class="nm-form-scroll" id="training-picker-body"></div>
+    <div class="nm-form-actions">
+      <button type="button" class="btn-ghost" onclick="trnClosePicker()">Cancel</button>
+      <button type="button" class="btn-primary" onclick="trnPickerAddSelected()">Add Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic read-only detail viewer: Employee Training History / Course Detail / Record View -->
+<div class="modal-overlay" id="training-detail-modal">
+  <div class="modal nm-responsive-modal" style="max-width:760px">
+    <div class="modal-title" id="training-detail-title">Details</div>
+    <div class="nm-form-scroll" id="training-detail-body"></div>
+    <div class="nm-form-actions">
+      <button type="button" class="btn-ghost" onclick="trnCloseDetailModal()">Close</button>
+    </div>
+  </div>
+</div>
 <div id="view-incidentinvest" class="view"><div id="incidentinvest-body"></div></div>
 <div id="view-prodvalue" class="view"><div id="prodvalue-body"></div></div>
 <div id="view-prodscrap" class="view"><div id="prodscrap-body"></div></div>
@@ -3130,6 +3230,10 @@ try{
 
 <!-- Click outside to close notification panel -->
 
+
+<!-- Training & TBT Management (Safety Portal) — reference data must load before the app logic that reads it -->
+<script src="./training-data.js"></script>
+<script src="./training.js"></script>
 
 <!-- PWA: register SW + install-as-app helpers -->
 <script src="./app.js"></script>
