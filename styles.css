@@ -3535,3 +3535,76 @@ body:not(.login-active) #login-screen{
 }
 #notif-panel.open { display:block !important; }
 #search-panel.open { display:block !important; }
+
+/* ============================================================
+   Training & TBT Management (Safety Portal)
+   ============================================================ */
+.trn-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+.trn-pane{ min-width:0; }
+.trn-toolbar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.trn-toolbar-actions{ margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+.trn-filters{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+.trn-filters input[type="text"],
+.trn-filters select{ border:1.5px solid var(--border); border-radius:8px; padding:7px 10px; font-size:.82rem; font-family:inherit; background:var(--form-surface); color:var(--text); }
+.trn-inline-check{ display:flex; align-items:center; gap:6px; font-size:.78rem; font-weight:700; color:var(--muted); cursor:pointer; }
+.trn-legend{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:10px; }
+.trn-legend-item{ display:flex; align-items:center; gap:6px; font-size:.74rem; font-weight:700; color:var(--muted); }
+.trn-dot{ width:12px; height:12px; border-radius:99px; display:inline-block; box-shadow:0 0 0 2px rgba(0,0,0,.05); }
+
+/* Matrix grid — sticky header + sticky identity columns, scrolls both axes */
+.trn-matrix-wrap{ max-height:70vh; overflow:auto; border:1px solid var(--border); border-radius:12px; background:var(--form-surface); }
+/* table-layout:fixed makes every column's CSS width authoritative instead of a hint the browser
+   can override based on content — required so the sticky identity columns' actual rendered
+   widths always match the "left" pixel offsets below (see .trn-sticky-col comment); without it,
+   a table with only auto-sized columns silently drifts out of sync with hardcoded sticky offsets. */
+.trn-matrix-table{ border-collapse:collapse; font-size:.72rem; white-space:nowrap; table-layout:fixed; }
+.trn-matrix-table th, .trn-matrix-table td{ padding:7px 9px; border-bottom:1px solid var(--border); text-align:center; }
+.trn-matrix-table thead th{ position:sticky; top:0; background:#1e3a5f; color:#fff; font-weight:800; z-index:3; }
+.trn-course-th, .trn-cell{ width:92px; max-width:92px; }
+.trn-course-th{ cursor:pointer; white-space:normal; overflow:hidden; text-overflow:ellipsis; }
+.trn-course-th:hover{ text-decoration:underline; }
+/* Fixed (not min-) widths are required here: position:sticky's left offset is a pixel
+   contract between these three columns — if the browser were free to size them to content,
+   a long name/department/job-title would push the next sticky column wider than its "left"
+   offset expects, and at some scroll distance the columns would slide over one another. */
+.trn-sticky-col{ position:sticky; background:var(--form-surface); text-align:left !important; font-weight:700; z-index:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.trn-matrix-table thead th.trn-sticky-col{ z-index:4; white-space:normal; }
+.trn-sticky-name{ left:0; width:170px; max-width:170px; white-space:normal; }
+.trn-sticky-dept{ left:170px; width:130px; max-width:130px; }
+.trn-sticky-jt{ left:300px; width:170px; max-width:170px; box-shadow:3px 0 4px -2px rgba(0,0,0,.12); }
+.trn-sticky-name a{ color:var(--primary); text-decoration:none; font-weight:800; }
+.trn-sticky-name a:hover{ text-decoration:underline; }
+.trn-sub{ font-size:.66rem; color:var(--muted); font-weight:600; }
+.trn-inactive-badge{ display:inline-block; background:#fee2e2; color:#b91c1c; font-size:.62rem; font-weight:800; border-radius:99px; padding:1px 7px; margin-left:4px; }
+.trn-cell{ text-align:center; }
+.trn-pager{ display:flex; align-items:center; gap:12px; justify-content:center; margin-top:10px; font-size:.78rem; color:var(--muted); font-weight:700; }
+
+/* Attendee editor table (Attendance / TBT forms) */
+.trn-att-table-wrap{ overflow-x:auto; border:1px solid var(--border); border-radius:10px; }
+.trn-att-table{ width:100%; border-collapse:collapse; font-size:.76rem; }
+.trn-att-table th{ background:var(--surface-2); color:var(--text); font-weight:800; padding:6px 8px; white-space:nowrap; text-align:left; }
+.trn-att-table td{ padding:4px 6px; border-top:1px solid var(--border); }
+.trn-att-table td input{ width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:6px; padding:5px 7px; font-size:.78rem; font-family:inherit; background:var(--form-surface); color:var(--text); }
+.trn-att-table td input[readonly]{ background:var(--surface-2); color:var(--muted); }
+
+/* Topics grid (Toolbox Talk — 10 fixed lines matching the source form) */
+.trn-topics-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
+.trn-topics-grid input{ border:1.5px solid var(--border); border-radius:8px; padding:7px 10px; font-size:.82rem; font-family:inherit; background:var(--form-surface); color:var(--text); }
+
+/* Employee picker */
+.trn-pick-list{ max-height:340px; overflow-y:auto; border:1px solid var(--border); border-radius:10px; }
+.trn-pick-row{ display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid var(--border); font-size:.8rem; cursor:pointer; }
+.trn-pick-row:last-child{ border-bottom:none; }
+.trn-pick-row:hover{ background:var(--surface-2); }
+.trn-pick-row .trn-sub{ margin-left:auto; text-align:right; }
+.trn-pick-added{ opacity:.55; cursor:default; }
+
+@media (max-width:900px){
+  .trn-matrix-wrap{ max-height:60vh; }
+  .trn-topics-grid{ grid-template-columns:1fr; }
+  .trn-toolbar-actions{ margin-left:0; width:100%; }
+}
+@media (max-width:600px){
+  .trn-filters{ flex-direction:column; align-items:stretch; }
+  .trn-filters input[type="text"], .trn-filters select{ width:100%; }
+}

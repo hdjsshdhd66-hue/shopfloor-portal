@@ -405,6 +405,7 @@ const PORTAL_SIDEBAR_MENUS = {
     {id:'safetyhome', icon:'home', label:'Home', view:'safetyhome'},
     {id:'hub', icon:'layout', label:'Daily Hub', view:'dailyhub'},
     {id:'safetydash', icon:'layout', label:'Performance Hub', view:'safetydash'},
+    {id:'training', icon:'file', label:'Training & TBT', view:'training'},
     {id:'srep', icon:'alert', label:'Reports', submenu:[
       {label:'Near Miss', view:'nearmiss'}, {label:'Incident Investigation', view:'incidentinvest'}, {label:'HSE Calendar', view:'hsecalendar'}, {label:'CAPA', view:'capa'}, {label:'Daily Inspection', view:'dailyinspection'}, {label:'Risk Assessment', view:'riskassess'}
     ]},
@@ -623,7 +624,7 @@ function togglePsGroup(id){
 // ============================================================
 // NAVIGATION
 // ============================================================
-const VIEWS=['portallanding','home','lines','checklist','handover','cw','md','db-issues','db-cw','ncr','clearance','history','complaints','foodsafety','holdpallets','teamdash','manager','scoring','safetyhome','safetydash','nearmiss','incidentinvest','capa','dailyinspection','fireext','permits','fullptw','firepump','lpgcooling','noiselevel','lightlevel','mainthome','maintdash','pmschedule','workorder','breakdown','spareparts','maintcalibration','prodhome','proddash','linecleaning','prodlog','clearancereq','downtime','prodvalue','prodscrap','riskassess','factoryaccess','rework','dailyhub','hsecalendar','shiftcompare','weeklyreport','permissions','synccenter','itintegration','qrstation'];
+const VIEWS=['portallanding','home','lines','checklist','handover','cw','md','db-issues','db-cw','ncr','clearance','history','complaints','foodsafety','holdpallets','teamdash','manager','scoring','safetyhome','safetydash','nearmiss','incidentinvest','capa','dailyinspection','fireext','permits','fullptw','firepump','lpgcooling','noiselevel','lightlevel','training','mainthome','maintdash','pmschedule','workorder','breakdown','spareparts','maintcalibration','prodhome','proddash','linecleaning','prodlog','clearancereq','downtime','prodvalue','prodscrap','riskassess','factoryaccess','rework','dailyhub','hsecalendar','shiftcompare','weeklyreport','permissions','synccenter','itintegration','qrstation'];
 function toggleHeaderMenu(e){
   if(e) e.stopPropagation();
   document.querySelector('.header-nav').classList.toggle('menu-open');
@@ -659,7 +660,7 @@ function iconForView(view, label){
     history:'clock', shiftcompare:'activity', weeklyreport:'file', permissions:'lock', synccenter:'refresh', itintegration:'settings',
     safetydash:'layout', nearmiss:'alert', capa:'clipboard', dailyinspection:'eye',
     fireext:'flame', permits:'stamp', fullptw:'book', firepump:'droplet', lpgcooling:'snow',
-    riskassess:'shield', hsecalendar:'calendar',
+    riskassess:'shield', hsecalendar:'calendar', training:'book',
     maintdash:'layout', pmschedule:'calendar', workorder:'wrench', breakdown:'tool', spareparts:'package', maintcalibration:'settings',
     proddash:'layout', linecleaning:'broom', prodlog:'clipboard', clearancereq:'file', downtime:'timer', prodvalue:'chart', prodscrap:'trash', noiselevel:'activity', lightlevel:'eye',
     factoryaccess:'users', execdash:'layers'
@@ -1435,6 +1436,7 @@ function renderPortalLanding(){
     if(view==='ncr') return 'Raise and track quality incidents / NCRs';
     if(view==='clearance') return 'Line hygiene clearance before startup';
     if(view==='nearmiss') return 'Report near misses and HSE observations';
+    if(view==='training') return 'EHS Training Matrix, Attendance (F/HSE/102) & Toolbox Talk (F/HSE/101)';
     if(view==='capa') return 'Corrective & preventive action register';
     if(view==='permits' || L.includes('permit')) return 'Issue and print work permits';
     if(view==='fullptw') return 'Full Permit to Work (FMC-F/HSE/13)';
@@ -1609,6 +1611,7 @@ function nav(v){
   if(v==='fireext'){ renderFireExtChecklist(); renderFireExtHistory(); }
   if(v==='permits') renderPermitsList();
   if(v==='fullptw') renderPermitsList('fmc13','fullptw-list');
+  if(v==='training'){ if(typeof renderTraining==='function') renderTraining(); }
   if(typeof syncMobileDockFromView==='function') syncMobileDockFromView(v);
 }
 
@@ -3265,7 +3268,7 @@ function startAutoExportTimer(){
 // ============================================================
 
 // Role-based access: which nav items each role can see
-const SAFETY_VIEWS = ['safetyhome','portallanding','dailyhub','safetydash','nearmiss','incidentinvest','capa','dailyinspection','fireext','permits','fullptw','firepump','lpgcooling','noiselevel','lightlevel','riskassess','hsecalendar','weeklyreport','qrstation'];
+const SAFETY_VIEWS = ['safetyhome','portallanding','dailyhub','safetydash','nearmiss','incidentinvest','capa','dailyinspection','fireext','permits','fullptw','firepump','lpgcooling','noiselevel','lightlevel','training','riskassess','hsecalendar','weeklyreport','qrstation'];
 const QUALITY_VIEWS = ['home','portallanding','dailyhub','lines','checklist','handover','cw','md','db-issues','db-cw','ncr','clearance','history','complaints','foodsafety','holdpallets','teamdash','manager','rework','shiftcompare','weeklyreport','qrstation'];
 const MAINTENANCE_VIEWS = ['mainthome','portallanding','dailyhub','maintdash','pmschedule','workorder','breakdown','spareparts','maintcalibration','weeklyreport'];
 const PRODUCTION_VIEWS = ['prodhome','portallanding','dailyhub','proddash','linecleaning','prodlog','clearancereq','downtime','prodvalue','prodscrap','riskassess','weeklyreport'];
@@ -3291,7 +3294,7 @@ const ROLE_ACCESS = {
   'Line Leader':              [...PRODUCTION_VIEWS,'clearance'],
   'Operator':                 ['portallanding','dailyhub','linecleaning','prodlog','clearancereq','downtime','clearance'],
   // Auditor is read-across by design
-  'Auditor':                  ['portallanding','dailyhub','home','safetyhome','ncr','capa','nearmiss','permits','clearance','breakdown','weeklyreport','history','teamdash','manager','safetydash','maintdash','proddash'],
+  'Auditor':                  ['portallanding','dailyhub','home','safetyhome','ncr','capa','nearmiss','permits','clearance','breakdown','weeklyreport','history','teamdash','manager','safetydash','maintdash','proddash','training'],
   'Permit Issuance Officer':  ['factoryaccess','portallanding','dailyhub'],
 };
 
@@ -6391,7 +6394,9 @@ let safetyData = {
   noiseSurveys: [],
   lightReadings: [],
   lightSurveys: [],
-  incidentInvestigations: []
+  incidentInvestigations: [],
+  trainingRecords: [],      // Training Attendance (F/HSE/102) + Toolbox Talk (F/HSE/101) records
+  trainingOverrides: {}     // { empId: { courseKey: {date, source, recordId} } } — matrix completion overlay, only written when a record is explicitly linked to a course
 };
 let reworkData = { generated: [], used: [] };
 
@@ -18503,7 +18508,7 @@ function __renderWeeklyReportWork(){
 // WAVE 4 — IT Integration Readiness (config · auth · sync · audit)
 // Client adapters only — IT owns real server/cloud/security infra
 // ============================================================
-const APP_BUILD = 'v94';
+const APP_BUILD = 'v95';
 const IT_CONFIG_KEY = 'pqs_it_config';
 const IT_TOKEN_KEY = 'pqs_it_access_token';
 const IT_AUDIT_KEY = 'pqs_it_audit_events';
