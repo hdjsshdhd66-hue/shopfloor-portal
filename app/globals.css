@@ -1,0 +1,136 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * S47 DIGITAL design tokens.
+ * The brand is dark-first by design (near-black canvas, cobalt/violet
+ * accents) — there is no separate light theme to toggle. `:root` and
+ * `.dark` intentionally carry the same values so the design still holds
+ * if a shadcn primitive ever checks for the `.dark` class.
+ */
+@theme inline {
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
+    --font-heading: var(--font-sans);
+
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+
+    /* S47 brand palette — raw utilities (bg-cobalt, text-violet, etc.) */
+    --color-nearblack: var(--nearblack);
+    --color-navy: var(--navy);
+    --color-indigo: var(--indigo);
+    --color-cobalt: var(--cobalt);
+    --color-cobalt-soft: var(--cobalt-soft);
+    --color-violet: var(--violet);
+    --color-violet-soft: var(--violet-soft);
+    --color-cyan: var(--cyan);
+    --color-silver: var(--silver);
+
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root,
+.dark {
+    /* Raw brand colors */
+    --nearblack: #06060a;
+    --navy: #0b1220;
+    --indigo: #131a33;
+    --cobalt: #3d6bff;
+    --cobalt-soft: #6e93ff;
+    --violet: #8b5cf6;
+    --violet-soft: #b79cff;
+    --cyan: #22d3ee;
+    --silver: #c9cedc;
+
+    /* shadcn semantic mapping onto the S47 palette */
+    --background: var(--nearblack);
+    --foreground: #f3f5fa;
+    --card: var(--navy);
+    --card-foreground: #f3f5fa;
+    --popover: var(--navy);
+    --popover-foreground: #f3f5fa;
+    --primary: var(--violet);
+    --primary-foreground: #ffffff;
+    --secondary: var(--indigo);
+    --secondary-foreground: #c7ccdc;
+    --muted: #10162a;
+    --muted-foreground: #8a93ac;
+    --accent: var(--cobalt);
+    --accent-foreground: #ffffff;
+    --destructive: #f26363;
+    --border: rgba(255, 255, 255, 0.09);
+    --input: rgba(255, 255, 255, 0.12);
+    --ring: var(--violet);
+    --chart-1: var(--cobalt);
+    --chart-2: var(--violet);
+    --chart-3: var(--cyan);
+    --chart-4: var(--cobalt-soft);
+    --chart-5: var(--violet-soft);
+    --radius: 0.75rem;
+    --sidebar: var(--navy);
+    --sidebar-foreground: #f3f5fa;
+    --sidebar-primary: var(--violet);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--indigo);
+    --sidebar-accent-foreground: #f3f5fa;
+    --sidebar-border: rgba(255, 255, 255, 0.09);
+    --sidebar-ring: var(--violet);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans scroll-smooth;
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
