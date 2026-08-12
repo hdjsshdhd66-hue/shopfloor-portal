@@ -1,55 +1,35 @@
-import {
-  LayoutGrid,
-  GitBranch,
-  Gauge,
-  ShieldCheck,
-  UserCheck,
-  Wrench,
-  type LucideIcon,
-} from "lucide-react";
+"use client";
 
-type Service = {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-};
+import { motion } from "framer-motion";
+import { LayoutGrid, GitBranch, Gauge, ClipboardList, type LucideIcon } from "lucide-react";
+import { fadeInUp, staggerContainer, viewportOnce } from "@/lib/motion";
 
-const SERVICES: Service[] = [
+type Capability = { n: string; icon: LucideIcon; title: string; body: string };
+
+const CAPABILITIES: Capability[] = [
   {
+    n: "01",
     icon: LayoutGrid,
-    title: "Custom Internal Portals",
-    description:
-      "Role-gated systems your teams log into every day, built around your actual departments — not a generic intranet template.",
+    title: "Operational Portals",
+    body: "Centralized interfaces designed around departments, roles, and operational workflows.",
   },
   {
+    n: "02",
     icon: GitBranch,
-    title: "Workflow & Approval Systems",
-    description:
-      "Requests, sign-offs, and escalations that move on their own — no more chasing a signature over email.",
+    title: "Workflow Interfaces",
+    body: "Digital requests, approvals, assignments, status tracking, and action workflows.",
   },
   {
+    n: "03",
     icon: Gauge,
-    title: "Operational Dashboards",
-    description:
-      "The numbers your business runs on, calculated live from real activity instead of an end-of-week spreadsheet.",
+    title: "Dashboards & Management Views",
+    body: "Clear operational visibility through structured KPIs, statuses, actions, and management views.",
   },
   {
-    icon: ShieldCheck,
-    title: "Inspection & Compliance Systems",
-    description:
-      "Checklists, audits, and corrective actions that produce a record you can hand an auditor, not a pile of paper.",
-  },
-  {
-    icon: UserCheck,
-    title: "Visitor & Access Management",
-    description:
-      "Who's on site, who approved them, and when they left — logged automatically, not on a paper sign-in sheet.",
-  },
-  {
-    icon: Wrench,
-    title: "Custom Business Tools",
-    description:
-      "A specific process nobody else has built for — quoting, scheduling, tracking. If it's yours, we design around it.",
+    n: "04",
+    icon: ClipboardList,
+    title: "Digital Forms & Tools",
+    body: "Purpose-built interfaces for inspections, reporting, assessments, training, and operational records.",
   },
 ];
 
@@ -57,29 +37,41 @@ export function Services() {
   return (
     <section id="what-we-build" className="border-t border-border py-24 sm:py-28">
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
-        <div className="max-w-xl">
-          <p className="text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-            What We Build
-          </p>
-          <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Six ways we turn a workflow into a system.
+        <motion.div initial="hidden" whileInView="visible" viewport={viewportOnce} variants={fadeInUp} className="max-w-xl">
+          <p className="text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">What We Build</p>
+          <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+            Operational interfaces, not generic software.
           </h2>
-        </div>
+        </motion.div>
 
-        <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {SERVICES.map(({ icon: Icon, title, description }) => (
-            <div
-              key={title}
-              className="group rounded-2xl border border-border bg-card/60 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-violet/40"
+        <motion.div
+          variants={staggerContainer()}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOnce}
+          className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2"
+        >
+          {CAPABILITIES.map(({ n, icon: Icon, title, body }) => (
+            <motion.div
+              key={n}
+              variants={fadeInUp}
+              className="group relative overflow-hidden rounded-2xl border border-border bg-card/60 p-7"
             >
-              <div className="flex size-10 items-center justify-center rounded-lg border border-violet/25 bg-violet/10">
-                <Icon className="size-5 text-violet-soft" />
+              <div
+                className="pointer-events-none absolute inset-0 rounded-2xl border border-transparent transition-colors duration-500 group-hover:border-purple/35"
+                aria-hidden
+              />
+              <div className="flex items-start justify-between">
+                <span className="flex size-11 items-center justify-center rounded-xl border border-purple/25 bg-purple/10 transition-transform duration-300 group-hover:scale-105">
+                  <Icon className="size-5 text-purple-soft" />
+                </span>
+                <span className="font-mono text-xs text-muted-foreground">{n}</span>
               </div>
-              <h3 className="mt-4 text-base font-medium text-foreground">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
-            </div>
+              <h3 className="mt-5 text-lg font-medium text-foreground">{title}</h3>
+              <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{body}</p>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

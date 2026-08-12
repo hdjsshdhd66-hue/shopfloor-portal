@@ -130,9 +130,9 @@ export function Contact() {
               <a
                 href={CONTACT_EMAIL_HREF}
                 aria-label="Email S47 DIGITAL"
-                className="flex min-h-11 items-center gap-3.5 rounded-xl border border-border bg-card/60 px-4 py-3 transition-colors hover:border-violet/40"
+                className="flex min-h-11 items-center gap-3.5 rounded-xl border border-border bg-card/60 px-4 py-3 transition-colors hover:border-purple/40"
               >
-                <Mail className="size-[18px] shrink-0 text-violet-soft" />
+                <Mail className="size-[18px] shrink-0 text-purple-soft" />
                 <span className="flex flex-col leading-tight">
                   <span className="text-sm font-medium text-foreground">Email S47 DIGITAL</span>
                   <span className="text-xs text-muted-foreground">{CONTACT_EMAIL}</span>
@@ -141,9 +141,9 @@ export function Contact() {
               <a
                 href={CONTACT_CALL_HREF}
                 aria-label="Call S47 DIGITAL"
-                className="flex min-h-11 items-center gap-3.5 rounded-xl border border-border bg-card/60 px-4 py-3 transition-colors hover:border-violet/40"
+                className="flex min-h-11 items-center gap-3.5 rounded-xl border border-border bg-card/60 px-4 py-3 transition-colors hover:border-purple/40"
               >
-                <Phone className="size-[18px] shrink-0 text-violet-soft" />
+                <Phone className="size-[18px] shrink-0 text-purple-soft" />
                 <span className="flex flex-col leading-tight">
                   <span className="text-sm font-medium text-foreground">Call S47 DIGITAL</span>
                   <span className="text-xs text-muted-foreground">{CONTACT_PHONE_DISPLAY}</span>
@@ -154,9 +154,9 @@ export function Contact() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Contact S47 DIGITAL on WhatsApp"
-                className="flex min-h-11 items-center gap-3.5 rounded-xl border border-border bg-card/60 px-4 py-3 transition-colors hover:border-violet/40"
+                className="flex min-h-11 items-center gap-3.5 rounded-xl border border-border bg-card/60 px-4 py-3 transition-colors hover:border-purple/40"
               >
-                <MessageCircle className="size-[18px] shrink-0 text-violet-soft" />
+                <MessageCircle className="size-[18px] shrink-0 text-purple-soft" />
                 <span className="flex flex-col leading-tight">
                   <span className="text-sm font-medium text-foreground">WhatsApp S47 DIGITAL</span>
                   <span className="text-xs text-muted-foreground">{CONTACT_PHONE_DISPLAY}</span>
@@ -173,7 +173,7 @@ export function Contact() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor={`${formId}-name`}>
-                  Name <span className="text-violet">*</span>
+                  Name <span className="text-purple">*</span>
                 </Label>
                 <Input
                   id={`${formId}-name`}
@@ -193,7 +193,7 @@ export function Contact() {
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor={`${formId}-company`}>
-                  Company <span className="text-violet">*</span>
+                  Company <span className="text-purple">*</span>
                 </Label>
                 <Input
                   id={`${formId}-company`}
@@ -213,7 +213,7 @@ export function Contact() {
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor={`${formId}-email`}>
-                  Work Email <span className="text-violet">*</span>
+                  Work Email <span className="text-purple">*</span>
                 </Label>
                 <Input
                   id={`${formId}-email`}
@@ -248,7 +248,7 @@ export function Contact() {
 
               <div className="flex flex-col gap-1.5 sm:col-span-2">
                 <Label htmlFor={`${formId}-projectType`}>
-                  Project Type <span className="text-violet">*</span>
+                  Project Type <span className="text-purple">*</span>
                 </Label>
                 <Select
                   value={form.projectType}
@@ -279,7 +279,7 @@ export function Contact() {
 
               <div className="flex flex-col gap-1.5 sm:col-span-2">
                 <Label htmlFor={`${formId}-message`}>
-                  What would you like to digitize? <span className="text-violet">*</span>
+                  What would you like to digitize? <span className="text-purple">*</span>
                 </Label>
                 <Textarea
                   id={`${formId}-message`}
@@ -318,7 +318,7 @@ export function Contact() {
                 </p>
               )}
               {status === "sent" && (
-                <p className="rounded-lg border border-cyan/25 bg-cyan/10 px-3 py-2 text-sm text-cyan">
+                <p className="rounded-lg border border-status-ok/25 bg-status-ok/10 px-3 py-2 text-sm text-status-ok">
                   Opening an email to S47 DIGITAL with your project details filled in.
                 </p>
               )}

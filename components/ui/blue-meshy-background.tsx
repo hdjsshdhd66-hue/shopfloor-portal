@@ -69,10 +69,12 @@ const FRAGMENT_SHADER = `#version 300 es
     return value;
   }
 
-  // S47 brand colors.
-  const vec3 NEARBLACK = vec3(0.024, 0.024, 0.039);
-  const vec3 NAVY      = vec3(0.043, 0.071, 0.125);
-  const vec3 INDIGO    = vec3(0.075, 0.102, 0.20);
+  // S47 brand colors — deep black/graphite/charcoal carry the field, purple
+  // is the one signature accent; cobalt/cyan survive only as rare, minor
+  // highlights rather than a second and third competing hue.
+  const vec3 NEARBLACK = vec3(0.020, 0.020, 0.024);
+  const vec3 GRAPHITE  = vec3(0.047, 0.047, 0.055);
+  const vec3 CHARCOAL  = vec3(0.078, 0.078, 0.086);
   const vec3 COBALT    = vec3(0.239, 0.42, 1.0);
   const vec3 VIOLET    = vec3(0.545, 0.361, 0.965);
   const vec3 CYAN      = vec3(0.133, 0.827, 0.933);
@@ -93,22 +95,24 @@ const FRAGMENT_SHADER = `#version 300 es
     );
     vec2 flowUv = p + (warp - 0.5) * 0.35;
 
-    // Base gradient: near-black canvas warming toward navy/indigo at center.
+    // Base gradient: near-black canvas warming toward graphite/charcoal at
+    // center — a neutral field, not a blue one.
     float centerFalloff = smoothstep(0.95, 0.0, length(p));
-    vec3 color = mix(NEARBLACK, mix(NAVY, INDIGO, 0.6), centerFalloff * 0.85);
+    vec3 color = mix(NEARBLACK, mix(GRAPHITE, CHARCOAL, 0.6), centerFalloff * 0.85);
 
-    // Connective grid, warped by the flow field.
+    // Connective grid, warped by the flow field — purple-led, cobalt only
+    // as an occasional cooler note within the same line.
     float gridScale = u_quality > 0.5 ? 9.0 : 6.0;
     vec2 grid = abs(fract(flowUv * gridScale) - 0.5);
     float lineWidth = 0.028;
     float lines = smoothstep(lineWidth, 0.0, min(grid.x, grid.y));
 
     float lineTone = fbm(flowUv * 0.8 + t, 2);
-    vec3 lineColor = mix(COBALT, VIOLET, lineTone);
-    color += lines * lineColor * 0.4 * centerFalloff;
+    vec3 lineColor = mix(VIOLET, COBALT, lineTone * 0.28);
+    color += lines * lineColor * 0.38 * centerFalloff;
 
-    // Node points at grid intersections — sparse, staggered pulse, mostly
-    // cobalt/violet with only an occasional controlled cyan highlight.
+    // Node points at grid intersections — sparse, staggered pulse, almost
+    // entirely purple; cyan is a rare, controlled highlight only.
     vec2 cell = floor(flowUv * gridScale);
     float nodeSeed = hash21(cell);
     if (nodeSeed > 0.82) {
@@ -116,15 +120,16 @@ const FRAGMENT_SHADER = `#version 300 es
       float dist = length(cellUv);
       float pulse = 0.5 + 0.5 * sin(t * 6.0 + nodeSeed * 20.0);
       float node = smoothstep(0.14, 0.0, dist) * (0.35 + 0.65 * pulse);
-      vec3 nodeColor = nodeSeed > 0.965 ? CYAN : mix(COBALT, VIOLET, fract(nodeSeed * 7.0));
+      vec3 nodeColor = nodeSeed > 0.975 ? CYAN : mix(VIOLET, COBALT, fract(nodeSeed * 7.0) * 0.25);
       color += node * nodeColor * centerFalloff;
     }
 
-    // Two soft directional glows echoing the logo's cobalt/violet lighting.
-    float glowA = smoothstep(0.9, 0.0, length(p - vec2(-0.32, 0.22)));
-    float glowB = smoothstep(0.95, 0.0, length(p - vec2(0.36, -0.18)));
-    color += glowA * VIOLET * 0.12;
-    color += glowB * COBALT * 0.12;
+    // One dominant purple glow plus a much subtler cobalt echo — signature
+    // accent leads, cobalt only supports.
+    float glowA = smoothstep(0.9, 0.0, length(p - vec2(-0.28, 0.2)));
+    float glowB = smoothstep(0.95, 0.0, length(p - vec2(0.34, -0.16)));
+    color += glowA * VIOLET * 0.14;
+    color += glowB * COBALT * 0.06;
 
     // Vignette keeps edges settled at near-black so foreground text always
     // reads cleanly regardless of layout.
@@ -280,9 +285,9 @@ export function BlueMeshyBackground({ className = "" }: { className?: string }) 
         className={`absolute inset-0 ${className}`}
         style={{
           background:
-            "radial-gradient(60% 50% at 30% 25%, rgba(139,92,246,0.16), transparent 70%)," +
-            "radial-gradient(55% 45% at 72% 70%, rgba(61,107,255,0.16), transparent 70%)," +
-            "linear-gradient(180deg, #0b1220 0%, #06060a 70%)",
+            "radial-gradient(60% 50% at 30% 25%, rgba(139,92,246,0.18), transparent 70%)," +
+            "radial-gradient(55% 45% at 72% 70%, rgba(61,107,255,0.07), transparent 70%)," +
+            "linear-gradient(180deg, #141416 0%, #050506 70%)",
         }}
       />
     );

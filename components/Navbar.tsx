@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,10 @@ export function Navbar() {
   }, [open]);
 
   return (
-    <header
+    <motion.header
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-[background,border-color,backdrop-filter] duration-300",
         scrolled
@@ -75,15 +79,16 @@ export function Navbar() {
           <span className="text-sm font-medium tracking-[0.2em] text-foreground/90">DIGITAL</span>
         </Link>
 
-        <nav aria-label="Primary" className="hidden md:block">
-          <ul className="flex items-center gap-8">
+        <nav aria-label="Primary" className="hidden lg:block">
+          <ul className="flex items-center gap-6">
             {NAV_LINKS.map((link) => (
               <li key={link.href}>
                 <a
                   href={link.href}
-                  className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  className="group relative text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
                   {link.label}
+                  <span className="absolute -bottom-1 left-0 h-px w-0 bg-purple transition-all duration-300 group-hover:w-full" />
                 </a>
               </li>
             ))}
@@ -91,8 +96,8 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Button asChild variant="default" size="lg" className="hidden h-10 px-4 sm:inline-flex">
-            <a href="#contact">Discuss Your Project</a>
+          <Button asChild variant="default" size="lg" className="hidden h-10 px-4 lg:inline-flex">
+            <a href="#contact">Start a Project</a>
           </Button>
 
           <button
@@ -102,7 +107,7 @@ export function Navbar() {
             aria-expanded={open}
             aria-label={open ? "Close menu" : "Open menu"}
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-border text-foreground md:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-border text-foreground lg:hidden"
           >
             {open ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
@@ -113,7 +118,7 @@ export function Navbar() {
         id="mobile-nav"
         ref={menuRef}
         className={cn(
-          "md:hidden",
+          "lg:hidden",
           open ? "block" : "hidden",
           "border-t border-border bg-background/95 backdrop-blur-md"
         )}
@@ -134,10 +139,10 @@ export function Navbar() {
             onClick={() => setOpen(false)}
             className="mt-2 rounded-lg bg-primary px-2 py-3 text-center text-base font-medium text-primary-foreground"
           >
-            Discuss Your Project
+            Start a Project
           </a>
         </nav>
       </div>
-    </header>
+    </motion.header>
   );
 }

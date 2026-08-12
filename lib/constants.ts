@@ -6,7 +6,8 @@
  */
 
 export const SITE_NAME = "S47 DIGITAL";
-export const SITE_TAGLINE = "Digital Systems for Modern Operations.";
+export const SITE_TAGLINE = "Operational Interfaces. Built Around Your Workflow.";
+export const SITE_POSITIONING = "Built for your operation. Integrated by your IT.";
 
 export const CONTACT_EMAIL = "saud.almutairi091@gmail.com";
 export const CONTACT_PHONE_DISPLAY = "0530111882";
@@ -26,9 +27,11 @@ export const CONTACT_WHATSAPP_HREF = `https://wa.me/${WHATSAPP_NUMBER}?text=${en
 export type NavLink = { label: string; href: string };
 
 export const NAV_LINKS: NavLink[] = [
-  { label: "What We Build", href: "#what-we-build" },
-  { label: "Case Study", href: "#case-study" },
+  { label: "Solutions", href: "#solutions" },
+  { label: "Capabilities", href: "#what-we-build" },
+  { label: "Industries", href: "#industries" },
   { label: "How We Work", href: "#how-we-work" },
+  { label: "About", href: "#about" },
   { label: "Contact", href: "#contact" },
 ];
 

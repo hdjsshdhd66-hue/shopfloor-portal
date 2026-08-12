@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { MotionProvider } from "@/components/MotionProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,9 +13,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const TITLE = "S47 DIGITAL — Custom Digital Systems for Modern Operations";
+const TITLE = "S47 DIGITAL — Operational Interfaces Built Around Your Workflow";
 const DESCRIPTION =
-  "S47 DIGITAL designs custom internal portals, workflow systems, and operational dashboards around how businesses actually operate. Featured case study: the Shop Floor Digital Portal.";
+  "S47 DIGITAL designs custom operational portals, dashboards, and workflow interfaces for organizations — front-end systems ready for integration within your IT environment.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -39,13 +40,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: "#06060a",
+  themeColor: "#050506",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <MotionProvider>{children}</MotionProvider>
+      </body>
     </html>
   );
 }

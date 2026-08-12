@@ -48,15 +48,18 @@
     --color-foreground: var(--foreground);
     --color-background: var(--background);
 
-    /* S47 brand palette — raw utilities (bg-cobalt, text-violet, etc.) */
+    /* S47 brand palette — raw utilities (bg-purple, text-graphite, etc.) */
     --color-nearblack: var(--nearblack);
-    --color-navy: var(--navy);
-    --color-indigo: var(--indigo);
+    --color-graphite: var(--graphite);
+    --color-charcoal: var(--charcoal);
+    --color-charcoal-2: var(--charcoal-2);
+    --color-purple: var(--purple);
+    --color-purple-deep: var(--purple-deep);
+    --color-purple-soft: var(--purple-soft);
     --color-cobalt: var(--cobalt);
-    --color-cobalt-soft: var(--cobalt-soft);
-    --color-violet: var(--violet);
-    --color-violet-soft: var(--violet-soft);
     --color-cyan: var(--cyan);
+    --color-status-ok: var(--status-ok);
+    --color-status-pending: var(--status-pending);
     --color-silver: var(--silver);
 
     --radius-sm: calc(var(--radius) * 0.6);
@@ -70,38 +73,44 @@
 
 :root,
 .dark {
-    /* Raw brand colors */
-    --nearblack: #06060a;
-    --navy: #0b1220;
-    --indigo: #131a33;
+    /* Raw brand colors — premium enterprise: deep black/graphite/charcoal
+       neutrals carry the page; purple is the one signature accent, used
+       strategically (CTAs, active states, data nodes) rather than flooding
+       the interface. Cobalt/cyan survive only as minor status accents. */
+    --nearblack: #050506;
+    --graphite: #0c0c0e;
+    --charcoal: #141416;
+    --charcoal-2: #1b1b1e;
+    --purple: #8b5cf6;
+    --purple-deep: #7c3aed;
+    --purple-soft: #b79cff;
     --cobalt: #3d6bff;
-    --cobalt-soft: #6e93ff;
-    --violet: #8b5cf6;
-    --violet-soft: #b79cff;
     --cyan: #22d3ee;
+    --status-ok: #34d399;
+    --status-pending: #fbbf24;
     --silver: #c9cedc;
 
     /* shadcn semantic mapping onto the S47 palette */
     --background: var(--nearblack);
-    --foreground: #f3f5fa;
-    --card: var(--navy);
-    --card-foreground: #f3f5fa;
-    --popover: var(--navy);
-    --popover-foreground: #f3f5fa;
-    --primary: var(--violet);
+    --foreground: #f2f2f4;
+    --card: var(--charcoal);
+    --card-foreground: #f2f2f4;
+    --popover: var(--charcoal);
+    --popover-foreground: #f2f2f4;
+    --primary: var(--purple);
     --primary-foreground: #ffffff;
-    --secondary: var(--indigo);
-    --secondary-foreground: #c7ccdc;
-    --muted: #10162a;
-    --muted-foreground: #8a93ac;
-    --accent: var(--cobalt);
+    --secondary: var(--charcoal-2);
+    --secondary-foreground: #c7c7cc;
+    --muted: #0f0f11;
+    --muted-foreground: #8b8b93;
+    --accent: var(--purple);
     --accent-foreground: #ffffff;
     --destructive: #f26363;
-    --border: rgba(255, 255, 255, 0.09);
-    --input: rgba(255, 255, 255, 0.12);
-    --ring: var(--violet);
-    --chart-1: var(--cobalt);
-    --chart-2: var(--violet);
+    --border: rgba(255, 255, 255, 0.08);
+    --input: rgba(255, 255, 255, 0.1);
+    --ring: var(--purple);
+    --chart-1: var(--purple);
+    --chart-2: var(--cobalt);
     --chart-3: var(--cyan);
     --chart-4: var(--cobalt-soft);
     --chart-5: var(--violet-soft);
