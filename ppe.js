@@ -33,7 +33,8 @@ var PPE_CATEGORIES = ['PPE', 'First Aid', 'Equipment'];
 var _ppeTab = 'dashboard'; // dashboard | matrix | inventory | issue | records | alerts | analytics
 var _ppeMatrixFilter = { q:'', group:'all', mandatoryOnly:false, recommendedOnly:false };
 var _ppeMobileTask = null;
-var _ppeInvFilter = { q:'', category:'all', status:'all' };
+var _ppeEditMatrix = false; // "Edit Matrix" mode toggle — only meaningful/reachable when adminMode is true
+var _ppeInvFilter = { q:'', category:'all', status:'all', showInactive:false };
 var _ppeRecordsFilter = { q:'', dept:'all', category:'all', reason:'all', issuedBy:'all', dateFrom:'', dateTo:'' };
 var _ppeAlertsFilter = { category:'all' };
 var _ppeAnalyticsMonths = 6;
@@ -41,32 +42,127 @@ var _ppeEditingIssuanceId = null;
 var _ppeEmpPickCtx = null; // 'issue' — which field group the employee search result should fill
 
 /* ============================ DATA ACCESSORS ============================ */
+/* Every list below follows the same Master Data pattern established for
+   PPE inventory items: BASE (from PPE_DATA, the source workbook — never
+   mutated) + CUSTOM (user-added, in safetyData) + OVERRIDES (edits to
+   base-or-custom entries, in safetyData) + ACTIVE flag (deactivate hides
+   an entry from normal/new-selection views without touching historical
+   records, which reference entries by their own stored snapshot values,
+   not by a live lookup). All additions/edits/deactivations are additive
+   writes to safetyData, persisted via the app's existing saveState(). */
 function ppeItemsBase(){ return (typeof PPE_DATA!=='undefined' && PPE_DATA.inventory) || []; }
-function ppeMatrixRows(){ return (typeof PPE_DATA!=='undefined' && PPE_DATA.matrix) || []; }
-function ppeColumns(){ return (typeof PPE_DATA!=='undefined' && PPE_DATA.ppeColumns) || []; }
-function ppeDepartments(){ return (typeof PPE_DATA!=='undefined' && PPE_DATA.departments) || []; }
-function ppeReasons(){ return (typeof PPE_DATA!=='undefined' && PPE_DATA.reasons) || []; }
-function ppeIssuedByList(){ return (typeof PPE_DATA!=='undefined' && PPE_DATA.issuedBy) || []; }
-function ppeGroups(){
-  var seen = {}, out = [];
-  ppeColumns().forEach(function(c){ if(!seen[c.group]){ seen[c.group]=1; out.push(c.group); } });
-  return out;
-}
 
 function ppeCustomItems(){ if(!safetyData.ppeCustomItems) safetyData.ppeCustomItems = []; return safetyData.ppeCustomItems; }
 function ppeItemOverrides(){ if(!safetyData.ppeItemOverrides) safetyData.ppeItemOverrides = {}; return safetyData.ppeItemOverrides; }
 function ppeStockTx(){ if(!safetyData.ppeStockTx) safetyData.ppeStockTx = []; return safetyData.ppeStockTx; }
 function ppeIssuanceArr(){ if(!safetyData.ppeIssuance) safetyData.ppeIssuance = []; return safetyData.ppeIssuance; }
 
-function ppeAllItems(){
-  var all = ppeItemsBase().concat(ppeCustomItems());
+function ppeIsItemActive(id){ return !(safetyData.ppeItemActive && safetyData.ppeItemActive[id]===false); }
+function ppeIsItemDeleted(id){ return !!(safetyData.ppeItemDeleted && safetyData.ppeItemDeleted[id]); }
+// includeInactive=true is for admin "Show Inactive" toggles and for resolving a single item by
+// ID for historical records (ppeItemById) — normal operational lists (dropdowns, default
+// inventory view, dashboard counts) call this with no argument and see active items only.
+function ppeAllItems(includeInactive){
   var ov = ppeItemOverrides();
-  return all.map(function(it){
+  var out = [];
+  ppeItemsBase().concat(ppeCustomItems()).forEach(function(it){
+    if(ppeIsItemDeleted(it.id)) return;
+    if(!includeInactive && !ppeIsItemActive(it.id)) return;
     var o = ov[it.id];
-    return o ? Object.assign({}, it, o) : Object.assign({}, it);
+    var merged = o ? Object.assign({}, it, o) : Object.assign({}, it);
+    merged.active = ppeIsItemActive(it.id);
+    out.push(merged);
   });
+  return out;
 }
-function ppeItemById(id){ return ppeAllItems().filter(function(i){ return i.id===id; })[0] || null; }
+function ppeItemById(id){ return ppeAllItems(true).filter(function(i){ return i.id===id; })[0] || null; }
+
+/* ---- PPE Types (the Matrix's ~30 columns, grouped into protection categories) ---- */
+function ppeTypesBase(){ return (typeof PPE_DATA!=='undefined' && PPE_DATA.ppeColumns) || []; }
+function ppeTypeCustom(){ if(!safetyData.ppeTypeCustom) safetyData.ppeTypeCustom = []; return safetyData.ppeTypeCustom; }
+function ppeTypeOverrides(){ if(!safetyData.ppeTypeOverrides) safetyData.ppeTypeOverrides = {}; return safetyData.ppeTypeOverrides; }
+function ppeIsTypeActive(key){ return !(safetyData.ppeTypeActive && safetyData.ppeTypeActive[key]===false); }
+function ppeColumns(includeInactive){
+  var ov = ppeTypeOverrides();
+  var out = [];
+  ppeTypesBase().concat(ppeTypeCustom()).forEach(function(c){
+    if(!includeInactive && !ppeIsTypeActive(c.key)) return;
+    var o = ov[c.key];
+    var merged = o ? Object.assign({}, c, o) : Object.assign({}, c);
+    merged.active = ppeIsTypeActive(c.key);
+    out.push(merged);
+  });
+  return out;
+}
+function ppeTypeByKey(key){ return ppeColumns(true).filter(function(c){ return c.key===key; })[0] || null; }
+function ppeGroups(){
+  var seen = {}, out = [];
+  ppeColumns().forEach(function(c){ if(!seen[c.group]){ seen[c.group]=1; out.push(c.group); } });
+  return out;
+}
+function ppeSlugify(s){
+  return String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+}
+
+/* ---- PPE Matrix (Task/Area rows) ---- */
+function ppeMatrixRowsBase(){ return (typeof PPE_DATA!=='undefined' && PPE_DATA.matrix) || []; }
+function ppeMatrixCustomTasks(){ if(!safetyData.ppeMatrixCustomTasks) safetyData.ppeMatrixCustomTasks = []; return safetyData.ppeMatrixCustomTasks; }
+function ppeMatrixOverrides(){ if(!safetyData.ppeMatrixOverrides) safetyData.ppeMatrixOverrides = {}; return safetyData.ppeMatrixOverrides; }
+function ppeIsTaskActive(taskName){ return !(safetyData.ppeMatrixTaskActive && safetyData.ppeMatrixTaskActive[taskName]===false); }
+function ppeMatrixRows(includeInactive){
+  var ov = ppeMatrixOverrides();
+  var out = [];
+  ppeMatrixRowsBase().concat(ppeMatrixCustomTasks()).forEach(function(r){
+    if(!includeInactive && !ppeIsTaskActive(r.task)) return;
+    var o = ov[r.task];
+    var reqs = Object.assign({}, r.requirements, (o && o.requirements) || {});
+    out.push({ task:r.task, requirements:reqs, active:ppeIsTaskActive(r.task) });
+  });
+  return out;
+}
+
+/* ---- Departments / Reasons / Issued By (simple string master lists) ---- */
+function ppeIsDeptActive(name){ return !(safetyData.ppeDeptActive && safetyData.ppeDeptActive[name]===false); }
+function ppeDepartments(includeInactive){
+  var custom = (safetyData.ppeDeptCustom||[]), ov = (safetyData.ppeDeptOverrides||{});
+  var out = [];
+  ppeDepartmentsBase().concat(custom).forEach(function(name){
+    if(!includeInactive && !ppeIsDeptActive(name)) return;
+    out.push((ov[name] && ov[name].name) || name);
+  });
+  return out;
+}
+function ppeDepartmentsBase(){ return (typeof PPE_DATA!=='undefined' && PPE_DATA.departments) || []; }
+
+function ppeIsReasonActive(name){ return !(safetyData.ppeReasonActive && safetyData.ppeReasonActive[name]===false); }
+function ppeReasons(includeInactive){
+  var custom = (safetyData.ppeReasonCustom||[]), ov = (safetyData.ppeReasonOverrides||{});
+  var out = [];
+  ppeReasonsBase().concat(custom).forEach(function(name){
+    if(!includeInactive && !ppeIsReasonActive(name)) return;
+    out.push((ov[name] && ov[name].name) || name);
+  });
+  return out;
+}
+function ppeReasonsBase(){ return (typeof PPE_DATA!=='undefined' && PPE_DATA.reasons) || []; }
+
+function ppeIsIssuedByActive(name){ return !(safetyData.ppeIssuedByActive && safetyData.ppeIssuedByActive[name]===false); }
+function ppeIssuedByList(includeInactive){
+  var custom = (safetyData.ppeIssuedByCustom||[]), ov = (safetyData.ppeIssuedByOverrides||{});
+  var out = [];
+  ppeIssuedByBase().concat(custom).forEach(function(name){
+    if(!includeInactive && !ppeIsIssuedByActive(name)) return;
+    out.push((ov[name] && ov[name].name) || name);
+  });
+  return out;
+}
+function ppeIssuedByBase(){ return (typeof PPE_DATA!=='undefined' && PPE_DATA.issuedBy) || []; }
+
+/* ---- Master Data audit trail ---- */
+function ppeAudit(entity, entityId, field, oldVal, newVal){
+  if(!safetyData.ppeMasterAudit) safetyData.ppeMasterAudit = [];
+  safetyData.ppeMasterAudit.unshift({ entity:entity, entityId:entityId, field:field, oldVal:oldVal, newVal:newVal, by:(currentUser&&currentUser.name)||'', at:new Date().toISOString() });
+}
 
 /* ============================== STOCK ENGINE ============================= */
 function ppeReceivedExtra(itemId){
@@ -103,15 +199,197 @@ function ppeActionFor(status){
   return '✅ No action needed';
 }
 
+/* ==================================================================
+   MASTER DATA MANAGEMENT — add/edit/deactivate/delete for configuration
+   data (PPE Types, Matrix Tasks, Inventory Items, Departments, Reasons,
+   Issued By, and — in training.js — Training Courses). Gated by the
+   app's EXISTING "Edit Portal" admin mode (adminMode / requireAdmin() /
+   the PIN modal) — no separate permission system is introduced. Every
+   write here is additive to safetyData and goes through the same
+   saveState()/loadState() persistence already used app-wide.
+   ================================================================== */
+
+/* ---- Inventory: dependency check + deactivate + safe delete ---- */
+function ppeItemHasHistory(itemId){
+  if(ppeStockTx().some(function(t){ return t.itemId===itemId; })) return true;
+  if(ppeIssuanceArr().some(function(r){ return r.itemId===itemId; })) return true;
+  return false;
+}
+function ppeSetItemActive(itemId, active){
+  if(!requireAdmin('Deactivate/Reactivate item')) return;
+  if(!safetyData.ppeItemActive) safetyData.ppeItemActive = {};
+  var was = ppeIsItemActive(itemId);
+  safetyData.ppeItemActive[itemId] = active;
+  ppeAudit('item', itemId, 'active', was, active);
+  saveState();
+  showToast(active ? 'Item reactivated' : 'Item deactivated', 'green');
+  ppeRenderPane();
+}
+function ppeDeleteItem(itemId){
+  if(!requireAdmin('Delete item')) return;
+  if(ppeItemHasHistory(itemId)){
+    showToast('This item has issuance/stock history — deactivate it instead of deleting', 'red');
+    return;
+  }
+  if(!confirm('Permanently delete this item? It has no usage history, so this cannot be undone.')) return;
+  var isCustom = ppeCustomItems().some(function(it){ return it.id===itemId; });
+  if(isCustom){
+    safetyData.ppeCustomItems = ppeCustomItems().filter(function(it){ return it.id!==itemId; });
+  } else {
+    if(!safetyData.ppeItemDeleted) safetyData.ppeItemDeleted = {};
+    safetyData.ppeItemDeleted[itemId] = true;
+  }
+  ppeAudit('item', itemId, 'deleted', false, true);
+  saveState();
+  showToast('Item deleted', 'green');
+  ppeRenderPane();
+}
+
+/* ---- PPE Types ---- */
+function ppeAddType(name, group){
+  if(!requireAdmin('Add PPE Type')) return null;
+  name = String(name||'').trim();
+  if(!name){ showToast('Type name is required', 'red'); return null; }
+  var key = ppeSlugify(name);
+  if(ppeTypeByKey(key)){ showToast('A PPE Type with this name already exists', 'red'); return null; }
+  var col = Math.max(0, ppeColumns(true).reduce(function(m,c){ return Math.max(m, c.col||0); }, 0)) + 1;
+  ppeTypeCustom().push({ key:key, name:name, group:group||'Other', col:col });
+  ppeAudit('ppeType', key, 'created', null, name);
+  saveState();
+  showToast('PPE Type added: '+name, 'green');
+  return key;
+}
+function ppeEditType(key, patch){
+  if(!requireAdmin('Edit PPE Type')) return;
+  var current = ppeTypeByKey(key);
+  if(!current){ showToast('PPE Type not found', 'red'); return; }
+  var ov = ppeTypeOverrides();
+  var next = Object.assign({}, ov[key]||{}, patch);
+  ov[key] = next;
+  ppeAudit('ppeType', key, 'edited', JSON.stringify({name:current.name,group:current.group}), JSON.stringify(patch));
+  saveState();
+  showToast('PPE Type updated', 'green');
+  ppeRenderPane();
+}
+function ppeSetTypeActive(key, active){
+  if(!requireAdmin('Deactivate/Reactivate PPE Type')) return;
+  if(!safetyData.ppeTypeActive) safetyData.ppeTypeActive = {};
+  var was = ppeIsTypeActive(key);
+  safetyData.ppeTypeActive[key] = active;
+  ppeAudit('ppeType', key, 'active', was, active);
+  saveState();
+  showToast(active ? 'PPE Type reactivated' : 'PPE Type deactivated', 'green');
+  ppeRenderPane();
+}
+
+/* ---- PPE Matrix (Task/Area rows + cell values) ---- */
+function ppeAddTask(taskName){
+  if(!requireAdmin('Add Task/Area')) return null;
+  taskName = String(taskName||'').trim();
+  if(!taskName){ showToast('Task/Area name is required', 'red'); return null; }
+  if(ppeMatrixRows(true).some(function(r){ return r.task.toLowerCase()===taskName.toLowerCase(); })){
+    showToast('A Task/Area with this name already exists', 'red'); return null;
+  }
+  var reqs = {};
+  ppeColumns(true).forEach(function(c){ reqs[c.key] = '-'; });
+  ppeMatrixCustomTasks().push({ task:taskName, requirements:reqs });
+  ppeAudit('matrixTask', taskName, 'created', null, taskName);
+  saveState();
+  showToast('Task/Area added: '+taskName, 'green');
+  return taskName;
+}
+function ppeSetMatrixCell(taskName, typeKey, value){
+  if(!requireAdmin('Edit PPE Matrix')) return;
+  if(['M','R','-'].indexOf(value)===-1) return;
+  var row = ppeMatrixRows(true).filter(function(r){ return r.task===taskName; })[0];
+  var oldVal = row ? (row.requirements[typeKey]||'-') : '-';
+  var ov = ppeMatrixOverrides();
+  if(!ov[taskName]) ov[taskName] = { requirements:{} };
+  if(!ov[taskName].requirements) ov[taskName].requirements = {};
+  ov[taskName].requirements[typeKey] = value;
+  ppeAudit('matrixCell', taskName+' / '+typeKey, 'value', oldVal, value);
+  saveState();
+  ppeRenderPane();
+}
+function ppeCycleMatrixCell(taskName, typeKey){
+  var row = ppeMatrixRows(true).filter(function(r){ return r.task===taskName; })[0];
+  var cur = row ? (row.requirements[typeKey]||'-') : '-';
+  var next = cur==='M' ? 'R' : cur==='R' ? '-' : 'M';
+  ppeSetMatrixCell(taskName, typeKey, next);
+}
+function ppeSetTaskActive(taskName, active){
+  if(!requireAdmin('Deactivate/Reactivate Task/Area')) return;
+  if(!safetyData.ppeMatrixTaskActive) safetyData.ppeMatrixTaskActive = {};
+  var was = ppeIsTaskActive(taskName);
+  safetyData.ppeMatrixTaskActive[taskName] = active;
+  ppeAudit('matrixTask', taskName, 'active', was, active);
+  saveState();
+  showToast(active ? 'Task/Area reactivated' : 'Task/Area deactivated', 'green');
+  ppeRenderPane();
+}
+
+/* ---- Departments / Reasons / Issued By (shared small-list pattern) ---- */
+function ppeAddListValue(kind, name){
+  if(!requireAdmin('Add '+kind)) return null;
+  name = String(name||'').trim();
+  if(!name){ showToast('Value is required', 'red'); return null; }
+  var map = { department:['ppeDeptCustom','ppeDepartments'], reason:['ppeReasonCustom','ppeReasons'], issuedBy:['ppeIssuedByCustom','ppeIssuedByList'] };
+  var cfg = map[kind];
+  if(!cfg) return null;
+  var existing = window[cfg[1]](true);
+  if(existing.some(function(v){ return v.toLowerCase()===name.toLowerCase(); })){
+    showToast('This value already exists', 'red'); return null;
+  }
+  if(!safetyData[cfg[0]]) safetyData[cfg[0]] = [];
+  safetyData[cfg[0]].push(name);
+  ppeAudit(kind, name, 'created', null, name);
+  saveState();
+  showToast(kind+' added: '+name, 'green');
+  return name;
+}
+function ppeEditListValue(kind, oldName, newName){
+  if(!requireAdmin('Edit '+kind)) return;
+  newName = String(newName||'').trim();
+  if(!newName){ showToast('Value is required', 'red'); return; }
+  var map = { department:'ppeDeptOverrides', reason:'ppeReasonOverrides', issuedBy:'ppeIssuedByOverrides' };
+  var key = map[kind];
+  if(!key) return;
+  if(!safetyData[key]) safetyData[key] = {};
+  safetyData[key][oldName] = { name:newName };
+  ppeAudit(kind, oldName, 'renamed', oldName, newName);
+  saveState();
+  showToast(kind+' updated', 'green');
+  ppeRenderPane();
+}
+function ppeSetListValueActive(kind, name, active){
+  if(!requireAdmin('Deactivate/Reactivate '+kind)) return;
+  var map = { department:'ppeDeptActive', reason:'ppeReasonActive', issuedBy:'ppeIssuedByActive' };
+  var key = map[kind];
+  if(!key) return;
+  if(!safetyData[key]) safetyData[key] = {};
+  safetyData[key][name] = active;
+  ppeAudit(kind, name, 'active', !active, active);
+  saveState();
+  showToast(active ? kind+' reactivated' : kind+' deactivated', 'green');
+  ppeRenderPane();
+}
+
 /* ============================== NAV / SHELL ============================== */
+var PPE_TAB_LABELS = { dashboard:'Dashboard', matrix:'PPE Matrix', inventory:'Inventory', issue:'Issue PPE', records:'Issuance History', alerts:'Stock Alerts', analytics:'Analytics', manage:'Manage' };
+function ppeTabList(){
+  var tabs = ['dashboard','matrix','inventory','issue','records','alerts','analytics'];
+  if(typeof adminMode!=='undefined' && adminMode) tabs.push('manage'); // Master Data management — Edit Portal only, keeps normal UI clean
+  return tabs;
+}
 function renderPPE(){
   var wrap = document.getElementById('ppe-body');
   if(!wrap) return;
+  var tabs = ppeTabList();
+  if(tabs.indexOf(_ppeTab)===-1) _ppeTab = 'dashboard';
   wrap.innerHTML =
     '<div class="trn-tabs" id="ppe-tabs">' +
-      ['dashboard','matrix','inventory','issue','records','alerts','analytics'].map(function(t){
-        var lbl = {dashboard:'Dashboard', matrix:'PPE Matrix', inventory:'Inventory', issue:'Issue PPE', records:'Issuance History', alerts:'Stock Alerts', analytics:'Analytics'}[t];
-        return '<button type="button" class="nav-btn ppe-tab-btn'+(t===_ppeTab?' active':'')+'" onclick="ppeSetTab(\''+t+'\')" style="background:#fef2f2;color:#dc2626;font-weight:700">'+lbl+'</button>';
+      tabs.map(function(t){
+        return '<button type="button" class="nav-btn ppe-tab-btn'+(t===_ppeTab?' active':'')+'" onclick="ppeSetTab(\''+t+'\')" style="background:#fef2f2;color:#dc2626;font-weight:700">'+PPE_TAB_LABELS[t]+'</button>';
       }).join('') +
     '</div>' +
     '<div id="ppe-pane" class="trn-pane"></div>';
@@ -119,11 +397,7 @@ function renderPPE(){
 }
 function ppeSetTab(t){
   _ppeTab = t;
-  document.querySelectorAll('.ppe-tab-btn').forEach(function(b,i){
-    var tabs = ['dashboard','matrix','inventory','issue','records','alerts','analytics'];
-    b.classList.toggle('active', tabs[i]===t);
-  });
-  ppeRenderPane();
+  renderPPE();
 }
 function ppeRenderPane(){
   var pane = document.getElementById('ppe-pane');
@@ -136,6 +410,7 @@ function ppeRenderPane(){
     else if(_ppeTab==='records') pane.innerHTML = ppeBuildRecords();
     else if(_ppeTab==='alerts') pane.innerHTML = ppeBuildAlerts();
     else if(_ppeTab==='analytics') pane.innerHTML = ppeBuildAnalytics();
+    else if(_ppeTab==='manage') pane.innerHTML = (adminMode ? ppeBuildManage() : '<div class="empty-state"><div class="empty-state-title">Requires Edit Portal mode</div></div>');
   }catch(err){
     console.error('PPE pane render failed', err);
     pane.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-title">PPE module unavailable</div><div class="empty-state-hint">'+escHtml(err.message||'')+'</div></div>';
@@ -260,22 +535,27 @@ function ppeMatrixMark(v){
 function ppeBuildMatrix(){
   if(typeof PPE_DATA==='undefined') return '<div class="empty-state"><div class="empty-state-title">PPE data not loaded</div></div>';
   var f = _ppeMatrixFilter;
+  var editing = adminMode && _ppeEditMatrix;
   var groupOpts = ['<option value="all">All Categories</option>'].concat(ppeGroups().map(function(g){
     return '<option value="'+escHtml(g)+'"'+(f.group===g?' selected':'')+'>'+escHtml(g)+'</option>';
   })).join('');
 
   var head = '<div class="trn-toolbar"><div class="page-title" style="margin:0">PPE Requirement Matrix</div>'
-    + '<span class="empty-state-hint" style="margin-left:6px">'+ppeMatrixRows().length+' tasks/areas · '+ppeColumns().length+' PPE items</span></div>'
+    + '<span class="empty-state-hint" style="margin-left:6px">'+ppeMatrixRows().length+' tasks/areas · '+ppeColumns().length+' PPE items</span>'
+    + (adminMode ? '<div class="trn-toolbar-actions"><button type="button" class="btn-'+(editing?'primary':'ghost')+'" onclick="ppeToggleEditMatrix()">'+(editing?'✓ Editing Matrix — Done':'✎ Edit Matrix')+'</button></div>' : '')
+    + '</div>'
     + '<div class="trn-filters ppe-matrix-filters-desktop">'
       + '<input type="text" placeholder="Search Task / Area…" value="'+escHtml(f.q)+'" oninput="ppeMatrixFilterChange(\'q\',this.value)"/>'
       + '<select onchange="ppeMatrixFilterChange(\'group\',this.value)">'+groupOpts+'</select>'
       + '<label class="trn-inline-check"><input type="checkbox" '+(f.mandatoryOnly?'checked':'')+' onchange="ppeMatrixFilterChange(\'mandatoryOnly\',this.checked)"/> Mandatory only</label>'
       + '<label class="trn-inline-check"><input type="checkbox" '+(f.recommendedOnly?'checked':'')+' onchange="ppeMatrixFilterChange(\'recommendedOnly\',this.checked)"/> Recommended only</label>'
+      + (editing ? '<button type="button" class="btn-ghost" onclick="ppePromptAddTask()">+ Add Task / Area</button>' : '')
     + '</div>'
     + '<div class="trn-legend">'
       + '<span class="trn-legend-item">'+ppeMatrixMark('M')+' Mandatory — must wear before entering area</span>'
       + '<span class="trn-legend-item">'+ppeMatrixMark('R')+' Recommended — wear based on task risk</span>'
       + '<span class="trn-legend-item">'+ppeMatrixMark('-')+' Not Required</span>'
+      + (editing ? '<span class="trn-legend-item" style="font-weight:700;color:#7f1d1d">✎ Click any cell to cycle Mandatory → Recommended → Not Required</span>' : '')
     + '</div>';
 
   // ---- Mobile: Task/Area picker -> Mandatory/Recommended card lists ----
@@ -315,19 +595,39 @@ function ppeBuildMatrix(){
     i += span;
   }
   var itemHeaderCells = cols.map(function(c){ return '<th class="ppe-item-th" title="'+escHtml(c.name)+'">'+escHtml(c.name)+'</th>'; }).join('');
+  var extraTh = editing ? '<th class="ppe-item-th">Manage</th>' : '';
   var bodyRows = rows.map(function(r){
-    var cells = cols.map(function(c){ return '<td class="ppe-mark-cell">'+ppeMatrixMark(r.requirements[c.key])+'</td>'; }).join('');
-    return '<tr><td class="trn-sticky-col ppe-sticky-task" title="'+escHtml(r.task)+'">'+escHtml(r.task)+'</td>'+cells+'</tr>';
+    var cells = cols.map(function(c){
+      if(editing){
+        var v = r.requirements[c.key]||'-';
+        return '<td class="ppe-mark-cell" style="cursor:pointer" onclick="ppeCycleMatrixCell(\''+r.task.replace(/'/g,"\\'")+'\',\''+c.key+'\')" title="Click to change">'+ppeMatrixMark(v)+'</td>';
+      }
+      return '<td class="ppe-mark-cell">'+ppeMatrixMark(r.requirements[c.key])+'</td>';
+    }).join('');
+    var manageCell = editing ? '<td class="ppe-mark-cell"><button type="button" class="btn-ghost" style="font-size:.68rem;padding:2px 6px" onclick="ppeSetTaskActive(\''+r.task.replace(/'/g,"\\'")+'\',false)">Deactivate</button></td>' : '';
+    return '<tr><td class="trn-sticky-col ppe-sticky-task" title="'+escHtml(r.task)+'">'+escHtml(r.task)+'</td>'+cells+manageCell+'</tr>';
   }).join('');
   var desktopTable = rows.length
     ? '<div class="trn-matrix-wrap ppe-matrix-wrap"><table class="trn-matrix-table ppe-matrix-table"><thead>'
-      + '<tr class="ppe-group-row"><th class="trn-sticky-col ppe-sticky-task" rowspan="2">Task / Area</th>'+groupHeaderCells+'</tr>'
+      + '<tr class="ppe-group-row"><th class="trn-sticky-col ppe-sticky-task" rowspan="2">Task / Area</th>'+groupHeaderCells+(editing?'<th rowspan="2"></th>':'')+'</tr>'
       + '<tr class="ppe-item-row">'+itemHeaderCells+'</tr>'
       + '</thead><tbody>'+bodyRows+'</tbody></table></div>'
     : '<div class="empty-state"><div class="empty-state-icon">🔎</div><div class="empty-state-title">No tasks match this filter</div></div>';
 
+  var inactiveTasksHtml = '';
+  if(editing){
+    var inactiveTasks = ppeMatrixRows(true).filter(function(r){ return !r.active; });
+    if(inactiveTasks.length){
+      inactiveTasksHtml = '<div class="pbi-card" style="margin-top:12px"><div class="pbi-card-title">Deactivated Tasks / Areas</div>'
+        + inactiveTasks.map(function(r){
+          return '<div class="pbih-row"><div>'+escHtml(r.task)+'</div><button type="button" class="btn-ghost" onclick="ppeSetTaskActive(\''+r.task.replace(/'/g,"\\'")+'\',true)">Reactivate</button></div>';
+        }).join('')
+        + '</div>';
+    }
+  }
+
   return head
-    + '<div class="ppe-matrix-desktop-only">'+desktopTable+'</div>'
+    + '<div class="ppe-matrix-desktop-only">'+desktopTable+inactiveTasksHtml+'</div>'
     + '<div class="ppe-matrix-mobile-only">'+mobileBody+'</div>';
 }
 function ppeMatrixFilterChange(key, val){
@@ -335,12 +635,23 @@ function ppeMatrixFilterChange(key, val){
   else _ppeMatrixFilter[key] = val;
   ppeRenderPane();
 }
+function ppeToggleEditMatrix(){
+  if(!requireAdmin('Edit PPE Matrix')) return;
+  _ppeEditMatrix = !_ppeEditMatrix;
+  ppeRenderPane();
+}
+function ppePromptAddTask(){
+  var name = prompt('New Task / Area name:');
+  if(name==null) return;
+  var key = ppeAddTask(name);
+  if(key) ppeRenderPane();
+}
 function ppeSetMobileTask(task){ _ppeMobileTask = task || null; ppeRenderPane(); }
 
 /* ================================= INVENTORY ================================= */
 function ppeFilteredItems(){
   var f = _ppeInvFilter;
-  return ppeAllItems().filter(function(it){
+  return ppeAllItems(!!f.showInactive).filter(function(it){
     if(f.category!=='all' && it.category!==f.category) return false;
     if(f.q){
       var q = f.q.toLowerCase();
@@ -366,12 +677,13 @@ function ppeBuildInventory(){
     + '<span class="empty-state-hint" style="margin-left:6px">'+items.length+' item(s)</span>'
     + '<div class="trn-toolbar-actions">'
       + '<button type="button" class="btn-ghost" onclick="ppeExportInventory()">Export Inventory</button>'
-      + '<button type="button" class="btn-primary" onclick="ppeOpenAddItem()">+ Add Inventory Item</button>'
+      + (adminMode ? '<button type="button" class="btn-primary" onclick="ppeOpenAddItem()">+ Add Inventory Item</button>' : '')
     + '</div></div>'
     + '<div class="trn-filters">'
       + '<input type="text" placeholder="Search Item ID or Name…" value="'+escHtml(f.q)+'" oninput="ppeInvFilterChange(\'q\',this.value)"/>'
       + '<select onchange="ppeInvFilterChange(\'category\',this.value)">'+catOpts+'</select>'
       + '<select onchange="ppeInvFilterChange(\'status\',this.value)">'+statusOpts+'</select>'
+      + '<label class="trn-inline-check"><input type="checkbox" '+(f.showInactive?'checked':'')+' onchange="ppeInvFilterChange(\'showInactive\',this.checked)"/> Show inactive</label>'
     + '</div>';
 
   if(!items.length){
@@ -380,15 +692,24 @@ function ppeBuildInventory(){
 
   var rows = items.map(function(it){
     var st = ppeStatusFor(it);
+    var inactiveTag = it.active===false ? ' <span class="trn-inactive-badge">Inactive</span>' : '';
+    var adminBtns = '';
+    if(adminMode){
+      adminBtns = '<button type="button" class="btn-ghost" onclick="ppeOpenEditItem(\''+it.id+'\')">Edit</button>'
+        + (it.active===false
+          ? '<button type="button" class="btn-ghost" onclick="ppeSetItemActive(\''+it.id+'\',true)">Reactivate</button>'
+          : '<button type="button" class="btn-ghost" onclick="ppeSetItemActive(\''+it.id+'\',false)">Deactivate</button>')
+        + (ppeItemHasHistory(it.id) ? '' : '<button type="button" class="btn-ghost" style="color:#dc2626" onclick="ppeDeleteItem(\''+it.id+'\')">Delete</button>');
+    }
     return '<div class="pro-list-card ppe-inv-card">'
       + '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">'
-        + '<div><div style="font-weight:800">'+escHtml(it.id)+' — '+escHtml(it.name)+'</div>'
+        + '<div><div style="font-weight:800">'+escHtml(it.id)+' — '+escHtml(it.name)+inactiveTag+'</div>'
         + '<div class="empty-state-hint">'+escHtml(it.category)+' · Unit: '+escHtml(it.unit||'—')+' · Current Stock: <b>'+st.stock+'</b> '+escHtml(it.unit||'')+' · Reorder @ '+escHtml(String(it.reorderPoint))+' · Max '+escHtml(String(it.maxStock))+'</div></div>'
         + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
           + '<span class="ppe-status-pill" style="background:'+st.color+'22;color:'+st.color+'">'+st.label+'</span>'
           + '<button type="button" class="btn-ghost" onclick="ppeOpenReceive(\''+it.id+'\')">Receive Stock</button>'
-          + '<button type="button" class="btn-ghost" onclick="ppeOpenEditItem(\''+it.id+'\')">Edit</button>'
           + '<button type="button" class="btn-ghost" onclick="ppeOpenItemHistory(\''+it.id+'\')">History</button>'
+          + adminBtns
         + '</div>'
       + '</div></div>';
   }).join('');
@@ -1165,4 +1486,87 @@ function ppeExportIssuanceWork(){
     XLSX.writeFile(wb, filename, { bookType:'xlsx', type:'binary', cellStyles:true });
     showToast('PPE Issuance exported: '+filename, 'green');
   }catch(err){ console.error('PPE issuance export error', err); showToast('Export error: '+err.message, 'red'); }
+}
+
+/* ================================= MANAGE (Master Data — Edit Portal only) ================================= */
+function ppeBuildManage(){
+  var html = '<div class="page-title" style="margin-bottom:2px">Manage PPE Master Data</div>'
+    + '<div class="page-sub">Business configuration for PPE Management — visible only in Edit Portal mode. Historical records are never affected by changes here.</div>';
+  html += ppeManageTypesCard();
+  html += ppeManageListCard('department', 'Departments', ppeDepartments(true));
+  html += ppeManageListCard('reason', 'Issuance Reasons', ppeReasons(true));
+  html += ppeManageListCard('issuedBy', 'Issued By', ppeIssuedByList(true));
+  html += ppeManageAuditCard();
+  return html;
+}
+function ppeManageTypesCard(){
+  var types = ppeColumns(true).sort(function(a,b){ return (a.group+a.name).localeCompare(b.group+b.name); });
+  var rows = types.map(function(t){
+    var inactiveTag = t.active===false ? ' <span class="trn-inactive-badge">Inactive</span>' : '';
+    return '<tr><td style="text-align:left;font-weight:700">'+escHtml(t.name)+inactiveTag+'</td><td style="text-align:left">'+escHtml(t.group)+'</td>'
+      + '<td><button type="button" class="btn-ghost" style="font-size:.68rem" onclick="ppePromptEditType(\''+t.key+'\')">Edit</button> '
+      + (t.active===false
+        ? '<button type="button" class="btn-ghost" style="font-size:.68rem" onclick="ppeSetTypeActive(\''+t.key+'\',true)">Reactivate</button>'
+        : '<button type="button" class="btn-ghost" style="font-size:.68rem" onclick="ppeSetTypeActive(\''+t.key+'\',false)">Deactivate</button>')
+      + '</td></tr>';
+  }).join('');
+  return '<div class="pbi-card" style="margin-top:14px"><div class="pbi-card-title">PPE Types (Matrix Columns)</div>'
+    + '<div style="margin-bottom:10px"><button type="button" class="btn-primary" onclick="ppePromptAddType()">+ Add PPE Type</button></div>'
+    + '<div style="overflow:auto"><table class="pbi-table"><thead><tr><th style="text-align:left;background:#1e3a5f">Name</th><th style="text-align:left;background:#1e3a5f">Group</th><th style="background:#1e3a5f">Actions</th></tr></thead><tbody>'+(rows||'<tr><td colspan="3">No types</td></tr>')+'</tbody></table></div>'
+    + '</div>';
+}
+function ppePromptAddType(){
+  var name = prompt('New PPE Type name (e.g. "Safety Shoes Size 43"):');
+  if(name==null || !name.trim()) return;
+  var group = prompt('Protection group (e.g. Foot Protection, Hand Protection, Body Protection, Head Protection, Eye & Face Protection, Hearing Protection, Breathing Protection, SCBA):', 'Other');
+  if(group==null) return;
+  ppeAddType(name, group);
+  ppeRenderPane();
+}
+function ppePromptEditType(key){
+  var t = ppeTypeByKey(key);
+  if(!t) return;
+  var name = prompt('PPE Type name:', t.name);
+  if(name==null || !name.trim()) return;
+  var group = prompt('Protection group:', t.group);
+  if(group==null) return;
+  ppeEditType(key, { name:name.trim(), group:group.trim() });
+}
+function ppeManageListCard(kind, title, allValues){
+  var activeMap = { department:'ppeIsDeptActive', reason:'ppeIsReasonActive', issuedBy:'ppeIsIssuedByActive' };
+  var isActiveFn = window[activeMap[kind]];
+  var rows = allValues.map(function(v){
+    var active = isActiveFn(v);
+    var inactiveTag = !active ? ' <span class="trn-inactive-badge">Inactive</span>' : '';
+    return '<tr><td style="text-align:left;font-weight:700">'+escHtml(v)+inactiveTag+'</td>'
+      + '<td><button type="button" class="btn-ghost" style="font-size:.68rem" onclick="ppePromptEditListValue(\''+kind+'\',\''+v.replace(/'/g,"\\'")+'\')">Edit</button> '
+      + (active
+        ? '<button type="button" class="btn-ghost" style="font-size:.68rem" onclick="ppeSetListValueActive(\''+kind+'\',\''+v.replace(/'/g,"\\'")+'\',false)">Deactivate</button>'
+        : '<button type="button" class="btn-ghost" style="font-size:.68rem" onclick="ppeSetListValueActive(\''+kind+'\',\''+v.replace(/'/g,"\\'")+'\',true)">Reactivate</button>')
+      + '</td></tr>';
+  }).join('');
+  return '<div class="pbi-card" style="margin-top:14px"><div class="pbi-card-title">'+escHtml(title)+'</div>'
+    + '<div style="margin-bottom:10px"><button type="button" class="btn-primary" onclick="ppePromptAddListValue(\''+kind+'\')">+ Add</button></div>'
+    + '<div style="overflow:auto"><table class="pbi-table"><thead><tr><th style="text-align:left;background:#1e3a5f">Value</th><th style="background:#1e3a5f">Actions</th></tr></thead><tbody>'+(rows||'<tr><td colspan="2">None</td></tr>')+'</tbody></table></div>'
+    + '</div>';
+}
+function ppePromptAddListValue(kind){
+  var name = prompt('New value:');
+  if(name==null) return;
+  ppeAddListValue(kind, name);
+  ppeRenderPane();
+}
+function ppePromptEditListValue(kind, oldName){
+  var name = prompt('New value:', oldName);
+  if(name==null) return;
+  ppeEditListValue(kind, oldName, name);
+}
+function ppeManageAuditCard(){
+  var log = (safetyData.ppeMasterAudit||[]).slice(0, 30);
+  var rows = log.map(function(a){
+    return '<tr><td style="text-align:left">'+escHtml((a.at||'').slice(0,16).replace('T',' '))+'</td><td style="text-align:left">'+escHtml(a.entity)+'</td><td style="text-align:left">'+escHtml(a.entityId)+'</td><td style="text-align:left">'+escHtml(a.field)+'</td><td>'+escHtml(String(a.oldVal))+'</td><td>'+escHtml(String(a.newVal))+'</td><td style="text-align:left">'+escHtml(a.by)+'</td></tr>';
+  }).join('');
+  return '<div class="pbi-card" style="margin-top:14px"><div class="pbi-card-title">Recent Master Data Changes</div>'
+    + '<div style="overflow:auto"><table class="pbi-table"><thead><tr><th style="text-align:left;background:#1e3a5f">When</th><th style="text-align:left;background:#1e3a5f">Entity</th><th style="text-align:left;background:#1e3a5f">ID</th><th style="text-align:left;background:#1e3a5f">Field</th><th style="background:#1e3a5f">From</th><th style="background:#1e3a5f">To</th><th style="text-align:left;background:#1e3a5f">By</th></tr></thead><tbody>'+(rows||'<tr><td colspan="7">No changes logged yet</td></tr>')+'</tbody></table></div>'
+    + '</div>';
 }
