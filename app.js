@@ -6403,7 +6403,23 @@ let safetyData = {
   ppeIssuance: [],          // PPE/First Aid/Equipment issuance transactions (drives stock deduction + all analytics)
   ppeStockTx: [],           // "Receive Stock" transactions — never edit Current Stock directly, only add a receipt
   ppeItemOverrides: {},     // { itemId: {name,category,unit,reorderPoint,maxStock,notes} } — overlay on PPE_DATA.inventory, static reference data is never mutated
-  ppeCustomItems: []        // user-added inventory items not present in the source workbook
+  ppeCustomItems: [],       // user-added inventory items not present in the source workbook
+  ppeItemActive: {},        // { itemId: false } — deactivated inventory items (default active; history/analytics still show them)
+  ppeItemDeleted: {},       // { itemId: true } — hard-deleted items with zero usage history only (hides entirely; PPE_DATA itself never mutated)
+  ppeTypeCustom: [],        // user-added PPE Types (Matrix columns): {key,name,group}
+  ppeTypeOverrides: {},     // { typeKey: {name,group} } — edits to base or custom PPE Types
+  ppeTypeActive: {},        // { typeKey: false } — deactivated PPE Types (hidden from new-selection UI, matrix history intact)
+  ppeMatrixCustomTasks: [], // user-added Task/Area rows: {task, requirements:{typeKey:'M'|'R'|'-'}}
+  ppeMatrixOverrides: {},   // { taskName: {requirements:{typeKey:val}} } — partial cell edits to base OR custom tasks
+  ppeMatrixTaskActive: {},  // { taskName: false } — deactivated Task/Area rows
+  ppeDeptCustom: [], ppeDeptOverrides: {}, ppeDeptActive: {},
+  ppeReasonCustom: [], ppeReasonOverrides: {}, ppeReasonActive: {},
+  ppeIssuedByCustom: [], ppeIssuedByOverrides: {}, ppeIssuedByActive: {},
+  ppeMasterAudit: [],       // [{entity,entityId,field,oldVal,newVal,by,at}] — Master Data change trail
+  trainingCourseCustom: [],    // user-added Training Courses: {key,name,freqLabel,freqDays,hours}
+  trainingCourseOverrides: {}, // { courseKey: {name,freqLabel,freqDays,hours} }
+  trainingCourseActive: {},    // { courseKey: false } — deactivated courses (historical data/matrix stays intact)
+  trainingMasterAudit: []
 };
 let reworkData = { generated: [], used: [] };
 

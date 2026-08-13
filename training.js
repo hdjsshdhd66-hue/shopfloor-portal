@@ -43,13 +43,75 @@ var _trnFormDirty = false;
 var _trnPickerCtx = { q:'', dept:'all' };
 
 /* ============================ DATA ACCESSORS ============================ */
-function trnCourses(){ return (typeof TRAINING_DATA!=='undefined' && TRAINING_DATA.courses) || []; }
+/* Training Courses follow the same Master Data pattern as PPE (see ppe.js's
+   header comment): BASE (TRAINING_DATA.courses, the source workbook — never
+   mutated) + CUSTOM (user-added) + OVERRIDES (edits) + ACTIVE flag
+   (deactivate hides a course from new-selection UI; historical completions/
+   matrix cells are unaffected since they're computed from each employee's
+   own stored requirement/completion data, not from this list). */
+function trnCoursesBase(){ return (typeof TRAINING_DATA!=='undefined' && TRAINING_DATA.courses) || []; }
+function trnCourseCustom(){ if(!safetyData.trainingCourseCustom) safetyData.trainingCourseCustom = []; return safetyData.trainingCourseCustom; }
+function trnCourseOverrides(){ if(!safetyData.trainingCourseOverrides) safetyData.trainingCourseOverrides = {}; return safetyData.trainingCourseOverrides; }
+function trnIsCourseActive(key){ return !(safetyData.trainingCourseActive && safetyData.trainingCourseActive[key]===false); }
+function trnCourses(includeInactive){
+  var ov = trnCourseOverrides();
+  var out = [];
+  trnCoursesBase().concat(trnCourseCustom()).forEach(function(c){
+    if(!includeInactive && !trnIsCourseActive(c.key)) return;
+    var o = ov[c.key];
+    var merged = o ? Object.assign({}, c, o) : Object.assign({}, c);
+    merged.active = trnIsCourseActive(c.key);
+    out.push(merged);
+  });
+  return out;
+}
 function trnRequirements(){ return (typeof TRAINING_DATA!=='undefined' && TRAINING_DATA.requirements) || []; }
 function trnDeptCodes(){ return (typeof TRAINING_DATA!=='undefined' && TRAINING_DATA.deptCodes) || []; }
 function trnManagers(){ return (typeof TRAINING_DATA!=='undefined' && TRAINING_DATA.managers) || []; }
 function trnEmployees(){ return (typeof TRAINING_DATA!=='undefined' && TRAINING_DATA.employees) || []; }
-function trnCourseByKey(key){ return trnCourses().filter(function(c){ return c.key===key; })[0] || null; }
+function trnCourseByKey(key){ return trnCourses(true).filter(function(c){ return c.key===key; })[0] || null; }
 function trnEmpById(id){ return trnEmployees().filter(function(e){ return e.id===id; })[0] || null; }
+
+function trnAudit(entity, entityId, field, oldVal, newVal){
+  if(!safetyData.trainingMasterAudit) safetyData.trainingMasterAudit = [];
+  safetyData.trainingMasterAudit.unshift({ entity:entity, entityId:entityId, field:field, oldVal:oldVal, newVal:newVal, by:(currentUser&&currentUser.name)||'', at:new Date().toISOString() });
+}
+function trnSlugify(s){
+  return String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+}
+function trnAddCourse(name, freqLabel, freqDays, hours){
+  if(!requireAdmin('Add Training Course')) return null;
+  name = String(name||'').trim();
+  if(!name){ showToast('Course name is required', 'red'); return null; }
+  var key = trnSlugify(name);
+  if(trnCourseByKey(key)){ showToast('A course with this name already exists', 'red'); return null; }
+  trnCourseCustom().push({ key:key, name:name, freqLabel:freqLabel||null, freqDays:freqDays?parseInt(freqDays,10):null, hours:hours?parseFloat(hours):null });
+  trnAudit('course', key, 'created', null, name);
+  saveState();
+  showToast('Training Course added: '+name, 'green');
+  return key;
+}
+function trnEditCourse(key, patch){
+  if(!requireAdmin('Edit Training Course')) return;
+  var current = trnCourseByKey(key);
+  if(!current){ showToast('Course not found', 'red'); return; }
+  var ov = trnCourseOverrides();
+  ov[key] = Object.assign({}, ov[key]||{}, patch);
+  trnAudit('course', key, 'edited', JSON.stringify({name:current.name,freqLabel:current.freqLabel,freqDays:current.freqDays,hours:current.hours}), JSON.stringify(patch));
+  saveState();
+  showToast('Training Course updated', 'green');
+  trnRenderPane();
+}
+function trnSetCourseActive(key, active){
+  if(!requireAdmin('Deactivate/Reactivate Training Course')) return;
+  if(!safetyData.trainingCourseActive) safetyData.trainingCourseActive = {};
+  var was = trnIsCourseActive(key);
+  safetyData.trainingCourseActive[key] = active;
+  trnAudit('course', key, 'active', was, active);
+  saveState();
+  showToast(active ? 'Course reactivated' : 'Course deactivated', 'green');
+  trnRenderPane();
+}
 
 function trnOverrides(){
   if(!safetyData.trainingOverrides) safetyData.trainingOverrides = {};
@@ -193,14 +255,21 @@ function trnLastNMonthsCounts(timestamps, months){
 }
 
 /* ============================== NAV / SHELL ============================== */
+var TRN_TAB_LABELS = { dashboard:'Dashboard', matrix:'Training Matrix', forms:'Forms', records:'Records', upcoming:'Upcoming / Planner', manage:'Manage' };
+function trnTabList(){
+  var tabs = ['dashboard','matrix','forms','records','upcoming'];
+  if(typeof adminMode!=='undefined' && adminMode) tabs.push('manage'); // Master Data management — Edit Portal only
+  return tabs;
+}
 function renderTraining(){
   var wrap = document.getElementById('training-body');
   if(!wrap) return;
+  var tabs = trnTabList();
+  if(tabs.indexOf(_trnTab)===-1) _trnTab = 'dashboard';
   wrap.innerHTML =
     '<div class="trn-tabs" id="trn-tabs">' +
-      ['dashboard','matrix','forms','records','upcoming'].map(function(t){
-        var lbl = {dashboard:'Dashboard', matrix:'Training Matrix', forms:'Forms', records:'Records', upcoming:'Upcoming / Planner'}[t];
-        return '<button type="button" class="nav-btn trn-tab-btn'+(t===_trnTab?' active':'')+'" onclick="trnSetTab(\''+t+'\')" style="background:#fef2f2;color:#dc2626;font-weight:700">'+lbl+'</button>';
+      tabs.map(function(t){
+        return '<button type="button" class="nav-btn trn-tab-btn'+(t===_trnTab?' active':'')+'" onclick="trnSetTab(\''+t+'\')" style="background:#fef2f2;color:#dc2626;font-weight:700">'+TRN_TAB_LABELS[t]+'</button>';
       }).join('') +
     '</div>' +
     '<div id="trn-pane" class="trn-pane"></div>';
@@ -208,13 +277,7 @@ function renderTraining(){
 }
 function trnSetTab(t){
   _trnTab = t;
-  var wrap = document.getElementById('training-body');
-  if(!wrap){ return; }
-  document.querySelectorAll('.trn-tab-btn').forEach(function(b,i){
-    var tabs = ['dashboard','matrix','forms','records','upcoming'];
-    b.classList.toggle('active', tabs[i]===t);
-  });
-  trnRenderPane();
+  renderTraining();
 }
 function trnRenderPane(){
   var pane = document.getElementById('trn-pane');
@@ -225,10 +288,60 @@ function trnRenderPane(){
     else if(_trnTab==='forms') pane.innerHTML = trnBuildFormsHome();
     else if(_trnTab==='records') pane.innerHTML = trnBuildRecords();
     else if(_trnTab==='upcoming') pane.innerHTML = trnBuildUpcoming();
+    else if(_trnTab==='manage') pane.innerHTML = (adminMode ? trnBuildManage() : '<div class="empty-state"><div class="empty-state-title">Requires Edit Portal mode</div></div>');
   }catch(err){
     console.error('Training pane render failed', err);
     pane.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-title">Training module unavailable</div><div class="empty-state-hint">'+escHtml(err.message||'')+'</div></div>';
   }
+}
+
+/* ================================ MANAGE (Master Data — Edit Portal only) ================================ */
+function trnBuildManage(){
+  var courses = trnCourses(true).sort(function(a,b){ return a.name.localeCompare(b.name); });
+  var rows = courses.map(function(c){
+    var inactiveTag = c.active===false ? ' <span class="trn-inactive-badge">Inactive</span>' : '';
+    return '<tr><td style="text-align:left;font-weight:700">'+escHtml(c.name)+inactiveTag+'</td><td>'+escHtml(c.freqLabel||'—')+'</td><td>'+escHtml(c.hours!=null?String(c.hours):'—')+'</td>'
+      + '<td><button type="button" class="btn-ghost" style="font-size:.68rem" onclick="trnPromptEditCourse(\''+c.key+'\')">Edit</button> '
+      + (c.active===false
+        ? '<button type="button" class="btn-ghost" style="font-size:.68rem" onclick="trnSetCourseActive(\''+c.key+'\',true)">Reactivate</button>'
+        : '<button type="button" class="btn-ghost" style="font-size:.68rem" onclick="trnSetCourseActive(\''+c.key+'\',false)">Deactivate</button>')
+      + '</td></tr>';
+  }).join('');
+  var log = (safetyData.trainingMasterAudit||[]).slice(0, 30);
+  var auditRows = log.map(function(a){
+    return '<tr><td style="text-align:left">'+escHtml((a.at||'').slice(0,16).replace('T',' '))+'</td><td style="text-align:left">'+escHtml(a.entity)+'</td><td style="text-align:left">'+escHtml(a.entityId)+'</td><td style="text-align:left">'+escHtml(a.field)+'</td><td>'+escHtml(String(a.oldVal))+'</td><td>'+escHtml(String(a.newVal))+'</td><td style="text-align:left">'+escHtml(a.by)+'</td></tr>';
+  }).join('');
+  return '<div class="page-title" style="margin-bottom:2px">Manage Training Master Data</div>'
+    + '<div class="page-sub">Business configuration for Training & TBT — visible only in Edit Portal mode. Historical attendance/matrix records are never affected by changes here.</div>'
+    + '<div class="pbi-card" style="margin-top:14px"><div class="pbi-card-title">Training Courses</div>'
+      + '<div style="margin-bottom:10px"><button type="button" class="btn-primary" onclick="trnPromptAddCourse()">+ Add Training Course</button></div>'
+      + '<div style="overflow:auto"><table class="pbi-table"><thead><tr><th style="text-align:left;background:#1e3a5f">Course</th><th style="background:#1e3a5f">Frequency</th><th style="background:#1e3a5f">Hours</th><th style="background:#1e3a5f">Actions</th></tr></thead><tbody>'+(rows||'<tr><td colspan="4">No courses</td></tr>')+'</tbody></table></div>'
+    + '</div>'
+    + '<div class="pbi-card" style="margin-top:14px"><div class="pbi-card-title">Recent Master Data Changes</div>'
+      + '<div style="overflow:auto"><table class="pbi-table"><thead><tr><th style="text-align:left;background:#1e3a5f">When</th><th style="text-align:left;background:#1e3a5f">Entity</th><th style="text-align:left;background:#1e3a5f">ID</th><th style="text-align:left;background:#1e3a5f">Field</th><th style="background:#1e3a5f">From</th><th style="background:#1e3a5f">To</th><th style="text-align:left;background:#1e3a5f">By</th></tr></thead><tbody>'+(auditRows||'<tr><td colspan="7">No changes logged yet</td></tr>')+'</tbody></table></div>'
+    + '</div>';
+}
+function trnPromptAddCourse(){
+  var name = prompt('New Training Course name:');
+  if(name==null || !name.trim()) return;
+  var freqLabel = prompt('Frequency label (e.g. "1 year", "3 years") — leave blank if not recurring:', '');
+  var freqDays = '';
+  if(freqLabel){
+    freqDays = prompt('Frequency in days (e.g. 365 for 1 year, 1095 for 3 years):', '');
+  }
+  var hours = prompt('Attending hours (optional):', '');
+  trnAddCourse(name, freqLabel||null, freqDays||null, hours||null);
+  trnRenderPane();
+}
+function trnPromptEditCourse(key){
+  var c = trnCourseByKey(key);
+  if(!c) return;
+  var name = prompt('Course name:', c.name);
+  if(name==null || !name.trim()) return;
+  var freqLabel = prompt('Frequency label:', c.freqLabel||'');
+  var freqDays = prompt('Frequency in days:', c.freqDays!=null?String(c.freqDays):'');
+  var hours = prompt('Attending hours:', c.hours!=null?String(c.hours):'');
+  trnEditCourse(key, { name:name.trim(), freqLabel:freqLabel||null, freqDays:freqDays?parseInt(freqDays,10):null, hours:hours?parseFloat(hours):null });
 }
 
 /* ================================ DASHBOARD ================================ */
