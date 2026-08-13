@@ -3608,3 +3608,46 @@ body:not(.login-active) #login-screen{
   .trn-filters{ flex-direction:column; align-items:stretch; }
   .trn-filters input[type="text"], .trn-filters select{ width:100%; }
 }
+
+/* ============================================================
+   PPE Management (Safety Portal)
+   ============================================================ */
+.ppe-status-pill{ display:inline-block; font-size:.7rem; font-weight:800; border-radius:99px; padding:3px 10px; white-space:nowrap; }
+.ppe-inv-card .empty-state-hint b{ color:var(--text); }
+.ppe-stock-warning{ background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; border-radius:8px; padding:8px 12px; font-size:.78rem; font-weight:700; margin:8px 0; }
+
+/* Requirement marks — used both in the desktop matrix cells and mobile card lists */
+.ppe-mark{ display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 6px; border-radius:6px; font-size:.72rem; font-weight:900; }
+.ppe-mark-m{ background:#dbeafe; color:#1d4ed8; }
+.ppe-mark-r{ background:#dcfce7; color:#15803d; }
+.ppe-mark-n{ background:transparent; color:#cbd5e1; font-weight:700; }
+
+/* Desktop matrix table */
+.ppe-matrix-wrap{ max-height:70vh; }
+.ppe-matrix-table{ font-size:.74rem; }
+/* Two-row header: group row stays at top:0, item-name row stacks directly beneath it (a fixed
+   height keeps this offset reliable rather than measuring the rendered row at runtime). The
+   sticky Task/Area cell spans both rows (rowspan=2) so it only ever needs top:0. */
+.ppe-group-row th{ height:32px; box-sizing:border-box; }
+.ppe-item-row th{ top:32px !important; }
+.ppe-group-th{ background:#7f1d1d; color:#fff; text-align:center; font-weight:800; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.25); }
+.ppe-item-th{ padding:7px 6px; font-size:.68rem; font-weight:700; white-space:normal; line-height:1.25; }
+.ppe-sticky-task{ left:0; width:210px; max-width:210px; }
+.ppe-mark-cell{ text-align:center; padding:5px 4px !important; }
+.ppe-matrix-table.trn-matrix-table{ table-layout:fixed; }
+.ppe-matrix-table .ppe-item-th{ width:88px; max-width:88px; }
+
+/* Mobile Task/Area requirement cards */
+.ppe-matrix-mobile-only{ display:none; }
+.ppe-req-card{ border:1px solid var(--border); border-radius:12px; padding:14px; margin-top:12px; background:var(--form-surface); }
+.ppe-req-card-title{ font-weight:800; margin-bottom:8px; font-size:.85rem; }
+.ppe-req-mandatory .ppe-req-card-title{ color:#1d4ed8; }
+.ppe-req-recommended .ppe-req-card-title{ color:#15803d; }
+.ppe-req-item{ display:flex; align-items:center; gap:8px; padding:7px 4px; border-bottom:1px solid var(--border); font-size:.82rem; }
+.ppe-req-item:last-child{ border-bottom:none; }
+
+@media (max-width:900px){
+  .ppe-matrix-desktop-only{ display:none; }
+  .ppe-matrix-mobile-only{ display:block; }
+  .ppe-matrix-filters-desktop{ display:none; }
+}

@@ -587,6 +587,7 @@ try{
  <button type="button" class="nav-btn safety-nav-btn" data-view="noiselevel" onclick="nav('noiselevel')" style="background:#fef2f2;color:#dc2626;font-weight:700"> Noise Level</button>
  <button type="button" class="nav-btn safety-nav-btn" data-view="lightlevel" onclick="nav('lightlevel')" style="background:#fef2f2;color:#dc2626;font-weight:700"> Light Level</button>
  <button type="button" class="nav-btn safety-nav-btn" data-view="training" onclick="nav('training')" style="background:#fef2f2;color:#dc2626;font-weight:700"> Training &amp; TBT</button>
+ <button type="button" class="nav-btn safety-nav-btn" data-view="ppe" onclick="nav('ppe')" style="background:#fef2f2;color:#dc2626;font-weight:700"> PPE Management</button>
 
  <!-- Maintenance nav buttons -->
  <button type="button" class="nav-btn maint-nav-btn" data-view="mainthome" onclick="nav('mainthome')" style="background:#f0fdf4;color:#065f46;font-weight:700"> Home</button>
@@ -2719,6 +2720,117 @@ try{
     </div>
   </div>
 </div>
+
+<!-- ============ SAFETY — PPE MANAGEMENT ============ -->
+<div id="view-ppe" class="view">
+  <div class="page-title">PPE Management</div>
+  <div class="page-sub">PPE Requirement Matrix · Inventory · Issuance · Stock Alerts · Analytics — Safety Portal</div>
+  <div id="ppe-body"></div>
+</div>
+
+<!-- Issue PPE -->
+<div class="modal-overlay" id="ppe-issue-modal">
+  <div class="modal nm-responsive-modal" style="max-width:640px">
+    <div class="modal-title" id="ppe-issue-modal-title">Issue PPE</div>
+    <div class="nm-form-scroll">
+      <div class="form-row"><label>Item</label>
+        <select id="ppe-issue-item" onchange="ppeIssueItemChange()"></select>
+      </div>
+      <div class="nm-form-grid">
+        <div class="form-row"><label>Item Name</label><input type="text" id="ppe-issue-itemname" readonly/></div>
+        <div class="form-row"><label>Available Stock</label><input type="text" id="ppe-issue-available" readonly/></div>
+        <div class="form-row"><label>Date Issued</label><input type="date" id="ppe-issue-date"/></div>
+        <div class="form-row"><label>Quantity Issued</label><input type="number" min="1" step="1" id="ppe-issue-qty" oninput="ppeValidateStock()"/></div>
+      </div>
+      <div id="ppe-issue-stock-warning"></div>
+      <div class="form-row"><label>Employee</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="ppe-issue-emp-search" placeholder="Search employee by name or ID…" oninput="ppeIssueEmpSearch(this.value)" style="flex:1"/>
+        </div>
+        <div id="ppe-issue-emp-results" class="trn-pick-list" style="display:none;max-height:180px;margin-top:6px"></div>
+      </div>
+      <div class="nm-form-grid">
+        <div class="form-row"><label>Employee ID</label><input type="text" id="ppe-issue-empid"/></div>
+        <div class="form-row"><label>Employee Name</label><input type="text" id="ppe-issue-empname"/></div>
+        <div class="form-row"><label>Department</label><select id="ppe-issue-dept"></select></div>
+        <div class="form-row"><label>Reason for Issuance</label><select id="ppe-issue-reason" onchange="ppeIssueReasonChange()"></select></div>
+        <div class="form-row"><label>Issued By</label><select id="ppe-issue-issuedby"></select></div>
+      </div>
+      <div id="ppe-issue-loan-fields" style="display:none">
+        <div class="nm-form-grid">
+          <div class="form-row"><label>Return Date (if loan)</label><input type="date" id="ppe-issue-returndate"/></div>
+          <div class="form-row"><label>Returned Quantity</label><input type="number" min="0" step="1" id="ppe-issue-returnqty"/></div>
+          <div class="form-row"><label>Condition on Return</label>
+            <select id="ppe-issue-condition">
+              <option value="">— Not yet returned —</option>
+              <option value="good">Good — Returned to Stock</option>
+              <option value="damaged">Damaged — Not Reusable</option>
+              <option value="lost">Lost / Not Returned</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="nm-form-actions">
+      <button type="button" class="btn-ghost" onclick="ppeCloseIssueModal()">Cancel</button>
+      <button type="button" class="btn-primary" id="ppe-issue-save-btn" onclick="ppeSaveIssuance()">Issue PPE</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Inventory Item -->
+<div class="modal-overlay" id="ppe-item-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title" id="ppe-item-modal-title">Add Inventory Item</div>
+    <input type="hidden" id="ppe-item-id-hidden"/>
+    <div class="form-row"><label>Item ID</label><input type="text" id="ppe-item-id"/></div>
+    <div class="form-row"><label>Item Name</label><input type="text" id="ppe-item-name"/></div>
+    <div class="nm-form-grid">
+      <div class="form-row"><label>Category</label>
+        <select id="ppe-item-category"><option value="PPE">PPE</option><option value="First Aid">First Aid</option><option value="Equipment">Equipment</option></select>
+      </div>
+      <div class="form-row"><label>Unit</label><input type="text" id="ppe-item-unit" placeholder="e.g. Pair, Piece, Box"/></div>
+      <div class="form-row"><label>Opening Balance</label><input type="number" min="0" step="1" id="ppe-item-opening"/></div>
+      <div class="form-row"><label>Reorder Point</label><input type="number" min="0" step="1" id="ppe-item-reorder"/></div>
+      <div class="form-row"><label>Max Stock</label><input type="number" min="0" step="1" id="ppe-item-max"/></div>
+    </div>
+    <div class="form-row"><label>Notes</label><textarea id="ppe-item-notes" rows="2"></textarea></div>
+    <div class="nm-form-actions">
+      <button type="button" class="btn-ghost" onclick="document.getElementById('ppe-item-modal').classList.remove('open')">Cancel</button>
+      <button type="button" class="btn-primary" onclick="ppeSaveItem()">Save Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- Receive Stock -->
+<div class="modal-overlay" id="ppe-receive-modal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-title">Receive Stock</div>
+    <input type="hidden" id="ppe-receive-itemid"/>
+    <div class="form-row"><label>Item</label><div id="ppe-receive-itemlabel" style="font-weight:700;padding:6px 0"></div></div>
+    <div class="form-row"><label>Date</label><input type="date" id="ppe-receive-date"/></div>
+    <div class="form-row"><label>Quantity Received</label><input type="number" min="1" step="1" id="ppe-receive-qty"/></div>
+    <div class="form-row"><label>Received By</label><select id="ppe-receive-by"></select></div>
+    <div class="form-row"><label>Reference / PO</label><input type="text" id="ppe-receive-ref"/></div>
+    <div class="form-row"><label>Notes</label><textarea id="ppe-receive-notes" rows="2"></textarea></div>
+    <div class="nm-form-actions">
+      <button type="button" class="btn-ghost" onclick="document.getElementById('ppe-receive-modal').classList.remove('open')">Cancel</button>
+      <button type="button" class="btn-primary" onclick="ppeSaveReceive()">Receive Stock</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic read-only detail viewer: Item History / Employee PPE History / Task PPE requirement -->
+<div class="modal-overlay" id="ppe-detail-modal">
+  <div class="modal nm-responsive-modal" style="max-width:720px">
+    <div class="modal-title" id="ppe-detail-title">Details</div>
+    <div class="nm-form-scroll" id="ppe-detail-body"></div>
+    <div class="nm-form-actions">
+      <button type="button" class="btn-ghost" onclick="document.getElementById('ppe-detail-modal').classList.remove('open')">Close</button>
+    </div>
+  </div>
+</div>
+
 <div id="view-incidentinvest" class="view"><div id="incidentinvest-body"></div></div>
 <div id="view-prodvalue" class="view"><div id="prodvalue-body"></div></div>
 <div id="view-prodscrap" class="view"><div id="prodscrap-body"></div></div>
@@ -3234,6 +3346,10 @@ try{
 <!-- Training & TBT Management (Safety Portal) — reference data must load before the app logic that reads it -->
 <script src="./training-data.js"></script>
 <script src="./training.js"></script>
+
+<!-- PPE Management (Safety Portal) — reference data must load before the app logic that reads it -->
+<script src="./ppe-data.js"></script>
+<script src="./ppe.js"></script>
 
 <!-- PWA: register SW + install-as-app helpers -->
 <script src="./app.js"></script>
