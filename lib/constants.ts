@@ -9,19 +9,11 @@ export const SITE_NAME = "S47 DIGITAL";
 export const SITE_TAGLINE = "Operational Interfaces. Built Around Your Workflow.";
 export const SITE_POSITIONING = "Built for your operation. Integrated by your IT.";
 
-export const CONTACT_EMAIL = "saud.almutairi091@gmail.com";
-export const CONTACT_PHONE_DISPLAY = "0530111882";
-export const CONTACT_PHONE_INTL = "+966530111882";
-export const WHATSAPP_NUMBER = "966530111882";
-export const WHATSAPP_MESSAGE =
-  "Hello, I’m interested in discussing a digital systems project with S47 DIGITAL.";
+// Business contact — email only. No phone/WhatsApp number is published.
+export const CONTACT_EMAIL = "contact@s47digital.com";
 
 export const CONTACT_EMAIL_HREF = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
   "S47 DIGITAL - Contact"
-)}`;
-export const CONTACT_CALL_HREF = `tel:${CONTACT_PHONE_INTL}`;
-export const CONTACT_WHATSAPP_HREF = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-  WHATSAPP_MESSAGE
 )}`;
 
 export type NavLink = { label: string; href: string };

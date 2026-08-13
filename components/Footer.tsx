@@ -1,12 +1,6 @@
 import Image from "next/image";
 
-import {
-  CONTACT_CALL_HREF,
-  CONTACT_EMAIL_HREF,
-  CONTACT_WHATSAPP_HREF,
-  NAV_LINKS,
-  SITE_TAGLINE,
-} from "@/lib/constants";
+import { CONTACT_EMAIL_HREF, NAV_LINKS, SITE_TAGLINE } from "@/lib/constants";
 
 const YEAR = new Date().getFullYear();
 
@@ -51,26 +45,6 @@ export function Footer() {
                 className="text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 Email S47
-              </a>
-            </li>
-            <li>
-              <a
-                href={CONTACT_WHATSAPP_HREF}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Contact S47 DIGITAL on WhatsApp"
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                WhatsApp
-              </a>
-            </li>
-            <li>
-              <a
-                href={CONTACT_CALL_HREF}
-                aria-label="Call S47 DIGITAL"
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Call
               </a>
             </li>
           </ul>

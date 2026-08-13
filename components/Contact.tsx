@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
-import { Mail, Phone, MessageCircle } from "lucide-react";
+import { ArrowUpRight, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,14 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  CONTACT_CALL_HREF,
-  CONTACT_EMAIL,
-  CONTACT_EMAIL_HREF,
-  CONTACT_PHONE_DISPLAY,
-  CONTACT_WHATSAPP_HREF,
-  PROJECT_TYPES,
-} from "@/lib/constants";
+import { CONTACT_EMAIL, CONTACT_EMAIL_HREF, PROJECT_TYPES } from "@/lib/constants";
 
 type FormState = {
   name: string;
@@ -126,43 +119,25 @@ export function Contact() {
               building.
             </p>
 
-            <div className="mt-8 flex max-w-sm flex-col gap-2.5">
-              <a
-                href={CONTACT_EMAIL_HREF}
-                aria-label="Email S47 DIGITAL"
-                className="flex min-h-11 items-center gap-3.5 rounded-xl border border-border bg-card/60 px-4 py-3 transition-colors hover:border-purple/40"
-              >
-                <Mail className="size-[18px] shrink-0 text-purple-soft" />
-                <span className="flex flex-col leading-tight">
-                  <span className="text-sm font-medium text-foreground">Email S47 DIGITAL</span>
-                  <span className="text-xs text-muted-foreground">{CONTACT_EMAIL}</span>
+            <a
+              href={CONTACT_EMAIL_HREF}
+              aria-label="Email S47 DIGITAL"
+              className="group mt-9 flex max-w-md items-center gap-5 rounded-2xl border border-border bg-card/60 px-6 py-5 transition-colors hover:border-purple/40"
+            >
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-purple/10">
+                <Mail className="size-5 text-purple-soft" />
+              </span>
+              <span className="flex flex-1 flex-col leading-tight">
+                <span className="text-xs tracking-[0.14em] text-muted-foreground uppercase">
+                  Email us directly
                 </span>
-              </a>
-              <a
-                href={CONTACT_CALL_HREF}
-                aria-label="Call S47 DIGITAL"
-                className="flex min-h-11 items-center gap-3.5 rounded-xl border border-border bg-card/60 px-4 py-3 transition-colors hover:border-purple/40"
-              >
-                <Phone className="size-[18px] shrink-0 text-purple-soft" />
-                <span className="flex flex-col leading-tight">
-                  <span className="text-sm font-medium text-foreground">Call S47 DIGITAL</span>
-                  <span className="text-xs text-muted-foreground">{CONTACT_PHONE_DISPLAY}</span>
-                </span>
-              </a>
-              <a
-                href={CONTACT_WHATSAPP_HREF}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Contact S47 DIGITAL on WhatsApp"
-                className="flex min-h-11 items-center gap-3.5 rounded-xl border border-border bg-card/60 px-4 py-3 transition-colors hover:border-purple/40"
-              >
-                <MessageCircle className="size-[18px] shrink-0 text-purple-soft" />
-                <span className="flex flex-col leading-tight">
-                  <span className="text-sm font-medium text-foreground">WhatsApp S47 DIGITAL</span>
-                  <span className="text-xs text-muted-foreground">{CONTACT_PHONE_DISPLAY}</span>
-                </span>
-              </a>
-            </div>
+                <span className="mt-1 text-lg font-medium text-foreground">{CONTACT_EMAIL}</span>
+              </span>
+              <ArrowUpRight className="size-5 shrink-0 text-muted-foreground transition-colors group-hover:text-purple-soft" />
+            </a>
+            <p className="mt-3 max-w-md text-xs text-muted-foreground">
+              We typically reply within one business day.
+            </p>
           </div>
 
           <form

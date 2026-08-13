@@ -1,24 +1,25 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { fadeInUp, staggerContainer, viewportOnce } from "@/lib/motion";
+import Image from "next/image";
+import { useRef } from "react";
+import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { EASE, fadeInUp, staggerContainer, viewportOnce } from "@/lib/motion";
 
 /**
- * "Real operations" cinematic section.
+ * Cinematic full-width shop-floor visual — the one deliberate break from the
+ * card-and-grid rhythm used everywhere else on the page. A real manufacturing
+ * photo (self-hosted at /public/images/shop-floor.webp — Unsplash License,
+ * free for commercial use, no visible brands, no people as the subject) sits
+ * under a dark + purple brand treatment so it reads as premium atmosphere
+ * rather than a generic stock banner.
  *
- * The brief calls for a full-width photo of a modern manufacturing floor.
- * No licensed photo ships with this project, and an unreliable remote image
- * URL is worse than no image — so this renders a premium abstract
- * atmosphere (structural line work, not a stock photo) by default.
- *
- * To swap in a real photo once the client provides one: drop the file at
- * `/public/images/industrial-operations.webp` and replace the
- * `<AtmosphereFallback />` below with:
- *
- *   <Image src="/images/industrial-operations.webp" alt="..." fill
- *     className="object-cover" priority={false} />
- *
- * — the dark overlay, vignette, and overlay cards need no changes.
+ * Motion: the outer wrapper does a one-time fade/scale reveal via
+ * `whileInView` (governed globally by <MotionConfig reducedMotion="user">,
+ * same as every other section). The inner layer adds a continuous,
+ * scroll-linked parallax drift driven by `useScroll`/`useTransform` — a pure
+ * motion value, not an animate/initial state machine, so it carries none of
+ * the "stuck hidden" hydration risk that manual reduced-motion branching
+ * caused elsewhere; it is simply zeroed out when the user prefers less motion.
  */
 
 const OVERLAYS = [
@@ -28,32 +29,49 @@ const OVERLAYS = [
   { dept: "Production", label: "Operational Status", tone: "ok" as const, pos: "right-[6%] bottom-[16%]" },
 ];
 
-function AtmosphereFallback() {
-  return (
-    <div className="absolute inset-0" aria-hidden>
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,#0c0c0e_0%,#050506_60%,#0c0c0e_100%)]" />
-      {/* Structural line work — suggests architecture/infrastructure without pretending to be a photo. */}
-      <svg className="absolute inset-0 h-full w-full opacity-[0.18]" preserveAspectRatio="none" viewBox="0 0 1200 600" fill="none">
-        {Array.from({ length: 13 }).map((_, i) => (
-          <line key={i} x1={i * 100} y1="0" x2={i * 100 - 140} y2="600" stroke="white" strokeWidth="1" />
-        ))}
-        <line x1="0" y1="180" x2="1200" y2="180" stroke="white" strokeWidth="1" />
-        <line x1="0" y1="420" x2="1200" y2="420" stroke="white" strokeWidth="1" />
-      </svg>
-      <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_45%,rgba(139,92,246,0.1),transparent_70%)]" />
-    </div>
-  );
-}
-
 const toneDot = { ok: "bg-status-ok", pending: "bg-status-pending" };
 
 export function IndustrialSection() {
-  return (
-    <section className="relative overflow-hidden border-t border-border py-28 sm:py-36">
-      <AtmosphereFallback />
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-background/70" aria-hidden />
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const prefersReduced = useReducedMotion();
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+  const parallaxY = useTransform(scrollYProgress, [0, 1], prefersReduced ? ["0%", "0%"] : ["-9%", "9%"]);
 
-      {/* Overlay interface cards — explicitly UI overlays, not implied live data. */}
+  return (
+    <section
+      ref={sectionRef}
+      className="relative isolate overflow-hidden border-t border-border py-32 sm:py-44 lg:min-h-[74vh]"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 1.09 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        viewport={viewportOnce}
+        transition={{ duration: 1.2, ease: EASE }}
+        className="absolute inset-0"
+        aria-hidden
+      >
+        <motion.div style={{ y: parallaxY }} className="absolute inset-[-10%]">
+          <Image
+            src="/images/shop-floor.webp"
+            alt=""
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority={false}
+          />
+        </motion.div>
+
+        {/* Dark + purple/violet brand treatment */}
+        <div className="absolute inset-0 bg-[#050506]/60" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/20 to-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(65%_55%_at_50%_45%,rgba(139,92,246,0.32),transparent_72%)]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/75 via-transparent to-background/55" />
+      </motion.div>
+
+      {/* Overlay interface cards — explicit UI overlays, not implied live data. */}
       <div className="pointer-events-none absolute inset-0 hidden lg:block" aria-hidden>
         {OVERLAYS.map((o, i) => (
           <motion.div
@@ -80,16 +98,23 @@ export function IndustrialSection() {
         viewport={viewportOnce}
         className="relative z-10 mx-auto max-w-3xl px-5 text-center sm:px-8"
       >
-        <motion.p variants={fadeInUp} className="text-xs font-medium tracking-[0.22em] text-muted-foreground uppercase">
-          Real Operations
+        <motion.p
+          variants={fadeInUp}
+          className="text-xs font-medium tracking-[0.22em] text-purple-soft uppercase"
+        >
+          Digital Transformation
         </motion.p>
-        <motion.h2 variants={fadeInUp} className="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
-          Real operations. <span className="text-purple-soft">Better interfaces.</span>
+        <motion.h2
+          variants={fadeInUp}
+          className="mt-4 text-balance text-4xl leading-[1.05] font-semibold tracking-tight uppercase sm:text-6xl lg:text-7xl"
+        >
+          Built for the <span className="text-purple-soft">shop floor.</span>
         </motion.h2>
-        <motion.p variants={fadeInUp} className="mx-auto mt-5 max-w-xl text-balance text-base leading-relaxed text-muted-foreground">
-          Operational systems should reflect how work actually happens. S47 transforms real
-          workflows into structured digital interfaces designed for the people who use them
-          every day.
+        <motion.p
+          variants={fadeInUp}
+          className="mx-auto mt-6 max-w-xl text-balance text-base leading-relaxed text-muted-foreground sm:text-lg"
+        >
+          Supporting smarter, more connected and more efficient manufacturing operations.
         </motion.p>
       </motion.div>
     </section>
