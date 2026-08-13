@@ -4,7 +4,7 @@
 // APP_SHELL_PATHS below) now uses a network-first strategy, so a fresh
 // deploy reaches already-installed PWAs the next time they're online, even
 // if this line is forgotten.
-const CACHE_VERSION = 'v95';
+const CACHE_VERSION = 'v96';
 const CACHE_NAME = 'shopfloor-cache-' + CACHE_VERSION;
 const ASSETS = [
   './',
@@ -13,6 +13,8 @@ const ASSETS = [
   './app.js',
   './training.js',
   './training-data.js',
+  './ppe.js',
+  './ppe-data.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
@@ -41,11 +43,12 @@ const ASSETS = [
 // network but then served a stale, cache-first app.js/styles.css would be
 // running a broken hybrid of two releases, so both are treated the same as
 // index.html here, not as ordinary static assets. training.js (Training &
-// TBT module logic) joins the same group for the same reason. training-data.js
-// is reference data extracted from the source workbook, not application
-// logic — it changes far less often, so it stays a normal cache-first
-// static asset (see ASSETS above) like the other vendored libraries.
-const APP_SHELL_PATHS = ['/', '/index.html', '/styles.css', '/app.js', '/training.js'];
+// TBT module logic) and ppe.js (PPE Management module logic) join the same
+// group for the same reason. training-data.js / ppe-data.js are reference
+// data extracted from their source workbooks, not application logic — they
+// change far less often, so they stay normal cache-first static assets
+// (see ASSETS above) like the other vendored libraries.
+const APP_SHELL_PATHS = ['/', '/index.html', '/styles.css', '/app.js', '/training.js', '/ppe.js'];
 function isAppShellRequest(req) {
   if (req.mode === 'navigate') return true;
   try {
@@ -55,7 +58,8 @@ function isAppShellRequest(req) {
       url.pathname.endsWith('/index.html') ||
       url.pathname.endsWith('/styles.css') ||
       url.pathname.endsWith('/app.js') ||
-      url.pathname.endsWith('/training.js')
+      url.pathname.endsWith('/training.js') ||
+      url.pathname.endsWith('/ppe.js')
     );
   } catch (e) {
     return false;
