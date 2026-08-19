@@ -497,6 +497,24 @@ try{
 </div>
 
 
+<!-- LOGOUT CONFIRMATION -->
+<div class="modal-overlay" id="logout-confirm-modal">
+  <div class="modal" style="max-width:380px;text-align:center">
+    <div style="width:56px;height:56px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;margin:0 auto 14px" id="logout-confirm-avatar">?</div>
+    <div class="modal-title" style="margin-bottom:2px">Sign out of Shop Floor Portal?</div>
+    <div style="font-weight:700;color:var(--text)" id="logout-confirm-name">—</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px" id="logout-confirm-role">—</div>
+    <div style="font-size:.82rem;color:var(--muted);margin-bottom:20px">You will return to the login screen.</div>
+    <div id="logout-confirm-actions" style="display:flex;gap:10px;justify-content:center">
+      <button type="button" class="btn-ghost" style="flex:1" onclick="closeLogoutConfirm()">Cancel</button>
+      <button type="button" style="flex:1;background:var(--red);color:#fff;border:none;border-radius:8px;padding:10px;font-weight:800;font-size:.85rem;cursor:pointer;font-family:inherit;min-height:var(--tap)" onclick="confirmLogout()">Sign Out</button>
+    </div>
+    <div id="logout-confirm-progress" style="display:none;align-items:center;justify-content:center;gap:10px;color:var(--muted);font-size:.85rem;font-weight:700">
+      <span class="logout-spinner" aria-hidden="true"></span> Signing you out…
+    </div>
+  </div>
+</div>
+
 <!-- HEADER -->
 <div class="header">
   <div class="header-inner">
@@ -532,6 +550,7 @@ try{
  <button type="button" class="nav-btn quality-nav-btn" data-view="complaints" onclick="nav('complaints')"> Complaints</button>
  <button type="button" class="nav-btn quality-nav-btn" data-view="foodsafety" onclick="nav('foodsafety')"> Food Safety</button>
  <button type="button" class="nav-btn quality-nav-btn" data-view="holdpallets" onclick="nav('holdpallets')"> Hold Pallets</button>
+ <button type="button" class="nav-btn quality-nav-btn" data-view="reworkcases" onclick="nav('reworkcases')"> Re-Work Cases</button>
  <button type="button" class="nav-btn quality-nav-btn" data-view="scoring" onclick="nav('scoring')"> Scoring</button>
  <button type="button" class="nav-btn quality-nav-btn" data-view="teamdash" onclick="nav('teamdash')"> Team Dashboard</button>
  <button type="button" class="nav-btn quality-nav-btn" data-view="manager" onclick="nav('manager')"> Manager</button>
@@ -571,6 +590,8 @@ try{
  <button type="button" class="nav-btn prod-nav-btn" data-view="downtime" onclick="nav('downtime')" style="background:#fffbeb;color:#92400e;font-weight:700">⏱ Downtime</button>
  <button type="button" class="nav-btn prod-nav-btn" data-view="prodvalue" onclick="nav('prodvalue')" style="background:#fffbeb;color:#92400e;font-weight:700"> Production Value</button>
  <button type="button" class="nav-btn prod-nav-btn" data-view="prodscrap" onclick="nav('prodscrap')" style="background:#fffbeb;color:#92400e;font-weight:700"> Scrap / Waste</button>
+ <button type="button" class="nav-btn prod-nav-btn" data-view="ncrprodinbox" onclick="nav('ncrprodinbox')" style="background:#fffbeb;color:#92400e;font-weight:700"> NCR Inbox</button>
+ <button type="button" class="nav-btn prod-nav-btn" data-view="prodrework" onclick="nav('prodrework')" style="background:#fffbeb;color:#92400e;font-weight:700"> Re-Work Cases</button>
  <button type="button" class="nav-btn factory-nav-btn" data-view="factoryaccess" onclick="nav('factoryaccess')" style="background:#f5f3ff;color:#4c1d95;font-weight:700"> Visitor Management</button>
 
  <button type="button" class="nav-btn" id="admin-btn" onclick="toggleAdminMode()" style="display:none;background:#fefce8;color:#92400e;font-weight:800">Edit Portal</button>
@@ -965,6 +986,14 @@ try{
         <option value="2025">2025</option><option value="2026" selected>2026</option><option value="2027">2027</option>
       </select>
     </div>
+    <div class="fg"><label class="fl">Production Status</label>
+      <select class="fi" id="ncr-prod-status-filter" onchange="renderNCRList()">
+        <option value="">All</option>
+        <option value="Pending Production Input">Pending Production Input</option>
+        <option value="Returned to Quality">Returned to Quality</option>
+        <option value="Closed">Closed (NCR)</option>
+      </select>
+    </div>
     <button type="button" class="btn-ghost" onclick="showPreviousNCR()">Previous Records</button>
     <button type="button" class="btn-primary" onclick="openNCRModal()">+ New NCR / QI</button>
     <button type="button" class="btn-ghost" onclick="window.print()">Print</button>
@@ -1054,6 +1083,23 @@ try{
         <div class="form-row"><label>Qty Rejected</label><input type="text" id="ncr-qty-rej" placeholder="e.g. 5 OC"/></div>
       </div>
       <div class="form-row"><label>Root Cause</label><textarea id="ncr-root" placeholder="Root cause analysis..."></textarea></div>
+    </div>
+
+    <div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="font-weight:700;font-size:.85rem;color:var(--navy);margin-bottom:8px">Production &amp; Hold Routing</div>
+      <div class="form-2col">
+        <div class="form-row"><label>Requires Production Input?</label>
+          <select id="ncr-prod-required"><option value="">Select</option><option>No</option><option>Yes</option></select>
+        </div>
+        <div class="form-row"><label>Pallets Placed on Hold?</label>
+          <select id="ncr-hold-flag" onchange="toggleNcrHoldQty(this.value)"><option value="">Select</option><option>No</option><option>Yes</option></select>
+        </div>
+      </div>
+      <div class="form-row" id="ncr-hold-qty-row" style="display:none">
+        <label>Number of Pallets on Hold</label>
+        <input type="number" min="1" id="ncr-hold-qty" placeholder="e.g. 6"/>
+      </div>
+      <div class="empty-state-hint" style="margin-top:2px">A linked Hold Pallets record is only created when "Pallets Placed on Hold" = Yes and the number of pallets is greater than 0.</div>
     </div>
 
     <div class="form-row" style="margin-top:14px">
@@ -2553,6 +2599,23 @@ try{
     <button type="button" class="btn-primary" style="margin-left:auto" onclick="openHoldModal()">+ Add Pallet</button>
   </div>
   <div class="page-sub">Track pallets on hold pending release — flags pallets aging beyond 3 days</div>
+  <div class="view-toolbar" style="margin-bottom:10px">
+    <div class="fg"><label class="fl">Source Type</label>
+      <select class="fi" id="hold-source-filter" onchange="renderHoldPallets()">
+        <option value="">All</option>
+        <option value="NCR">NCR</option>
+        <option value="Quality Issue">Quality Issue</option>
+        <option value="Manual">Manual</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Status</label>
+      <select class="fi" id="hold-status-filter" onchange="renderHoldPallets()">
+        <option value="">All</option>
+        <option value="on-hold">On Hold</option>
+        <option value="released">Released</option>
+      </select>
+    </div>
+  </div>
   <div id="hold-stats" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap"></div>
   <div id="hold-pallets-list"></div>
 </div>
@@ -2574,6 +2637,27 @@ try{
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
       <button type="button" class="btn-ghost" onclick="closeHoldModal()">Cancel</button>
       <button type="button" class="btn-primary" onclick="saveHoldPallet()"> Add to Hold List</button>
+    </div>
+  </div>
+</div>
+
+<!-- Re-Work Case (defect-correction Quality<->Production case workflow) —
+     NOT the material-reuse "Re-Work" traceability feature below (unchanged). -->
+<div class="modal-overlay" id="rwc-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title">New Re-Work Case</div>
+    <div id="rwc-source-line" class="empty-state-hint" style="display:none;margin-bottom:8px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-row"><label>Product</label><input type="text" id="rwc-prod" placeholder="Product"/></div>
+      <div class="form-row"><label>Batch</label><input type="text" id="rwc-batch" placeholder="Batch #"/></div>
+      <div class="form-row"><label>Line</label><input type="text" id="rwc-line" placeholder="Production line"/></div>
+      <div class="form-row"><label>Re-Work Quantity</label><input type="text" id="rwc-qty" placeholder="e.g. 120 units"/></div>
+    </div>
+    <div class="form-row"><label>Reason for Re-Work</label><textarea id="rwc-reason" placeholder="Why does this need re-work?"></textarea></div>
+    <div class="form-row"><label>Pre-Condition Notes</label><textarea id="rwc-precondition" placeholder="Condition of the product/batch before re-work..."></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button type="button" class="btn-ghost" onclick="closeReworkCaseModal()">Cancel</button>
+      <button type="button" class="btn-primary" onclick="saveReworkCase()"> Create Re-Work Case</button>
     </div>
   </div>
 </div>
@@ -2800,6 +2884,9 @@ try{
 <div id="view-incidentinvest" class="view"><div id="incidentinvest-body"></div></div>
 <div id="view-prodvalue" class="view"><div id="prodvalue-body"></div></div>
 <div id="view-prodscrap" class="view"><div id="prodscrap-body"></div></div>
+<div id="view-ncrprodinbox" class="view"><div id="ncrprodinbox-body"></div></div>
+<div id="view-reworkcases" class="view"><div id="reworkcases-body"></div></div>
+<div id="view-prodrework" class="view"><div id="prodrework-body"></div></div>
 <div id="view-maintcalibration" class="view"><div id="maintcalibration-body"></div></div>
 <div id="view-shiftcompare" class="view"><div id="shiftcompare-body"></div></div>
 <div id="view-weeklyreport" class="view"><div id="weeklyreport-body"></div></div>
@@ -2972,6 +3059,20 @@ try{
     </div>
     <div class="form-row"><label>Corrective Action</label><textarea id="mi-action" placeholder="Describe corrective action taken..."></textarea></div>
     <div class="form-row"><label>Reported By</label><input type="text" id="mi-reporter" placeholder="Name"/></div>
+    <div class="form-2col">
+      <div class="form-row"><label>Product</label><input type="text" id="mi-prod" placeholder="Product name (optional)"/></div>
+      <div class="form-row"><label>Batch</label><input type="text" id="mi-batch" placeholder="Batch number (optional)"/></div>
+    </div>
+    <div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:12px">
+      <div class="form-row"><label>Pallets Placed on Hold?</label>
+        <select id="mi-hold-flag" onchange="toggleIssueHoldQty(this.value)"><option value="">Select</option><option>No</option><option>Yes</option></select>
+      </div>
+      <div class="form-row" id="mi-hold-qty-row" style="display:none">
+        <label>Number of Pallets on Hold</label>
+        <input type="number" min="1" id="mi-hold-qty" placeholder="e.g. 4"/>
+      </div>
+      <div class="empty-state-hint" style="margin-top:2px">A linked Hold Pallets record is only created when "Pallets Placed on Hold" = Yes and the number of pallets is greater than 0.</div>
+    </div>
     <div id="fp-host-issue" class="fp-host" data-photo-id="issue"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
       <button type="button" class="btn-ghost" onclick="closeIssueModal()">Cancel</button>

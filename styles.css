@@ -2162,9 +2162,17 @@ body.theme-noir .pro-empty{border-color:var(--border)}
   animation:hdrShine 4s linear infinite, hdrBarPulse 2.8s ease-in-out infinite;
 }
 /* Header chrome is always a dark surface (see --header-bg in both themes),
-   so its text stays light regardless of the active theme. */
+   so its text stays light regardless of the active theme.
+   ROOT-CAUSE FIX: the gradient used to include --form-surface and --accent-2
+   as color stops. Both are theme-dependent and, in at least one theme each
+   (Light/pladis's --accent-2 is near-black; Noir's --form-surface is near-
+   black), land almost exactly on --header-bg's own dark color — so whichever
+   portion of the animated shimmer sat on that stop became text the same
+   color as its background, i.e. invisible without selecting it. #fff and
+   --primary-light are confirmed light in every theme, so the shimmer now
+   only ever animates between colors that read clearly on the dark header. */
 .sys-title{
-  background:linear-gradient(110deg,var(--form-surface) 0%,var(--primary-light) 35%,var(--accent-2) 65%,var(--form-surface) 100%);
+  background:linear-gradient(110deg,#fff 0%,var(--primary-light) 35%,#fff 65%,var(--primary-light) 100%);
   background-size:220% auto;
   -webkit-background-clip:text;background-clip:text;
   color:transparent!important;
@@ -2704,6 +2712,12 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
 .modal-overlay.open .modal{animation:qmsModalIn .16s cubic-bezier(.22,1,.36,1) both}
 @keyframes qmsModalIn{from{opacity:0;transform:scale(.97) translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){ .modal-overlay.open .modal{animation:none} }
+
+/* Logout confirmation — small inline spinner shown during the brief
+   "Signing you out…" state before the existing logout logic runs. */
+.logout-spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:logoutSpin .7s linear infinite}
+@keyframes logoutSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){ .logout-spinner{animation:none} }
 
 /* ============================================================
    THEME TRANSITION — Light ↔ Violet Noir switches smoothly on the
@@ -3366,7 +3380,7 @@ body{overflow-x:hidden}
   #firepump-body td,#lpgcooling-body td,#di-checklist-body{
     color:var(--text)!important;
   }
-  .header .sys-title{color:var(--navy)!important;font-weight:800!important}
+  .header .sys-title{color:#fff!important;font-weight:800!important}
   .header .sys-sub{color:var(--primary-light)!important;opacity:1!important}
 }
 
