@@ -475,16 +475,15 @@ function trnStatusDot(status){
 }
 function trnBuildMatrix(){
   if(typeof TRAINING_DATA==='undefined') return '<div class="empty-state"><div class="empty-state-title">Training data not loaded</div></div>';
+  return trnBuildMatrixHead() + '<div id="trn-matrix-results">' + trnBuildMatrixResults() + '</div>';
+}
+// Toolbar + filters + legend only — rebuilt on select/checkbox filter changes (dept/jobTitle/
+// manager/course/status/includeInactive), NOT on every keystroke in the search box, so the
+// search <input> DOM node is never destroyed while the user is typing (keeps focus + caret).
+function trnBuildMatrixHead(){
   var f = _trnMatrixFilter;
   var courses = trnCourses();
-  var employees = trnFilteredEmployees();
-  var total = employees.length;
-  var pageSize = TRN_PAGE_SIZE;
-  var pages = Math.max(1, Math.ceil(total/pageSize));
-  if(_trnMatrixPage>pages) _trnMatrixPage = pages;
-  if(_trnMatrixPage<1) _trnMatrixPage = 1;
-  var startI = (_trnMatrixPage-1)*pageSize;
-  var pageEmployees = employees.slice(startI, startI+pageSize);
+  var total = trnFilteredEmployees().length;
 
   var deptOpts = ['<option value="all">All Departments</option>'].concat(trnDeptCodes().map(function(d){
     return '<option value="'+escHtml(d)+'"'+(f.dept===d?' selected':'')+'>'+escHtml(d)+'</option>';
@@ -505,7 +504,7 @@ function trnBuildMatrix(){
 
   var head = '<div class="trn-toolbar">'
     + '<div class="page-title" style="margin:0">Training Matrix</div>'
-    + '<span class="empty-state-hint" style="margin-left:6px">'+total+' employees · '+courses.length+' courses</span>'
+    + '<span class="empty-state-hint" id="trn-mx-count" style="margin-left:6px">'+total+' employees · '+courses.length+' courses</span>'
     + '<div class="trn-toolbar-actions">'
       + '<button type="button" class="btn-ghost" onclick="trnExportMatrix(false)">Export Full Matrix</button>'
       + '<button type="button" class="btn-ghost" onclick="trnExportMatrix(true)">Export Filtered Results</button>'
@@ -525,8 +524,22 @@ function trnBuildMatrix(){
     return '<span class="trn-legend-item"><span class="trn-dot" style="background:'+TRN_STATUS_COLOR[s]+'"></span>'+TRN_STATUS_LABEL[s]+'</span>';
   }).join('') + '</div>';
 
+  return head + legend;
+}
+// Table + pager (or empty state) only — this is what re-renders on every search keystroke.
+function trnBuildMatrixResults(){
+  var courses = trnCourses();
+  var employees = trnFilteredEmployees();
+  var total = employees.length;
+  var pageSize = TRN_PAGE_SIZE;
+  var pages = Math.max(1, Math.ceil(total/pageSize));
+  if(_trnMatrixPage>pages) _trnMatrixPage = pages;
+  if(_trnMatrixPage<1) _trnMatrixPage = 1;
+  var startI = (_trnMatrixPage-1)*pageSize;
+  var pageEmployees = employees.slice(startI, startI+pageSize);
+
   if(!total){
-    return head + legend + '<div class="empty-state"><div class="empty-state-icon">🔎</div><div class="empty-state-title">No employees match this filter</div><div class="empty-state-hint">Adjust the filters above.</div></div>';
+    return '<div class="empty-state"><div class="empty-state-icon">🔎</div><div class="empty-state-title">No employees match this filter</div><div class="empty-state-hint">Adjust the filters above.</div></div>';
   }
 
   var thead = '<tr><th class="trn-sticky-col trn-sticky-name">Employee</th><th class="trn-sticky-col trn-sticky-dept">Department</th><th class="trn-sticky-col trn-sticky-jt">Job Title</th>'
@@ -554,18 +567,32 @@ function trnBuildMatrix(){
     + '<button type="button" class="btn-ghost" '+(_trnMatrixPage>=pages?'disabled':'')+' onclick="trnMatrixPage(1)">Next →</button>'
     + '</div>';
 
-  return head + legend + table + pager;
+  return table + pager;
+}
+// Lightweight in-place update for the results container only — keeps the search <input>
+// (and every other filter control) alive in the DOM so focus/caret are never lost.
+function trnUpdateMatrixResults(){
+  var results = document.getElementById('trn-matrix-results');
+  if(!results){ trnRenderPane(); return; } // fallback if the pane isn't in its expected state
+  results.innerHTML = trnBuildMatrixResults();
+  var countEl = document.getElementById('trn-mx-count');
+  if(countEl) countEl.textContent = trnFilteredEmployees().length + ' employees · ' + trnCourses().length + ' courses';
 }
 function trnMatrixFilterChange(key, val){
   if(key==='includeInactive') _trnMatrixFilter.includeInactive = !!val;
   else _trnMatrixFilter[key] = val;
   if(key==='dept') _trnMatrixFilter.jobTitle = 'all';
   _trnMatrixPage = 1;
-  trnRenderPane();
+  // Typing in the search box only needs the results re-rendered — every other filter
+  // (dept/jobTitle/manager/course/status/includeInactive) can affect the toolbar itself
+  // (e.g. dept changes the Job Title options) so those still do a full pane rebuild.
+  if(key==='q' && _trnTab==='matrix') trnUpdateMatrixResults();
+  else trnRenderPane();
 }
 function trnMatrixPage(delta){
   _trnMatrixPage += delta;
-  trnRenderPane();
+  if(_trnTab==='matrix') trnUpdateMatrixResults();
+  else trnRenderPane();
 }
 function trnExportMatrix(filteredOnly){
   withBusy('Preparing Training Matrix Excel…', function(){ trnExportMatrixWork(filteredOnly); });
@@ -848,9 +875,22 @@ function trnClosePicker(){
 function trnRenderPicker(){
   var body = document.getElementById('training-picker-body');
   if(!body) return;
+  body.innerHTML = trnBuildPickerHead() + '<div id="trn-picker-results">' + trnBuildPickerResults() + '</div>';
+}
+// Filters row only — rebuilt when the department select changes, NOT on every search
+// keystroke (see trnPickerSearch), so the search <input> stays alive and keeps focus.
+function trnBuildPickerHead(){
   var deptOpts = ['<option value="all">All Departments</option>'].concat(trnDeptCodes().map(function(d){
     return '<option value="'+escHtml(d)+'"'+(_trnPickerCtx.dept===d?' selected':'')+'>'+escHtml(d)+'</option>';
   })).join('');
+  return '<div class="trn-filters">'
+      + '<input type="text" placeholder="Search name or ID…" value="'+escHtml(_trnPickerCtx.q)+'" oninput="trnPickerSearch(this.value)"/>'
+      + '<select onchange="trnPickerDept(this.value)">'+deptOpts+'</select>'
+      + '<button type="button" class="btn-ghost" onclick="trnPickerSelectAllVisible()">Select All Visible</button>'
+    + '</div>';
+}
+// Employee checkbox list only — this is what re-renders on every search keystroke.
+function trnBuildPickerResults(){
   var addedIds = _trnFormAttendees.map(function(a){return a.empId;}).filter(Boolean);
   var matches = trnEmployees().filter(function(e){
     if(trnIsExcluded(e)) return false;
@@ -871,15 +911,15 @@ function trnRenderPicker(){
     var already = addedIds.indexOf(e.id)>=0;
     return '<label class="trn-pick-row'+(already?' trn-pick-added':'')+'"><input type="checkbox" data-emp="'+escHtml(e.id)+'" '+(already?'checked disabled':'')+'/> <b>'+escHtml(e.name)+'</b><span class="trn-sub">'+escHtml(e.id)+' · '+escHtml(e.department)+' · '+escHtml(e.jobTitle)+'</span></label>';
   }).join('');
-  body.innerHTML = '<div class="trn-filters">'
-      + '<input type="text" placeholder="Search name or ID…" value="'+escHtml(_trnPickerCtx.q)+'" oninput="trnPickerSearch(this.value)"/>'
-      + '<select onchange="trnPickerDept(this.value)">'+deptOpts+'</select>'
-      + '<button type="button" class="btn-ghost" onclick="trnPickerSelectAllVisible()">Select All Visible</button>'
-    + '</div>'
-    + '<div class="trn-pick-list" id="trn-pick-list">'+(rows||'<div class="empty-state empty-state-sm">No matching employees</div>')+'</div>'
+  return '<div class="trn-pick-list" id="trn-pick-list">'+(rows||'<div class="empty-state empty-state-sm">No matching employees</div>')+'</div>'
     + (matches.length>cap?'<div class="empty-state-hint" style="margin-top:6px">Showing first '+cap+' of '+matches.length+' — refine your search.</div>':'');
 }
-function trnPickerSearch(v){ _trnPickerCtx.q = v; trnRenderPicker(); }
+function trnUpdatePickerResults(){
+  var results = document.getElementById('trn-picker-results');
+  if(!results){ trnRenderPicker(); return; }
+  results.innerHTML = trnBuildPickerResults();
+}
+function trnPickerSearch(v){ _trnPickerCtx.q = v; trnUpdatePickerResults(); }
 function trnPickerDept(v){ _trnPickerCtx.dept = v; trnRenderPicker(); }
 function trnPickerSelectAllVisible(){
   document.querySelectorAll('#trn-pick-list input[type="checkbox"]:not(:disabled)').forEach(function(cb){ cb.checked = true; });
@@ -1047,9 +1087,9 @@ function trnSaveTBT(){
 }
 
 /* ================================ RECORDS ARCHIVE ================================ */
-function trnBuildRecords(){
+function trnFilteredRecordsArr(){
   var f = _trnRecordsFilter;
-  var records = trnRecordsArr().filter(function(r){
+  return trnRecordsArr().filter(function(r){
     if(f.type!=='all' && r.formType!==f.type) return false;
     if(f.q){
       var q = f.q.toLowerCase();
@@ -1058,9 +1098,16 @@ function trnBuildRecords(){
     }
     return true;
   }).sort(function(a,b){ return new Date(b.date||b.timestamp||0) - new Date(a.date||a.timestamp||0); });
-
-  var head = '<div class="trn-toolbar"><div class="page-title" style="margin:0">Training Records</div>'
-    + '<span class="empty-state-hint" style="margin-left:6px">'+records.length+' record(s)</span></div>'
+}
+function trnBuildRecords(){
+  return trnBuildRecordsHead() + '<div id="trn-rec-results">' + trnBuildRecordsResults() + '</div>';
+}
+// Toolbar + filters only — rebuilt on the type-select change, NOT on every search keystroke
+// (see trnRecordsFilterChange), so the search <input> stays alive and keeps focus while typing.
+function trnBuildRecordsHead(){
+  var f = _trnRecordsFilter;
+  return '<div class="trn-toolbar"><div class="page-title" style="margin:0">Training Records</div>'
+    + '<span class="empty-state-hint" id="trn-rec-count" style="margin-left:6px">'+trnFilteredRecordsArr().length+' record(s)</span></div>'
     + '<div class="trn-filters">'
       + '<input type="text" placeholder="Search title, trainer, attendee…" value="'+escHtml(f.q)+'" oninput="trnRecordsFilterChange(\'q\',this.value)"/>'
       + '<select onchange="trnRecordsFilterChange(\'type\',this.value)">'
@@ -1069,12 +1116,15 @@ function trnBuildRecords(){
         + '<option value="tbt"'+(f.type==='tbt'?' selected':'')+'>Toolbox Talk (F/HSE/101)</option>'
       + '</select>'
     + '</div>';
-
+}
+// Record cards only — this is what re-renders on every search keystroke.
+function trnBuildRecordsResults(){
+  var records = trnFilteredRecordsArr();
   if(!records.length){
-    return head + '<div class="empty-state"><div class="empty-state-icon">🗂</div><div class="empty-state-title">No training records yet</div><div class="empty-state-hint">Use the Forms tab to log an Attendance or Toolbox Talk session.</div></div>';
+    return '<div class="empty-state"><div class="empty-state-icon">🗂</div><div class="empty-state-title">No training records yet</div><div class="empty-state-hint">Use the Forms tab to log an Attendance or Toolbox Talk session.</div></div>';
   }
 
-  var rows = records.map(function(r){
+  return records.map(function(r){
     var typeTag = r.formType==='tbt' ? '<span style="color:#2563eb;font-weight:800">TBT · F/HSE/101</span>' : '<span style="color:#b91c1c;font-weight:800">Attendance · F/HSE/102</span>';
     var titleTxt = r.formType==='tbt' ? (r.topic || '(untitled Toolbox Talk)') : (r.title || '(untitled)');
     return '<div class="pro-list-card">'
@@ -1088,10 +1138,19 @@ function trnBuildRecords(){
       + '</div>'
       + '</div>';
   }).join('');
-
-  return head + rows;
 }
-function trnRecordsFilterChange(key, val){ _trnRecordsFilter[key] = val; trnRenderPane(); }
+function trnUpdateRecordsResults(){
+  var results = document.getElementById('trn-rec-results');
+  if(!results){ trnRenderPane(); return; }
+  results.innerHTML = trnBuildRecordsResults();
+  var countEl = document.getElementById('trn-rec-count');
+  if(countEl) countEl.textContent = trnFilteredRecordsArr().length + ' record(s)';
+}
+function trnRecordsFilterChange(key, val){
+  _trnRecordsFilter[key] = val;
+  if(key==='q' && _trnTab==='records') trnUpdateRecordsResults();
+  else trnRenderPane();
+}
 function trnEditRecord(id){
   var r = trnRecordsArr().filter(function(x){return x.id===id;})[0];
   if(!r){ showToast('Record not found','red'); return; }

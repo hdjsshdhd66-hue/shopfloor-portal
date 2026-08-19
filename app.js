@@ -2681,17 +2681,9 @@ function submitAccessRequest(){
   document.getElementById('ar-confirm-view').style.display = 'block';
 }
 
-// ============================================================
-// OWNER PANEL — private, discreet entry point on the portal
-// selection screen. Only reachable via the small  icon + code.
-// This is where account access requests are reviewed — regular
-// staff never see these, unlike normal portal notifications.
-// ============================================================
 // NOTE: Client-side SHA-256 hashes only raise the bar against casual
 // View Source / DevTools inspection. They do NOT make this secure —
 // true security requires server-side authentication.
-const OWNER_CODE_HASH = '1201fa0b92b169a98533346e7d1bba6e94eadca0108d04343851149e25a255ab';
-
 async function sha256Hex(str){
   const data = new TextEncoder().encode(String(str==null?'':str));
   const buf = await crypto.subtle.digest('SHA-256', data);
@@ -2704,87 +2696,7 @@ async function matchesSecretHash(input, hashHex){
   }catch(e){ return false; }
 }
 
-function openOwnerGate(){
-  document.getElementById('owner-code-input').value = '';
-  document.getElementById('owner-code-error').textContent = '';
-  document.getElementById('owner-gate-modal').style.display = 'flex';
-  setTimeout(function(){ document.getElementById('owner-code-input').focus(); }, 100);
-}
-function closeOwnerGate(){
-  document.getElementById('owner-gate-modal').style.display = 'none';
-}
-async function checkOwnerCode(){
-  const val = document.getElementById('owner-code-input').value;
-  if(await matchesSecretHash(val, OWNER_CODE_HASH)){
-    closeOwnerGate();
-    openOwnerPanel();
-  } else {
-    document.getElementById('owner-code-error').textContent = ' Incorrect code.';
-  }
-}
-function openOwnerPanel(){
-  renderOwnerRequests();
-  document.getElementById('owner-panel-modal').style.display = 'flex';
-}
-function closeOwnerPanel(){
-  document.getElementById('owner-panel-modal').style.display = 'none';
-}
-function renderOwnerRequests(){
-  const list = document.getElementById('owner-requests-list');
-  if(!accessRequests.length){
-    list.innerHTML = '<div style="text-align:center;padding:30px;color:#9ca3af;font-size:.85rem">No access requests yet</div>';
-    return;
-  }
-  const sorted = accessRequests.map(function(r,i){ return Object.assign({_idx:i}, r); }).reverse();
-  list.innerHTML = sorted.map(function(r){
-    const portalName = PORTAL_DISPLAY_NAMES[r.portal] || r.portal || '—';
-    const isReviewed = r.status === 'reviewed';
-    const statusColor = isReviewed ? '#16a34a' : '#d97706';
-    const statusBg = isReviewed ? '#d1fae5' : '#fef3c7';
-    const time = new Date(r.timestamp).toLocaleString();
-    var contact = r.contactMethod==='phone'?(r.phone||'—'):(r.email||'—');
-    return '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:10px">'
-      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
-      + '<div><div style="font-weight:800;font-size:.88rem;color:#1e3a5f">'+escHtml(r.name)+'</div>'
-      + '<div style="font-size:.74rem;color:#6b7280;margin-top:2px">'+escHtml(r.role)+' · '+escHtml(portalName)+'</div>'
-      + '<div style="font-size:.72rem;color:#7C3AED;margin-top:3px;font-weight:700">'+escHtml(contact)+'</div></div>'
-      + '<span style="background:'+statusBg+';color:'+statusColor+';font-size:.68rem;font-weight:800;padding:3px 9px;border-radius:99px;white-space:nowrap;flex-shrink:0">'+(isReviewed?'Reviewed':'Pending')+'</span>'
-      + '</div>'
-      + '<div style="font-size:.78rem;color:#374151;margin-top:8px;line-height:1.5">'+escHtml(r.reason)+'</div>'
-      + '<div style="font-size:.68rem;color:#9ca3af;margin-top:8px">Ref: '+escHtml(r.ref)+' · '+escHtml(time)+'</div>'
-      + '<div style="display:flex;gap:8px;margin-top:10px">'
-      + (isReviewed ? '' : '<button type="button" onclick="markRequestReviewed('+r._idx+')" style="background:#eff6ff;color:#1e3a5f;border:none;border-radius:6px;padding:5px 10px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit">Mark Reviewed</button>')
-      + '<button type="button" onclick="deleteAccessRequest('+r._idx+')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:5px 10px;font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit">Delete</button>'
-      + '</div>'
-      + '</div>';
-  }).join('');
-}
-function markRequestReviewed(idx){
-  if(accessRequests[idx]){ accessRequests[idx].status = 'reviewed'; saveState(); renderOwnerRequests(); }
-}
-function deleteAccessRequest(idx){
-  if(!confirm('Delete this request?')) return;
-  accessRequests.splice(idx,1);
-  saveState();
-  renderOwnerRequests();
-}
-function enableOwnerEditMode(){
-  adminMode = true;
-  document.body.classList.add('admin-active');
-  const btn = document.getElementById('owner-edit-btn');
-  btn.textContent = ' Edit Mode Enabled';
-  btn.style.background = '#d1fae5';
-  btn.style.color = '#16a34a';
-  btn.style.borderColor = '#bbf7d0';
-  // Keep the in-portal header button visually in sync too
-  const headerBtn = document.getElementById('admin-btn');
-  if(headerBtn){
-    headerBtn.style.background = '#16a34a';
-    headerBtn.style.color = '#fff';
-    headerBtn.textContent = ' Edit Mode ON';
-  }
-}
-// SHA-256 of portal passwords (not plaintext). See note at OWNER_CODE_HASH.
+// SHA-256 of portal passwords (not plaintext) — see the SHA-256 note above.
 const SYSTEM_PASSWORD_HASH = '8301da6aa01a6a89a0d23cee67dc18644389d99108b189ce746a7828c77206c0';
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 10;
@@ -2965,7 +2877,7 @@ function resetIdleTimer(){
 // ============================================================
 // ADMIN EDIT MODE (PIN hidden from UI)
 // ============================================================
-// SHA-256 of admin PIN (not plaintext). See note at OWNER_CODE_HASH.
+// SHA-256 of admin PIN (not plaintext) — see the SHA-256 note near sha256Hex().
 const ADMIN_PIN_HASH = 'eccdb6968d9f46ae7f5e507ee08e2fc598e8b97bd11b1df004ef68fdef50e00a';
 let adminMode = false;
 function escHtml(s){
@@ -5475,82 +5387,31 @@ function getFilterLastCheck(rid){
   return latest;
 }
 
-function filterSubTab(tab){
-  document.querySelectorAll('[data-filtab]').forEach(function(b){
-    b.classList.toggle('active', b.getAttribute('data-filtab')===tab);
-  });
-  var refEl  = document.getElementById('filt-sub-ref');
-  var chkEl  = document.getElementById('filt-sub-check');
-  if(refEl)  refEl.style.display  = tab==='ref'  ? 'block' : 'none';
-  if(chkEl)  chkEl.style.display  = tab==='check'? 'block' : 'none';
-  if(tab==='check') renderSifterCheckForm();
-}
-
-var sifterCheckState = {};
-
-function renderSifterCheckForm(){
-  var tbody = document.getElementById('sfc-tbody');
-  if(!tbody) return;
-  if(!document.getElementById('sfc-date').value)
-    document.getElementById('sfc-date').value = new Date().toISOString().split('T')[0];
+// Print the current Filters & Sifters inspection (F/QFS/09) using the same reliable
+// print-preview mechanism as the rest of the app. Sources the live filterLog/getFilterKey
+// data model (the same one renderFilters()/saveFilterInspection() write to) — this replaces
+// an older printSifterForm()/sifterCheckState implementation that was never wired to any
+// visible button and had already been superseded by the current Filters & Sifters tab.
+function printFilterInspection(){
+  var date = (document.getElementById('filt-date')||{}).value || new Date().toISOString().split('T')[0];
+  var key = getFilterKey();
+  var saved = filterLog[key] || {};
+  var monitor = saved._savedBy || (currentUser&&currentUser.name) || '';
   var rows = '';
   FILTERS_DATA.forEach(function(item, i){
-    var s = sifterCheckState[i]||{};
-    var alt = i%2===0?'#f8fafc':'#fff';
-    function cb(field, label){
-      return '<td style="padding:6px;text-align:center;border-right:1px solid #f1f5f9">'
-        +'<input type="checkbox"'+(s[field]?' checked':'')
-        +' onchange="setSFC('+i+',\''+field+'\',this.checked)" style="width:15px;height:15px;cursor:pointer"/></td>';
-    }
-    rows += '<tr style="background:'+alt+';border-bottom:1px solid #e5e7eb">';
-    rows += '<td style="padding:6px 8px;text-align:center;color:#9ca3af;font-size:.75rem;border-right:1px solid #e2e8f0">'+(i+1)+'</td>';
-    rows += '<td style="padding:6px 8px;font-size:.78rem;color:#374151;border-right:1px solid #e2e8f0">'+item.line+'</td>';
-    rows += '<td style="padding:6px 8px;font-size:.78rem;color:#374151;border-right:1px solid #e2e8f0">'+item.location+'</td>';
-    rows += '<td style="padding:6px 8px;text-align:center;font-size:.78rem;font-weight:700;color:#7c3aed;border-right:1px solid #e2e8f0">'+item.size+'</td>';
-    rows += '<td style="padding:6px 8px;font-size:.72rem;color:#374151;border-right:1px solid #e2e8f0">CLEAN?<br>UNDAMAGED?<br>POSITION RIGHT?</td>';
-    rows += cb('mon_y'); rows += cb('mon_n');
-    rows += cb('ca_cleaned'); rows += cb('ca_changed'); rows += cb('ca_rightpos');
-    rows += cb('ver_y'); rows += cb('ver_n');
-    rows += '<td style="padding:4px 6px"><input type="text" value="'+(s.note||'')+'" onchange="setSFC('+i+',\'note\',this.value)" placeholder="..." style="border:none;outline:none;width:100%;font-size:.75rem;font-family:inherit"/></td>';
-    rows += '</tr>';
-  });
-  tbody.innerHTML = rows;
-}
-
-function setSFC(i, field, val){
-  if(!sifterCheckState[i]) sifterCheckState[i]={};
-  sifterCheckState[i][field] = val;
-}
-
-function saveSifterCheck(){
-  var date = document.getElementById('sfc-date')?.value;
-  if(!date){ showToast('Please select date','red'); return; }
-  if(!filterLog) filterLog={};
-  filterLog['sfc_'+date]={date:date,monitor:document.getElementById('sfc-monitor')?.value||'',state:JSON.parse(JSON.stringify(sifterCheckState)),timestamp:new Date().toISOString()};
-  saveState();
-  showToast('Sifter/Filter check saved','green');
-}
-
-function printSifterForm(){
-  var date = document.getElementById('sfc-date')?.value||'';
-  var monitor = document.getElementById('sfc-monitor')?.value||'';
-  var rows='';
-  FILTERS_DATA.forEach(function(item,i){
-    var s=sifterCheckState[i]||{};
-    function ch(f){ return s[f]?'&#10003;':''; }
-    rows+='<tr><td style="text-align:center">'+(i+1)+'</td><td>'+item.line+'</td><td>'+item.location+'</td>';
-    rows+='<td style="text-align:center">'+item.size+'</td><td style="font-size:9px">CLEAN?<br>UNDAMAGED?<br>POSITION RIGHT?</td>';
-    rows+='<td style="text-align:center;color:#16a34a;font-weight:700">'+ch('mon_y')+'</td><td style="text-align:center;color:#dc2626;font-weight:700">'+ch('mon_n')+'</td>';
-    rows+='<td style="text-align:center">'+ch('ca_cleaned')+'</td><td style="text-align:center">'+ch('ca_changed')+'</td><td style="text-align:center">'+ch('ca_rightpos')+'</td>';
-    rows+='<td style="text-align:center;color:#16a34a;font-weight:700">'+ch('ver_y')+'</td><td style="text-align:center;color:#dc2626;font-weight:700">'+ch('ver_n')+'</td>';
-    rows+='<td>'+(s.note||'')+'</td></tr>';
+    var rid = 'f'+i;
+    var status = saved[rid] || '—';
+    var by = saved['_by_'+rid] || '';
+    rows += '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+printEsc(item.line)+'</td><td>'+printEsc(item.location)+'</td>'
+      + '<td style="text-align:center">'+printEsc(item.size)+'</td><td>'+printEsc(item.type)+'</td><td style="font-size:9px">'+printEsc(item.freq)+'</td>'
+      + '<td style="text-align:center;font-weight:700">'+printEsc(status)+'</td><td>'+printEsc(by)+'</td></tr>';
   });
   var css = 'h1{color:#1e3a5f;font-size:14px;margin:0 0 6px}table{width:100%;border-collapse:collapse;font-size:10px}'+
     'th{background:linear-gradient(135deg,#4C1D95,#7C3AED);color:#fff;padding:6px;text-align:center;font-size:9px;border:1px solid #fff}'+
     'td{padding:5px 6px;border:1px solid #e2e8f0;color:#111}.sig{border-top:2px solid #1e3a5f;padding-top:6px;margin-top:20px}';
   var body =
-    '<div style="display:flex;justify-content:space-between;margin-bottom:10px;gap:10px;flex-wrap:wrap"><div><h1>SIFTER / FILTER CONTROL FORM — F/QFS/09</h1><p>Date: <b>'+date+'</b> | Monitored By: <b>'+monitor+'</b></p></div><div style="text-align:right;font-size:9px;color:#6b7280">DOC. NO: F/QFS/09<br>REV NO: 03 | 10.01.2022</div></div>'+
-    '<table><tr><th>#</th><th style="text-align:left">Line</th><th style="text-align:left">Location</th><th>Size mm</th><th>Checking Type</th><th>Mon. Y</th><th>Mon. N</th><th>Cleaned</th><th>Changed</th><th>Right Pos.</th><th>Ver. Y</th><th>Ver. N</th><th style="text-align:left">Explanation</th></tr>'+rows+'</table>'+
+    '<div style="display:flex;justify-content:space-between;margin-bottom:10px;gap:10px;flex-wrap:wrap"><div><h1>SIFTER / FILTER CONTROL FORM — F/QFS/09</h1><p>Date: <b>'+printEsc(date)+'</b> | Saved By: <b>'+printEsc(monitor)+'</b></p></div><div style="text-align:right;font-size:9px;color:#6b7280">DOC. NO: F/QFS/09<br>REV NO: 03 | 10.01.2022</div></div>'+
+    '<table><tr><th>#</th><th style="text-align:left">Line</th><th style="text-align:left">Location</th><th>Size mm</th><th style="text-align:left">Ingredient</th><th style="text-align:left">Frequency</th><th>Status</th><th style="text-align:left">Checked By</th></tr>'+rows+'</table>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:20px"><div class="sig">MONITORED BY — QA Officer<br><br>Name/Date/Sign</div><div class="sig">CONTROLLED BY — Line Leader<br><br>Name/Date/Sign</div><div class="sig">VERIFIED BY — QA Team Leader<br><br>Name/Date/Sign</div></div>'+
     '<p style="font-size:8px;color:#9ca3af;text-align:center;margin-top:10px">ISSUED NO: 00 · ISSUED ON: 12.04.2011 · REV NO: 03 · REV DATE: 10.01.2022</p>';
   openPrintPreview('Sifter/Filter Control Form', body, css);
@@ -5624,7 +5485,6 @@ function printClearanceForm(lineIdx){
 }
 
 function printWO(){
-  var w = window.open('','_blank','width=900,height=700');
   var rows='';
   maintData.workOrders.forEach(function(wo,i){
     var sc={Open:'#2563eb','In Progress':'#d97706',Completed:'#16a34a',Cancelled:'#9ca3af'};
@@ -5637,12 +5497,11 @@ function printWO(){
     rows+='<td style="text-align:center"><span style="color:'+c+';font-weight:700">'+wo.status+'</span></td>';
     rows+='<td>'+wo.assignedTo+'</td><td>'+wo.date+'</td></tr>';
   });
-  w.document.write('<!DOCTYPE html><html><head><title>Work Orders Report</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px}h1{color:#0d4a44;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#0d4a44;color:#fff;padding:8px 10px;text-align:left;border:1px solid #fff;font-size:10px}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}@media print{body{padding:10px}}</style></head><body>');
-  w.document.write('<h1>WORK ORDERS REPORT</h1>');
-  w.document.write('<p>Total: <b>'+maintData.workOrders.length+'</b> | Open: <b style="color:#2563eb">'+maintData.workOrders.filter(function(w){return w.status==='Open';}).length+'</b> | Completed: <b style="color:#16a34a">'+maintData.workOrders.filter(function(w){return w.status==='Completed';}).length+'</b> | Generated: '+new Date().toLocaleDateString()+'</p>');
-  w.document.write('<table><tr><th>WO#</th><th>Line</th><th>Equipment</th><th>Priority</th><th>Description</th><th>Status</th><th>Assigned To</th><th>Date</th></tr>'+rows+'</table>');
-  w.document.write('</body></html>');
-  w.document.close();
+  var css = 'h1{color:#0d4a44;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#0d4a44;color:#fff;padding:8px 10px;text-align:left;border:1px solid #fff;font-size:10px}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}';
+  var body = '<h1>WORK ORDERS REPORT</h1>'
+    + '<p>Total: <b>'+maintData.workOrders.length+'</b> | Open: <b style="color:#2563eb">'+maintData.workOrders.filter(function(w){return w.status==='Open';}).length+'</b> | Completed: <b style="color:#16a34a">'+maintData.workOrders.filter(function(w){return w.status==='Completed';}).length+'</b> | Generated: '+new Date().toLocaleDateString()+'</p>'
+    + '<table><tr><th>WO#</th><th>Line</th><th>Equipment</th><th>Priority</th><th>Description</th><th>Status</th><th>Assigned To</th><th>Date</th></tr>'+rows+'</table>';
+  openPrintPreview('Work Orders Report', body, css);
 }
 
 function renderFilters(){
@@ -6145,12 +6004,8 @@ function renderManagerDash(){
 
 function printManagerReport(){
   const now = new Date();
-  const tab = currentMgrTab || 'week';
   const lbl = document.getElementById('mgr-week-label').textContent;
-  const w = window.open('','_blank','width=900,height=800');
-  w.document.write(`<!DOCTYPE html><html><head><title>Manager Report — ${lbl}</title>
-  <style>body{font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;padding:24px;font-size:12px;color:#111}
-  h1{color:#4C1D95;font-size:18px;margin:0 0 4px}
+  const css = `h1{color:#4C1D95;font-size:18px;margin:0 0 4px}
   .meta{color:#6b7280;font-size:11px;margin-bottom:20px}
   .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
   .kpi{border:1.5px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center}
@@ -6161,10 +6016,8 @@ function printManagerReport(){
   td{padding:6px 7px;border-bottom:1px solid #f1f5f9}
   tr:nth-child(even)td{background:#f8fafc}
   h2{color:#4C1D95;font-size:13px;margin:18px 0 8px;border-bottom:2px solid #4C1D95;padding-bottom:4px}
-  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700}
-  @media print{body{padding:12px}}
-  </style></head><body>
-  <h1>pladis — Manager Quality Report</h1>
+  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700}`;
+  const body = `<h1>pladis — Manager Quality Report</h1>
   <div class="meta">Period: ${lbl} &nbsp;|&nbsp; Generated: ${now.toLocaleString()} &nbsp;|&nbsp; By: ${currentUser?.name||'—'}</div>
 
   <div class="kpi-grid">
@@ -6195,10 +6048,8 @@ function printManagerReport(){
   ${holdPallets.filter(p=>!p.released).length?`<h2>Pallets On Hold</h2>
   <table><tr><th>Date</th><th>Pallet</th><th>Product</th><th>Qty</th><th>Reason</th></tr>
   ${holdPallets.filter(p=>!p.released).map(p=>`<tr><td>${p.date||'—'}</td><td>${p.pallet||'—'}</td><td>${p.prod||'—'}</td><td>${p.qty||'—'}</td><td>${(p.reason||'').slice(0,60)}</td></tr>`).join('')}
-  </table>`:''}
-
-  </body></html>`);
-  w.document.close();
+  </table>`:''}`;
+  openPrintPreview('Manager Report — '+lbl, body, css);
 }
 
 
@@ -6206,7 +6057,7 @@ function printManagerReport(){
 // PORTAL SELECTION & DUAL LOGIN SYSTEM
 // ============================================================
 let currentPortal = null;
-// SHA-256 of portal passwords (not plaintext). See note at OWNER_CODE_HASH.
+// SHA-256 of portal passwords (not plaintext) — see the SHA-256 note near sha256Hex().
 const SAFETY_PASSWORD_HASH = '03c68087ce7d15c847fdf4f8bc7abcaf8c13f23664ebbff0f096e7ca4dc46621';
 const MAINTENANCE_PASSWORD_HASH = '29e59dc4fcde821f52fd529364214a6e4e6c15a3c16e3fd7a0e96a53ceb37b44';
 const PRODUCTION_PASSWORD_HASH = '29e59dc4fcde821f52fd529364214a6e4e6c15a3c16e3fd7a0e96a53ceb37b44';
@@ -7527,11 +7378,8 @@ function printIncident(i){
   if(r.photos&&r.photos.length){
     body += '<div class="part">Pictures</div>'+r.photos.map(function(p){return '<img src="'+p+'" alt="Uploaded evidence photo" style="max-width:220px;margin:6px;border:1px solid #ddd"/>';}).join('');
   }
-  var w=window.open('','_blank','width=900,height=1000');
-  if(!w){ showToast('Allow popups to print','red'); return; }
-  w.document.write('<html><head><title>'+title+'</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#111}table{width:100%;border-collapse:collapse;margin-top:12px}td{border:1px solid #ddd;padding:8px;vertical-align:top;font-size:12px}.k{width:18%;background:#f8fafc;font-weight:700;color:#4C1D95}.part{margin-top:18px;font-weight:800;color:#991b1b}</style></head><body>'+body+'</body></html>');
-  w.document.close();
-  try{ w.focus(); w.print(); }catch(e){}
+  var css = 'table{width:100%;border-collapse:collapse;margin-top:12px}td{border:1px solid #ddd;padding:8px;vertical-align:top;font-size:12px}.k{width:18%;background:#f8fafc;font-weight:700;color:#4C1D95}.part{margin-top:18px;font-weight:800;color:#991b1b}';
+  openPrintPreview(title, body, css);
 }
 
 // Official app logo asset (same file used app-wide for the header/splash),
@@ -8107,6 +7955,34 @@ function renderDailyChecklist(){
 function setDI(key,val){
   diAnswers[key]=val;
   renderDailyChecklist();
+}
+
+// Print the in-progress Daily Inspection form (before it's been submitted) — reuses the
+// same print-preview mechanism and F.HSE.130 layout as viewDailyInspection() (which only
+// prints already-saved records), sourcing from the live diAnswers state + form fields.
+function printCurrentDailyInspection(){
+  const DI_CAT_COLORS_MAP = {FIRE:'#dc2626','CHEMICALS':'#d97706','ENVIRONMENT':'#16a34a','HOUSEKEEPING':'#2563eb','FIRST AID':'#7c3aed','MACHINERY & EQUIPMENT':'#0891b2','FORKLIFT OPERATION':'#ea580c','BATTERY CHARGING':'#0d9488','STORAGE PRACTICES':'#64748b','PPE':'#1e3a5f','REPORTING & RESPONSE':'#0f766e','ERGONOMICS':'#a21caf','TRAINING & COMMUNICATION':'#b45309','EMERGENCY PREPAREDNESS':'#dc2626'};
+  let tbody='';
+  DAILY_INSPECTION_ITEMS.forEach((sec,si)=>{
+    const col=DI_CAT_COLORS_MAP[sec.cat]||'#1e3a5f';
+    tbody+=`<tr><td colspan="2" style="background:${col};color:#fff;font-weight:700;padding:5px 8px;font-size:10px">${printEsc(sec.cat)}</td></tr>`;
+    sec.items.forEach((item,ii)=>{
+      const key=`di_${si}_${ii}`;
+      const val=diAnswers[key];
+      const shown = (val==null || val==='') ? '—' : val;
+      const color = shown==='√'||shown==='✓'||shown==='OK'||shown==='PASS' ? '#16a34a'
+        : (shown==='X'||shown==='FAIL'||shown==='NO' ? '#dc2626' : '#374151');
+      tbody+=`<tr><td style="padding:4px 7px;border:1px solid #e2e8f0;font-size:10px;color:#111827">${printEsc(item)}</td><td style="padding:4px 7px;border:1px solid #e2e8f0;text-align:center;font-weight:800;font-size:11px;color:${color}">${printEsc(shown)}</td></tr>`;
+    });
+  });
+  const css = 'table{width:100%;border-collapse:collapse;font-size:11px}h2{color:#1e3a5f;margin:0 0 8px}';
+  const plant=(document.getElementById('di-plant')||{}).value||'—';
+  const date=(document.getElementById('di-date')||{}).value||'—';
+  const shift=(document.getElementById('di-shift')||{}).value||'—';
+  const inspector=(document.getElementById('di-inspector')||{}).value||'—';
+  const comments=(document.getElementById('di-comments')||{}).value||'—';
+  const body = `<h2>Daily HSE Inspection — F.HSE.130</h2><p style="color:#b45309;font-weight:700;font-size:11px">DRAFT — not yet submitted</p><p><b>Plant:</b> ${printEsc(plant)} | <b>Date:</b> ${printEsc(date)} | <b>Shift:</b> ${printEsc(shift)} | <b>Inspector:</b> ${printEsc(inspector)}</p><table>${tbody}</table><p><b>Comments:</b> ${printEsc(comments)}</p>`;
+  openPrintPreview('Daily Inspection (Draft)', body, css);
 }
 
 function saveDailyInspection(){
@@ -8955,23 +8831,11 @@ const PORTAL_PRINT_CSS = `
 `;
 
 function openPortalPrint(docTitle, bodyHtml){
-  // Prefer hidden iframe print — avoids browser popup blockers
-  const htmlDoc = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${docTitle}</title><style>${PORTAL_PRINT_CSS}</style></head><body>${bodyHtml}</body></html>`;
-  let frame = document.getElementById('portal-print-frame');
-  if(!frame){
-    frame = document.createElement('iframe');
-    frame.id = 'portal-print-frame';
-    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none';
-    document.body.appendChild(frame);
-  }
-  try{
-    const doc = frame.contentDocument || frame.contentWindow.document;
-    doc.open(); doc.write(htmlDoc); doc.close();
-    setTimeout(function(){ try{ frame.contentWindow.focus(); frame.contentWindow.print(); }catch(e){} }, 220);
-    return frame.contentWindow;
-  }catch(e){
-    return openPrintPreview(docTitle, bodyHtml, PORTAL_PRINT_CSS);
-  }
+  // Routed through the same reliable in-app Preview -> Back / Print flow used everywhere
+  // else (openPrintPreview) instead of a hidden auto-printing iframe — this was already
+  // the function's own fallback path (see below), now made the primary path so every
+  // caller gets a visible preview with no silent/blocked print attempts.
+  return openPrintPreview(docTitle, bodyHtml, PORTAL_PRINT_CSS);
 }
 
 /** In-app print preview with Close + Print — safe on mobile (no stuck blank tab). */
@@ -9481,8 +9345,6 @@ function printFullScoringReport(){
   try{var s=localStorage.getItem('pqs_scoring');if(s)scoringList=JSON.parse(s);}catch(e){}
   if(!scoringList||!scoringList.length){showToast('No evaluations to export','red');return;}
 
-  var w=window.open('','_blank','width=1100,height=900');
-
   // Summary stats
   var exc=scoringList.filter(function(e){return e.result==='Exceeding';}).length;
   var good=scoringList.filter(function(e){return e.result==='Good';}).length;
@@ -9548,38 +9410,27 @@ function printFullScoringReport(){
     detailHTML+='</table></div>';
   });
 
-  w.document.write('<!DOCTYPE html><html><head><title>Product Scoring — Full Report</title>');
-  w.document.write('<style>body{font-family:Arial,sans-serif;padding:24px;font-size:11px;color:#1e293b}h1{color:#4C1D95;font-size:16px;margin:0 0 4px}h2{color:#1e3a5f;font-size:13px;margin:20px 0 8px}table{width:100%;border-collapse:collapse}th{background:linear-gradient(135deg,#4C1D95,#7C3AED);color:#fff;padding:8px 10px;text-align:center;border:1px solid #fff;font-size:10px}td{font-size:10px}.kpi{text-align:center;padding:12px;border-radius:8px;color:#fff}@media print{body{padding:12px}.no-print{display:none}}</style>');
-  w.document.write('</head><body>');
+  var css = 'h1{color:#4C1D95;font-size:16px;margin:0 0 4px}h2{color:#1e3a5f;font-size:13px;margin:20px 0 8px}table{width:100%;border-collapse:collapse}th{background:linear-gradient(135deg,#4C1D95,#7C3AED);color:#fff;padding:8px 10px;text-align:center;border:1px solid #fff;font-size:10px}td{font-size:10px}.kpi{text-align:center;padding:12px;border-radius:8px;color:#fff}';
 
   // Header
-  w.document.write('<div style="display:flex;justify-content:space-between;margin-bottom:16px;align-items:flex-start">');
-  w.document.write('<div><h1>FINAL PRODUCT EVALUATION — FULL REPORT</h1><p style="color:#6b7280;margin:0">Generated: '+new Date().toLocaleDateString()+' | Pladis Arabia FMC</p></div>');
-  w.document.write('<div style="display:flex;gap:10px">');
+  var kpiHtml = '';
   [['Total',scoringList.length,'#1e3a5f'],['Exceeding',exc,'#16a34a'],['Good',good,'#2563eb'],['Unsatisfactory',unsat,'#dc2626'],['Avg Score',avg,'#d97706'],['Pass Rate',passRate+'%','#0d9488']].forEach(function(k){
-    w.document.write('<div class="kpi" style="background:'+k[2]+'"><div style="font-size:1.3rem;font-weight:900">'+k[1]+'</div><div style="font-size:9px;opacity:.85">'+k[0]+'</div></div>');
+    kpiHtml += '<div class="kpi" style="background:'+k[2]+'"><div style="font-size:1.3rem;font-weight:900">'+k[1]+'</div><div style="font-size:9px;opacity:.85">'+k[0]+'</div></div>';
   });
-  w.document.write('</div></div>');
+  var body2 = '<div style="display:flex;justify-content:space-between;margin-bottom:16px;align-items:flex-start">'
+    + '<div><h1>FINAL PRODUCT EVALUATION — FULL REPORT</h1><p style="color:#6b7280;margin:0">Generated: '+new Date().toLocaleDateString()+' | Pladis Arabia FMC</p></div>'
+    + '<div style="display:flex;gap:10px">'+kpiHtml+'</div></div>'
+    + '<h2>Summary — All Evaluations</h2>'
+    + '<table><tr><th>#</th><th style="text-align:left">Product</th><th>Date</th><th>Shift</th><th>Score</th><th>Result</th><th style="text-align:left">Evaluated By</th><th style="text-align:left">Attendees</th></tr>'+sumRows+'</table>'
+    + '<p style="font-size:10px;color:#dc2626;margin-top:8px"><b>Evaluation Result:</b> The result will be rejected if the minimum score in any criterion or group cannot be achieved, or 70 points in total cannot be obtained.</p>'
+    + '<div style="margin-top:16px;border-top:2px solid #1e3a5f;padding-top:12px"><h2 style="margin-top:0">Detailed Breakdown — Per Product</h2>'+detailHTML+'</div>';
 
-  // Summary table
-  w.document.write('<h2>Summary — All Evaluations</h2>');
-  w.document.write('<table><tr><th>#</th><th style="text-align:left">Product</th><th>Date</th><th>Shift</th><th>Score</th><th>Result</th><th style="text-align:left">Evaluated By</th><th style="text-align:left">Attendees</th></tr>');
-  w.document.write(sumRows+'</table>');
-
-  // Evaluation Result note
-  w.document.write('<p style="font-size:10px;color:#dc2626;margin-top:8px"><b>Evaluation Result:</b> The result will be rejected if the minimum score in any criterion or group cannot be achieved, or 70 points in total cannot be obtained.</p>');
-
-  // Detailed breakdown
-  w.document.write('<div style="margin-top:16px;border-top:2px solid #1e3a5f;padding-top:12px"><h2 style="margin-top:0">Detailed Breakdown — Per Product</h2>'+detailHTML+'</div>');
-
-  w.document.write('</body></html>');
-  w.document.close();
+  openPrintPreview('Product Scoring — Full Report', body2, css);
 }
 
 function printScoring(i){
   try{ var stored=localStorage.getItem('pqs_scoring'); if(stored) scoringList=JSON.parse(stored); }catch(e){}
   var e = scoringList[i];
-  var w = window.open('','_blank','width=900,height=800');
   var rows = '';
   var idx2 = 0;
   SCORING_CRITERIA.forEach(function(grp){
@@ -9595,21 +9446,19 @@ function printScoring(i){
     });
   });
   var resultColor = e.result==='Exceeding'?'#16a34a':e.result==='Good'?'#2563eb':'#dc2626';
-  w.document.write('<!DOCTYPE html><html><head><title>Product Scoring — '+e.product+'</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px}h1{color:#4C1D95;font-size:15px}table{width:100%;border-collapse:collapse}th{background:linear-gradient(135deg,#4C1D95,#7C3AED);color:#fff;padding:7px 10px;text-align:center;border:1px solid #fff}td{padding:5px 10px;border-bottom:1px solid #f1f5f9}.sig{border-top:2px solid #1e3a5f;padding-top:8px;margin-top:20px}@media print{body{padding:10px}}</style></head><body>');
-  w.document.write('<div style="display:flex;justify-content:space-between;margin-bottom:12px"><div><h1>FINAL PRODUCT EVALUATION (SCORING) FORM</h1><p>Product: <b>'+e.product+'</b> | Date: <b>'+e.date+'</b> | Evaluated by: <b>'+e.evaluator+'</b></p></div><div style="text-align:right"><div style="font-size:1.6rem;font-weight:900;color:'+resultColor+'">'+e.total+'/100</div><div style="font-weight:700;color:'+resultColor+'">'+e.result+'</div></div></div>');
-  w.document.write('<table><tr><th style="text-align:left">Criterion</th><th>Full Score</th><th>Min Score</th><th>Points Given</th><th>Status</th></tr>');
-  w.document.write(rows+'</table>');
-  w.document.write('<div style="margin-top:12px;background:#f8fafc;padding:10px;border-radius:6px;font-size:10px;color:#374151"><b>Evaluation Result:</b> The result will be rejected if the minimum score in any criterion or group cannot be achieved, or 70 points in total cannot be obtained.</div>');
-  if(e.attendees.length){ w.document.write('<p style="margin-top:12px"><b>Attendees:</b> '+e.attendees.join(' | ')+'</p>'); }
-  w.document.write('</body></html>');
-  w.document.close();
+  var css = 'h1{color:#4C1D95;font-size:15px}table{width:100%;border-collapse:collapse}th{background:linear-gradient(135deg,#4C1D95,#7C3AED);color:#fff;padding:7px 10px;text-align:center;border:1px solid #fff}td{padding:5px 10px;border-bottom:1px solid #f1f5f9}.sig{border-top:2px solid #1e3a5f;padding-top:8px;margin-top:20px}';
+  var body = '<div style="display:flex;justify-content:space-between;margin-bottom:12px"><div><h1>FINAL PRODUCT EVALUATION (SCORING) FORM</h1><p>Product: <b>'+e.product+'</b> | Date: <b>'+e.date+'</b> | Evaluated by: <b>'+e.evaluator+'</b></p></div><div style="text-align:right"><div style="font-size:1.6rem;font-weight:900;color:'+resultColor+'">'+e.total+'/100</div><div style="font-weight:700;color:'+resultColor+'">'+e.result+'</div></div></div>'
+    + '<table><tr><th style="text-align:left">Criterion</th><th>Full Score</th><th>Min Score</th><th>Points Given</th><th>Status</th></tr>'+rows+'</table>'
+    + '<div style="margin-top:12px;background:#f8fafc;padding:10px;border-radius:6px;font-size:10px;color:#374151"><b>Evaluation Result:</b> The result will be rejected if the minimum score in any criterion or group cannot be achieved, or 70 points in total cannot be obtained.</div>'
+    + (e.attendees.length ? '<p style="margin-top:12px"><b>Attendees:</b> '+e.attendees.join(' | ')+'</p>' : '');
+  openPrintPreview('Product Scoring — '+e.product, body, css);
 }
 
 // HISTORY VIEW
 
 /* Portal BI Hubs — Quality / Safety / Maintenance summary dashboards
    Isolated helpers. Does not alter data models or save paths. */
-var _portalBiFilter = { quality:'all', safety:'all', maint:'all' };
+var _portalBiFilter = { quality:'all', safety:'all', maint:'all', prod:'all' };
 
 function portalBiEsc(s){
   if(typeof escHtml==='function') return escHtml(s);
@@ -9632,14 +9481,15 @@ function setPortalBiFilter(portal, key){
   if(portal==='quality' && typeof renderManagerDash==='function') renderManagerDash();
   else if(portal==='safety' && typeof renderSafetyDash==='function') renderSafetyDash();
   else if(portal==='maint' && typeof renderMaintDash==='function') renderMaintDash();
+  else if(portal==='prod' && typeof renderProdDash==='function') renderProdDash();
 }
 function portalBiShell(opts){
   opts = opts || {};
   var theme = opts.theme || 'quality';
-  var accent = theme==='safety' ? '#c8102e' : theme==='maint' ? '#0f766e' : '#4c1d95';
-  var titleBg = theme==='safety' ? 'linear-gradient(90deg,#fee2e2,#fff1f2)' : theme==='maint' ? 'linear-gradient(90deg,#ccfbf1,#ecfeff)' : 'linear-gradient(90deg,#dbeafe,#eff6ff)';
-  var titleColor = theme==='safety' ? '#7f1d1d' : theme==='maint' ? '#115e59' : '#1e3a5f';
-  var titleBorder = theme==='safety' ? '#fecaca' : theme==='maint' ? '#99f6e4' : '#bfdbfe';
+  var accent = theme==='safety' ? '#c8102e' : theme==='maint' ? '#0f766e' : theme==='prod' ? '#92400e' : '#4c1d95';
+  var titleBg = theme==='safety' ? 'linear-gradient(90deg,#fee2e2,#fff1f2)' : theme==='maint' ? 'linear-gradient(90deg,#ccfbf1,#ecfeff)' : theme==='prod' ? 'linear-gradient(90deg,#fef3c7,#fffbeb)' : 'linear-gradient(90deg,#dbeafe,#eff6ff)';
+  var titleColor = theme==='safety' ? '#7f1d1d' : theme==='maint' ? '#115e59' : theme==='prod' ? '#78350f' : '#1e3a5f';
+  var titleBorder = theme==='safety' ? '#fecaca' : theme==='maint' ? '#99f6e4' : theme==='prod' ? '#fde68a' : '#bfdbfe';
 
   return '<div class="pbi-shell theme-'+theme+'" style="'+(opts.shellStyle||'')+'">'
     +'<div class="pbi-topbar">'
@@ -10413,7 +10263,7 @@ function renderClearance(){
           <input type="radio" name="lc_vis_${rid}" value="U" ${r.vu?'checked':''} onchange="setLC('${idx}','${rid}','vu',true,'vs',false)"/></td>
         <td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;text-align:center" colspan="2">
           <div style="display:flex;align-items:center;gap:6px;justify-content:center">
-            <input type="number" min="0" max="9999" placeholder="—"
+            <input type="number" min="0" max="9999" placeholder="—" id="lc-atp-${idx}-${rid}"
               style="width:65px;border:1px solid #d1d5db;border-radius:5px;padding:3px 6px;font-size:.8rem;text-align:center;outline:none"
               value="${r.atp!==undefined?r.atp:''}"
               oninput="setLCATP('${idx}','${rid}',this.value)"/>
@@ -10483,7 +10333,17 @@ function setLCATP(lineIdx,rid,val){
   lcChecks[key][rid].atp=num;
   if(num!==undefined){lcChecks[key][rid].as=num<=20;lcChecks[key][rid].au=num>20;}
   saveState();
+  // renderClearance() rebuilds the whole table (needed so the live S/U badge updates as you
+  // type) which would normally drop focus/caret after every digit — preserve and restore them.
+  const active = document.activeElement;
+  const activeId = active && active.id;
+  const selStart = active && active.selectionStart;
+  const selEnd = active && active.selectionEnd;
   renderClearance();
+  if(activeId){
+    const el = document.getElementById(activeId);
+    if(el){ el.focus(); if(selStart!=null && el.setSelectionRange) el.setSelectionRange(selStart, selEnd); }
+  }
 }
 function setLCNote(lineIdx,rid,val){
   const key=getLCKey(lineIdx, getLCDate());
@@ -13623,7 +13483,6 @@ function saveSP(){
 }
 
 function printPMSchedule(){
-  var w = window.open('','_blank','width=1000,height=700');
   var rows = '';
   maintData.pmList.forEach(function(p,i){
     var sc={Completed:'#16a34a',Overdue:'#dc2626','In Progress':'#d97706',Pending:'#6b7280'};
@@ -13638,16 +13497,14 @@ function printPMSchedule(){
   });
   var overdueCount = maintData.pmList.filter(function(p){return p.status==='Overdue';}).length;
   var doneCount = maintData.pmList.filter(function(p){return p.status==='Completed';}).length;
-  w.document.write('<!DOCTYPE html><html><head><title>PM Schedule Report</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px}h1{color:#0d4a44;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#0d4a44;color:#fff;padding:8px 10px;text-align:left;border:1px solid #fff;font-size:10px}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}@media print{body{padding:10px}}</style></head><body>');
-  w.document.write('<h1>PREVENTIVE MAINTENANCE SCHEDULE</h1>');
-  w.document.write('<p>Total: <b>'+maintData.pmList.length+'</b> | Completed: <b style="color:#16a34a">'+doneCount+'</b> | Overdue: <b style="color:#dc2626">'+overdueCount+'</b> | Generated: '+new Date().toLocaleDateString()+'</p>');
-  w.document.write('<table><tr><th>Line</th><th>Equipment</th><th>Task</th><th>Frequency</th><th>Last Done</th><th>Next Due</th><th>Assigned To</th><th>Status</th></tr>'+rows+'</table>');
-  w.document.write('</body></html>');
-  w.document.close();
+  var css = 'h1{color:#0d4a44;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#0d4a44;color:#fff;padding:8px 10px;text-align:left;border:1px solid #fff;font-size:10px}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}';
+  var body = '<h1>PREVENTIVE MAINTENANCE SCHEDULE</h1>'
+    + '<p>Total: <b>'+maintData.pmList.length+'</b> | Completed: <b style="color:#16a34a">'+doneCount+'</b> | Overdue: <b style="color:#dc2626">'+overdueCount+'</b> | Generated: '+new Date().toLocaleDateString()+'</p>'
+    + '<table><tr><th>Line</th><th>Equipment</th><th>Task</th><th>Frequency</th><th>Last Done</th><th>Next Due</th><th>Assigned To</th><th>Status</th></tr>'+rows+'</table>';
+  openPrintPreview('PM Schedule Report', body, css);
 }
 
 function printDowntime(){
-  var w = window.open('','_blank','width=1000,height=700');
   var rows = '';
   var total = 0;
   prodData.downtimeRecords.forEach(function(d,i){
@@ -13662,12 +13519,11 @@ function printDowntime(){
     rows+='<td style="text-align:center"><span style="background:'+c+'1a;color:'+c+';padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700">'+d.type+'</span></td>';
     rows+='<td>'+d.reportedBy+'</td></tr>';
   });
-  w.document.write('<!DOCTYPE html><html><head><title>Downtime Report</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px}h1{color:#7c2d12;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#7c2d12;color:#fff;padding:8px 10px;text-align:left;border:1px solid #fff;font-size:10px}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}@media print{body{padding:10px}}</style></head><body>');
-  w.document.write('<h1>DOWNTIME RECORDS REPORT</h1>');
-  w.document.write('<p>Total Records: <b>'+prodData.downtimeRecords.length+'</b> | Total Downtime: <b style="color:#dc2626">'+total+' minutes ('+Math.floor(total/60)+'h '+total%60+'m)</b> | Generated: '+new Date().toLocaleDateString()+'</p>');
-  w.document.write('<table><tr><th>Line</th><th>Date</th><th>Start Time</th><th>Duration</th><th>Reason</th><th>Type</th><th>Reported By</th></tr>'+rows+'</table>');
-  w.document.write('</body></html>');
-  w.document.close();
+  var css = 'h1{color:#7c2d12;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#7c2d12;color:#fff;padding:8px 10px;text-align:left;border:1px solid #fff;font-size:10px}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}';
+  var body = '<h1>DOWNTIME RECORDS REPORT</h1>'
+    + '<p>Total Records: <b>'+prodData.downtimeRecords.length+'</b> | Total Downtime: <b style="color:#dc2626">'+total+' minutes ('+Math.floor(total/60)+'h '+total%60+'m)</b> | Generated: '+new Date().toLocaleDateString()+'</p>'
+    + '<table><tr><th>Line</th><th>Date</th><th>Start Time</th><th>Duration</th><th>Reason</th><th>Type</th><th>Reported By</th></tr>'+rows+'</table>';
+  openPrintPreview('Downtime Report', body, css);
 }
 
 function saveMaintData(){
@@ -15184,448 +15040,159 @@ setInterval(function(){
 
 
 // ── Production Dashboard ──
-/* Production BI Dashboards — injected into index.html */
-var _prodBiTab = 'daily';
-var _prodBiSelected = null; // null = all
-var _prodBiQtyMode = 'vol'; // qty | vol for unit donut
-var _prodTreeExpand = { unit: 'Chocolates', line: 'Godiva' };
+// Rebuilt from the REAL Production Portal record types (Line Cleaning, Production Log,
+// Clearance Requests, Downtime, Production Value, Scrap/Waste) — same live-data BI-hub
+// pattern already used for Quality/Safety/Maintenance (buildSafetyPortalBiHtml etc.), via
+// portalBiShell/portalBiSideNav/portalBiProdKpis/portalBiActivityCard/portalBiDetailTable.
+// No hardcoded/sample statistics: every number below is computed from prodData.* at render
+// time, and every section renders a genuine empty state when there is no data yet.
+function buildProductionPortalBiHtml(pd, notifHtml){
+  pd = pd || {};
+  var filter = _portalBiFilter.prod || 'all';
+  var now = new Date();
+  var thisMonth = now.toISOString().slice(0,7);
 
-function getProdBiLines(){
-  return ['Biscuits 2','Biscuits 4','Biskrem','Conbar','Godiva','Napoliten','Rolukat','Sandwich','Surpriz','Tablets','Wafer'];
-}
-function ensureProdBiSeed(){
-  if(!prodData.perfDash){
-    prodData.perfDash = buildProdBiSeed();
-    try{ saveProdData(); }catch(e){}
-  }
-  return prodData.perfDash;
-}
-function buildProdBiSeed(){
-  return {
-    dateFrom: '2024-01-01',
-    dateTo: '2024-07-31',
-    budgetDateFrom: '2026-01-01',
-    budgetDateTo: '2026-07-31',
-    kpis: { oe:84.3, ou:50.1, ctpQ:103, ctpV:102, cases:2422362, tonnes:19110.68 },
-    lossesType: { planned:40.32, unplanned:59.68 },
-    lossCategories: [
-      {name:'Rework', pct:2.5},{name:'Breakdown', pct:2.5},{name:'Minor Stops', pct:1.8},
-      {name:'Start Up', pct:1.8},{name:'Changeovers', pct:1.7},{name:'Planned Maintenance', pct:1.4},
-      {name:'Operational Loss', pct:1.3},{name:'Material Shortage', pct:1.1},{name:'Speed Reduction', pct:1.0},
-      {name:'Cleaning', pct:0.9},{name:'Planned AM', pct:0.8},{name:'Consumer Complaints/Repairs', pct:0.7},
-      {name:'Waste', pct:0.6},{name:'Speed Loss', pct:0.5},{name:'Passovers', pct:0.4},
-      {name:'Prayer', pct:0.3},{name:'Labor Shortage', pct:0.25},{name:'Project', pct:0.2}
-    ],
-    unitsOE: [
-      {name:'Biscuits', oe:88.5},
-      {name:'Chocolates', oe:78.4}
-    ],
-    lineDetails: [
-      {line:'Biskrem', oe:91.2, co:1.1, cleaning:0.6, trials:0.2, startUp:1.4, consRep:0.3, bd:1.8, opL:0.9, ms:1.2, spdRed:0.7},
-      {line:'Rolukat', oe:89.4, co:1.4, cleaning:0.8, trials:0.1, startUp:1.6, consRep:0.4, bd:2.1, opL:1.1, ms:1.5, spdRed:0.9},
-      {line:'Surpriz', oe:87.8, co:1.6, cleaning:0.7, trials:0.3, startUp:1.9, consRep:0.5, bd:2.4, opL:1.0, ms:1.7, spdRed:1.0},
-      {line:'Biscuits 4', oe:86.5, co:1.8, cleaning:0.9, trials:0.2, startUp:2.0, consRep:0.4, bd:2.6, opL:1.2, ms:1.8, spdRed:1.1},
-      {line:'Wafer', oe:85.1, co:1.5, cleaning:1.0, trials:0.4, startUp:1.7, consRep:0.6, bd:2.2, opL:1.3, ms:1.6, spdRed:0.8},
-      {line:'Biscuits 2', oe:84.0, co:1.9, cleaning:0.8, trials:0.2, startUp:2.1, consRep:0.5, bd:2.8, opL:1.4, ms:1.9, spdRed:1.2},
-      {line:'Tablets', oe:82.6, co:2.0, cleaning:1.1, trials:0.5, startUp:2.2, consRep:0.7, bd:3.0, opL:1.5, ms:2.0, spdRed:1.3},
-      {line:'Sandwich', oe:80.4, co:2.2, cleaning:1.2, trials:0.3, startUp:2.4, consRep:0.8, bd:3.2, opL:1.6, ms:2.1, spdRed:1.4},
-      {line:'Godiva', oe:78.9, co:2.4, cleaning:1.0, trials:0.6, startUp:2.5, consRep:0.9, bd:3.4, opL:1.7, ms:2.2, spdRed:1.5},
-      {line:'Conbar', oe:76.2, co:2.6, cleaning:1.3, trials:0.4, startUp:2.7, consRep:1.0, bd:3.6, opL:1.8, ms:2.3, spdRed:1.6},
-      {line:'Napoliten', oe:74.8, co:2.8, cleaning:1.4, trials:0.5, startUp:2.9, consRep:1.1, bd:3.8, opL:1.9, ms:2.4, spdRed:1.7}
-    ],
-    budget: {
-      ytdQty:56.6, ytdVol:58.9,
-      monthlyQty:[{m:'Jan',v:106.2},{m:'Feb',v:98.4},{m:'Mar',v:101.1},{m:'Apr',v:97.6},{m:'May',v:94.2},{m:'Jun',v:88.5},{m:'Jul',v:82.0},{m:'Aug',v:9.1}],
-      monthlyVol:[{m:'Jan',v:104.8},{m:'Feb',v:99.1},{m:'Mar',v:100.4},{m:'Apr',v:96.3},{m:'May',v:93.0},{m:'Jun',v:87.2},{m:'Jul',v:81.5},{m:'Aug',v:9.8}],
-      lineBudget:[
-        {line:'Biscuits', qty:820000, vol:6200},
-        {line:'Biskrem', qty:410000, vol:3100},
-        {line:'Conbar', qty:185000, vol:1420},
-        {line:'Godiva', qty:162000, vol:1280},
-        {line:'Napoliten', qty:148000, vol:1180},
-        {line:'Rolukat', qty:210000, vol:1650},
-        {line:'Sandwich', qty:195000, vol:1520},
-        {line:'Surpriz', qty:98000, vol:740},
-        {line:'Tablets', qty:64000, vol:480},
-        {line:'Wafer', qty:60509, vol:377}
-      ],
-      unitSplit:{ biscuitsQty:12700, chocolatesQty:6400, biscuitsVol:12675.6, chocolatesVol:6435.1 },
-      tree:{
-        total:19110.7,
-        units:[
-          {name:'Biscuits', vol:12675.6, lines:[
-            {name:'Biscuits 2', vol:3200},
-            {name:'Biscuits 4', vol:2800},
-            {name:'Biskrem', vol:3100},
-            {name:'Rolukat', vol:2100},
-            {name:'Wafer', vol:1475.6}
-          ]},
-          {name:'Chocolates', vol:6435.1, lines:[
-            {name:'Sandwich', vol:2100.2},
-            {name:'Godiva', vol:1980.4, skus:[
-              {name:'Bar Double Chocolate', vol:620.1},
-              {name:'Bar Choco & Cream', vol:510.3},
-              {name:'Tablet Dark 90g', vol:430.0},
-              {name:'Assorted Gift', vol:420.0}
-            ]},
-            {name:'Conbar', vol:1320.5},
-            {name:'Napoliten', vol:1034.0}
-          ]}
-        ]
-      }
-    },
-    updatedAt: '2024-08-05'
-  };
-}
+  var cleaning = pd.cleaningRecords || [];
+  var logs = pd.prodLogs || [];
+  var clearance = pd.clearanceRequests || [];
+  var downtime = pd.downtimeRecords || [];
+  var value = pd.prodValueRecords || [];
+  var scrap = pd.scrapRecords || [];
+  var totalRecords = cleaning.length+logs.length+clearance.length+downtime.length+value.length+scrap.length;
 
-function prodBiFmt(n, d){
-  if(n==null || isNaN(n)) return '—';
-  d = (d==null?0:d);
-  return Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
-}
-function prodBiHeat(v){
-  var n = parseFloat(v)||0;
-  if(n<=0.5) return '#fff';
-  if(n<=1) return '#fee2e2';
-  if(n<=2) return '#fecaca';
-  if(n<=3) return '#fca5a5';
-  return '#f87171';
-}
-function prodBiSelectedSet(){
-  if(!_prodBiSelected) return null;
-  var s = {};
-  _prodBiSelected.forEach(function(l){ s[l]=true; });
-  return s;
-}
-function prodBiToggleLine(line){
-  var all = getProdBiLines();
-  if(!_prodBiSelected) _prodBiSelected = all.slice();
-  var i = _prodBiSelected.indexOf(line);
-  if(i>=0) _prodBiSelected.splice(i,1); else _prodBiSelected.push(line);
-  if(_prodBiSelected.length===all.length) _prodBiSelected = null;
-  renderProdDash();
-}
-function prodBiSelectAll(on){
-  _prodBiSelected = on ? null : [];
-  renderProdDash();
-}
-function setProdBiTab(tab){
-  _prodBiTab = tab==='budget' ? 'budget' : 'daily';
-  renderProdDash();
-}
-function setProdBiQtyMode(mode){
-  _prodBiQtyMode = mode==='qty' ? 'qty' : 'vol';
-  renderProdDash();
-}
-function toggleProdTree(level, name){
-  if(level==='unit'){
-    _prodTreeExpand.unit = (_prodTreeExpand.unit===name) ? '' : name;
-    if(_prodTreeExpand.unit!==name) _prodTreeExpand.line = '';
-  } else if(level==='line'){
-    _prodTreeExpand.line = (_prodTreeExpand.line===name) ? '' : name;
-  }
-  renderProdDash();
-}
-function resetProdBiSample(){
-  prodData.perfDash = buildProdBiSeed();
-  saveProdData();
-  showToast('Sample FMC performance data loaded','green');
-  renderProdDash();
-}
-function mergeLiveDowntimeIntoBi(dash){
-  // Enrich loss categories from live downtime records when present
-  try{
-    var rows = prodData.downtimeRecords||[];
-    if(!rows.length) return dash;
-    var map = {};
-    var total = 0;
-    rows.forEach(function(r){
-      var cat = (r.reason||r.category||r.type||'Operational Loss').trim() || 'Operational Loss';
-      var mins = parseInt(r.duration,10)||0;
-      map[cat] = (map[cat]||0) + mins;
-      total += mins;
-    });
-    if(total<=0) return dash;
-    var cats = Object.keys(map).map(function(k){ return {name:k, pct: +(map[k]/total*100).toFixed(1), mins:map[k]}; })
-      .sort(function(a,b){ return b.pct-a.pct; });
-    dash = JSON.parse(JSON.stringify(dash));
-    dash.lossCategoriesLive = cats;
-    dash.lossesTypeLive = {
-      planned: +(cats.filter(function(c){ return /planned|cleaning|changeover|prayer|project|am\b/i.test(c.name); }).reduce(function(s,c){return s+c.pct;},0)).toFixed(2),
-      unplanned: 0
-    };
-    dash.lossesTypeLive.unplanned = +(100 - dash.lossesTypeLive.planned).toFixed(2);
-  }catch(e){}
-  return dash;
-}
+  var cleaningPending = cleaning.filter(function(r){return r.status==='Draft';}).length;
+  var clearancePending = clearance.filter(function(r){return r.status==='Pending';}).length;
 
-function buildProdBiGauge(pct, label, color){
-  var p = Math.max(0, Math.min(100, parseFloat(pct)||0));
-  var r=54, cx=70, cy=70, sw=12;
-  var circ = Math.PI * r; // semi
-  var dash = (p/100)*circ;
-  return '<div style="text-align:center;min-width:140px">'
-    +'<svg width="140" height="90" viewBox="0 0 140 90">'
-    +'<path d="M16 70 A54 54 0 0 1 124 70" fill="none" stroke="#e5e7eb" stroke-width="'+sw+'" stroke-linecap="round"/>'
-    +'<path d="M16 70 A54 54 0 0 1 124 70" fill="none" stroke="'+color+'" stroke-width="'+sw+'" stroke-linecap="round" '
-    +'stroke-dasharray="'+dash+' '+circ+'" />'
-    +'<text x="70" y="66" text-anchor="middle" font-size="22" font-weight="900" fill="#0f172a" font-family="inherit">'+prodBiFmt(p,1)+'%</text>'
-    +'</svg>'
-    +'<div style="font-size:.72rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-top:-4px">'+label+'</div>'
-    +'</div>';
-}
-function buildProdBiVBars(items, color){
-  if(!items || !items.length) return '<div class="empty-state empty-state-sm">No data</div>';
-  var max = Math.max.apply(null, items.map(function(i){ return i.v; }).concat([1]));
-  var w = Math.max(320, items.length*46), h=180, padT=24, padB=28, padL=8, padR=8;
-  var plotH = h-padT-padB, barW=28, gap=(w-padL-padR)/items.length;
-  var bars = items.map(function(it,i){
-    var bh = (it.v/max)*plotH;
-    var x = padL + i*gap + (gap-barW)/2;
-    var y = padT + plotH - bh;
-    return '<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+Math.max(bh,2)+'" rx="6" fill="'+color+'"/>'
-      +'<text x="'+(x+barW/2)+'" y="'+(y-6)+'" text-anchor="middle" font-size="9" font-weight="800" fill="#334155">'+prodBiFmt(it.v,1)+'%</text>'
-      +'<text x="'+(x+barW/2)+'" y="'+(h-8)+'" text-anchor="middle" font-size="10" font-weight="700" fill="#64748b">'+it.m+'</text>';
-  }).join('');
-  return '<svg width="100%" height="'+h+'" viewBox="0 0 '+w+' '+h+'">'+bars+'</svg>';
-}
-function buildProdBiLossBars(cats){
-  if(!cats || !cats.length) return '<div class="empty-state empty-state-sm">No loss categories</div>';
-  var max = Math.max.apply(null, cats.map(function(c){ return c.pct; }).concat([0.1]));
-  var w = Math.max(520, cats.length*34), h=200, padT=28, padB=70, padL=10, padR=10;
-  var plotH=h-padT-padB, gap=(w-padL-padR)/cats.length, barW=18;
-  var bars = cats.map(function(c,i){
-    var bh=(c.pct/max)*plotH;
-    var x=padL+i*gap+(gap-barW)/2;
-    var y=padT+plotH-bh;
-    var color = i%2===0 ? '#1e3a5f' : '#c8102e';
-    return '<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+Math.max(bh,2)+'" rx="3" fill="'+color+'"/>'
-      +'<text x="'+(x+barW/2)+'" y="'+(y-5)+'" text-anchor="middle" font-size="8" font-weight="800" fill="#334155">'+prodBiFmt(c.pct,1)+'%</text>'
-      +'<text x="'+(x+barW/2)+'" y="'+(h-8)+'" text-anchor="middle" font-size="8" font-weight="700" fill="#64748b" transform="rotate(-55 '+(x+barW/2)+' '+(h-8)+')">'+String(c.name).slice(0,14)+'</text>';
-  }).join('');
-  return '<div style="overflow-x:auto"><svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'">'+bars+'</svg></div>';
-}
-function buildProdBiHBars(items, color){
-  var max = Math.max.apply(null, items.map(function(i){ return i.oe; }).concat([1]));
-  return '<div style="display:flex;flex-direction:column;gap:10px">'
-    + items.map(function(it){
-      var pct = (it.oe/Math.max(max,100))*100;
-      return '<div><div style="display:flex;justify-content:space-between;font-size:.78rem;font-weight:800;margin-bottom:4px"><span style="color:#1e3a5f">'+escHtml(it.name)+'</span><span>'+prodBiFmt(it.oe,1)+'%</span></div>'
-        +'<div style="height:18px;background:#eef2f7;border-radius:8px;overflow:hidden"><div style="height:100%;width:'+Math.min(pct,100)+'%;background:'+color+';border-radius:8px"></div></div></div>';
-    }).join('') + '</div>';
-}
-function buildProdBiDonutPct(aLabel,aVal,bLabel,bVal,aColor,bColor){
-  var total = (aVal||0)+(bVal||0);
-  if(!total) return '<div style="color:#94a3b8;padding:20px;text-align:center">No data</div>';
-  var size=170, cx=85, cy=85, r=58, sw=20, circ=2*Math.PI*r;
-  var aDash = (aVal/total)*circ;
-  var bDash = circ - aDash;
-  return '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center">'
-    +'<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">'
-    +'<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="#eef2f7" stroke-width="'+sw+'"/>'
-    +'<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+aColor+'" stroke-width="'+sw+'" stroke-dasharray="'+aDash+' '+ (circ-aDash) +'" stroke-dashoffset="0" transform="rotate(-90 '+cx+' '+cy+')"/>'
-    +'<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+bColor+'" stroke-width="'+sw+'" stroke-dasharray="'+bDash+' '+ (circ-bDash) +'" stroke-dashoffset="'+(-aDash)+'" transform="rotate(-90 '+cx+' '+cy+')"/>'
-    +'<text x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle" font-size="13" font-weight="900" fill="#0f172a">'+prodBiFmt(total,1)+'</text>'
-    +'</svg>'
-    +'<div style="font-size:.8rem;line-height:1.7">'
-    +'<div><span style="display:inline-block;width:10px;height:10px;border-radius:99px;background:'+aColor+';margin-right:6px"></span><b>'+aLabel+'</b> '+prodBiFmt(aVal,1)+' ('+prodBiFmt(aVal/total*100,1)+'%)</div>'
-    +'<div><span style="display:inline-block;width:10px;height:10px;border-radius:99px;background:'+bColor+';margin-right:6px"></span><b>'+bLabel+'</b> '+prodBiFmt(bVal,1)+' ('+prodBiFmt(bVal/total*100,1)+'%)</div>'
-    +'</div></div>';
-}
+  var downtimeMonth = downtime.filter(function(r){return (r.date||'').startsWith(thisMonth);});
+  var downtimeMonthMin = downtimeMonth.reduce(function(s,r){return s+(parseInt(r.duration)||0);},0);
+  var downtimeAllMin = downtime.reduce(function(s,r){return s+(parseInt(r.duration)||0);},0);
+  var downtimeByType = {Breakdown:0, Planned:0, Unplanned:0};
+  downtime.forEach(function(r){ var t=r.type||'Unplanned'; downtimeByType[t]=(downtimeByType[t]||0)+(parseInt(r.duration)||0); });
+  var downtimeDonut = [['Breakdown',downtimeByType.Breakdown,'#dc2626'],['Planned',downtimeByType.Planned,'#2563eb'],['Unplanned',downtimeByType.Unplanned,'#d97706']].filter(function(d){return d[1]>0;});
+  var downtimeTrend = (typeof lastNDaysCounts==='function') ? lastNDaysCounts(downtime.map(function(r){return r.timestamp;}), 7) : [];
 
-function renderProdBiDaily(dash){
-  var sel = prodBiSelectedSet();
-  var lines = getProdBiLines();
-  var details = (dash.lineDetails||[]).filter(function(r){ return !sel || sel[r.line]; });
-  var cats = dash.lossCategoriesLive || dash.lossCategories || [];
-  var lt = dash.lossesTypeLive || dash.lossesType || {planned:0,unplanned:0};
-  var k = dash.kpis || {};
+  var yieldPcts = value.map(function(r){
+    var actual = parseFloat(r.actualUnits)||0, good = parseFloat(r.goodUnits)||0;
+    return actual>0 ? (good/actual*100) : null;
+  }).filter(function(v){return v!=null;});
+  var avgYield = yieldPcts.length ? (yieldPcts.reduce(function(s,v){return s+v;},0)/yieldPcts.length) : null;
 
-  var html = '';
-  html += '<div class="pbi-shell">';
-  html += '<div class="pbi-topbar">'
-    +'<div class="pbi-brand"><span class="pbi-logo">pladis</span><div class="pbi-title">Daily Performance Dashboard</div></div>'
-    +'<div class="pbi-tabs">'
-    +'<button type="button" class="pbi-tab active" onclick="setProdBiTab(\'daily\')">Daily Performance</button>'
-    +'<button type="button" class="pbi-tab" onclick="setProdBiTab(\'budget\')">Actual &amp; Budget</button>'
-    +'</div></div>';
+  var scrapMonthKg = scrap.filter(function(r){return (r.date||'').startsWith(thisMonth);}).reduce(function(s,r){return s+(parseFloat(r.scrapKg)||0);},0);
+  var scrapAllKg = scrap.reduce(function(s,r){return s+(parseFloat(r.scrapKg)||0);},0);
 
-  html += '<div class="pbi-layout">';
-  // Filters
-  html += '<aside class="pbi-side">'
-    +'<div class="pbi-side-title">Line Name</div>'
-    +'<div style="display:flex;gap:6px;margin-bottom:8px">'
-    +'<button type="button" class="btn-ghost" style="font-size:.7rem;padding:3px 8px" onclick="prodBiSelectAll(true)">All</button>'
-    +'<button type="button" class="btn-ghost" style="font-size:.7rem;padding:3px 8px" onclick="prodBiSelectAll(false)">None</button>'
-    +'</div>';
-  lines.forEach(function(l){
-    var on = !sel || !!sel[l];
-    html += '<label class="pbi-check"><input type="checkbox" '+(on?'checked':'')+' onchange="prodBiToggleLine(\''+l.replace(/'/g,"\\'")+'\')"/> '+escHtml(l)+'</label>';
+  var downtimeByLine = {};
+  downtime.forEach(function(r){ var l=r.line||'—'; downtimeByLine[l]=(downtimeByLine[l]||0)+(parseInt(r.duration)||0); });
+  var downtimeLineBars = Object.keys(downtimeByLine).map(function(k){return [k, downtimeByLine[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+
+  var moduleRows = [
+    ['Line Cleaning', cleaning.length, cleaningPending+' pending submit', 'linecleaning'],
+    ['Production Log', logs.length, logs.length ? ('Last: '+(logs[0].date||'—')) : 'No entries', 'prodlog'],
+    ['Clearance Requests', clearance.length, clearancePending+' pending', 'clearancereq'],
+    ['Downtime', downtime.length, downtimeAllMin+' total min', 'downtime'],
+    ['Production Value', value.length, avgYield!=null ? (avgYield.toFixed(1)+'% avg yield') : 'No entries', 'prodvalue'],
+    ['Scrap / Waste', scrap.length, scrapAllKg.toFixed(1)+' kg total', 'prodscrap']
+  ].map(function(r){
+    return [portalBiEsc(r[0]), portalBiEsc(String(r[1])), portalBiEsc(String(r[2])),
+      '<button type="button" class="btn-ghost" style="font-size:.68rem;padding:2px 8px" onclick="nav(\''+r[3]+'\')">Open</button>'];
   });
-  html += '<div class="pbi-dates"><div class="pbi-side-title" style="margin-top:12px">Date Range</div>'
-    +'<div style="font-size:.78rem;color:#334155;font-weight:700">'+(dash.dateFrom||'—')+' → '+(dash.dateTo||'—')+'</div>'
-    +'<button type="button" class="btn-ghost" style="margin-top:10px;font-size:.72rem;width:100%" onclick="resetProdBiSample()">Reload Sample FMC Data</button>'
-    +'</div></aside>';
 
-  html += '<div class="pbi-main">';
-  // KPI row
-  html += '<div class="pbi-kpi-row">'
-    +'<div class="pbi-kpi"><div class="pbi-kpi-val" style="color:#1e3a5f">'+prodBiFmt(k.oe,1)+'%</div><div class="pbi-kpi-lbl">OE %</div></div>'
-    +'<div class="pbi-kpi"><div class="pbi-kpi-val" style="color:#1e3a5f">'+prodBiFmt(k.ou,1)+'%</div><div class="pbi-kpi-lbl">OU %</div></div>'
-    +'<div class="pbi-kpi"><div class="pbi-kpi-val" style="color:#c8102e">'+prodBiFmt(k.ctpQ,0)+'%</div><div class="pbi-kpi-lbl">CTP Q %</div></div>'
-    +'<div class="pbi-kpi"><div class="pbi-kpi-val" style="color:#c8102e">'+prodBiFmt(k.ctpV,0)+'%</div><div class="pbi-kpi-lbl">CTP V %</div></div>'
-    +'<div class="pbi-kpi pbi-kpi-wide"><div class="pbi-kpi-val" style="font-size:1.35rem;color:#0f172a">'+prodBiFmt(k.cases,0)+' <span style="font-size:.75rem;color:#64748b">Cases</span></div>'
-    +'<div style="font-weight:800;color:#1e3a5f;margin-top:4px">'+prodBiFmt(k.tonnes,2)+' <span style="font-size:.75rem;color:#64748b">Tonnes</span></div>'
-    +'<div class="pbi-kpi-lbl">Actual Produced Qty / Volume</div></div>'
-    +'</div>';
+  var cleanColors = {Draft:'#d97706', Submitted:'#2563eb', Verified:'#16a34a'};
+  var clearColors = {Pending:'#d97706', Approved:'#16a34a', Rejected:'#dc2626'};
+  var dtColors = {Breakdown:'#dc2626', Planned:'#2563eb', Unplanned:'#d97706'};
+  var activity = []
+    .concat(cleaning.map(function(r){return {t:'Line Cleaning', s:(r.line||'')+' — '+(r.status||''), ts:r.timestamp, c:cleanColors[r.status]||'#78350f', view:'linecleaning'};}))
+    .concat(logs.map(function(r){return {t:'Production Log', s:(r.line||'')+(r.product?' — '+r.product:''), ts:r.timestamp, c:'#78350f', view:'prodlog'};}))
+    .concat(clearance.map(function(r){return {t:'Clearance '+(r.status||''), s:r.line||'', ts:r.timestamp, c:clearColors[r.status]||'#78350f', view:'clearancereq'};}))
+    .concat(downtime.map(function(r){return {t:'Downtime — '+(r.type||''), s:(r.line||'')+' — '+(r.duration||0)+' min', ts:r.timestamp, c:dtColors[r.type]||'#78350f', view:'downtime'};}))
+    .concat(value.map(function(r){return {t:'Production Value', s:(r.line||'')+(r.product?' — '+r.product:''), ts:r.timestamp, c:'#92400e', view:'prodvalue'};}))
+    .concat(scrap.map(function(r){return {t:'Scrap Logged', s:(r.line||'')+' — '+(r.scrapKg||0)+' kg', ts:r.timestamp, c:'#dc2626', view:'prodscrap'};}))
+    .filter(function(a){return a.ts;}).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);}).slice(0,10)
+    .map(function(a){return {t:a.t,s:a.s,c:a.c,view:a.view,ago:portalBiAgo(a.ts)};});
 
-  html += '<div class="pbi-grid-2">'
-    +'<div class="pbi-card"><div class="pbi-card-title">Losses Type</div>'
-    + buildProdBiDonutPct('Planned', lt.planned, 'Unplanned', lt.unplanned, '#1e3a5f', '#c8102e')
-    + (dash.lossCategoriesLive?'<div class="pbi-live-tag">Enriched from live Downtime records</div>':'')
-    +'</div>'
-    +'<div class="pbi-card"><div class="pbi-card-title">Losses Categories</div>'
-    + buildProdBiLossBars(cats)
-    +'</div></div>';
+  var sideItems = [
+    {key:'all', label:'Overview', val:''},
+    {key:'risk', label:'Attention Needed', val:cleaningPending+clearancePending},
+    {key:'lc', label:'Line Cleaning', view:'linecleaning', val:cleaning.length},
+    {key:'pl', label:'Production Log', view:'prodlog', val:logs.length},
+    {key:'cr', label:'Clearance Requests', view:'clearancereq', val:clearancePending},
+    {key:'dt', label:'Downtime', view:'downtime', val:downtime.length},
+    {key:'pv', label:'Production Value', view:'prodvalue', val:value.length},
+    {key:'sc', label:'Scrap / Waste', view:'prodscrap', val:scrap.length}
+  ];
 
-  html += '<div class="pbi-grid-2b">'
-    +'<div class="pbi-card"><div class="pbi-card-title">Units OE%</div>'
-    + buildProdBiHBars(dash.unitsOE||[], '#1e3a5f')
-    +'</div>'
-    +'<div class="pbi-card" style="overflow:auto"><div class="pbi-card-title">Production Line Detailed</div>'
-    +'<table class="pbi-table"><thead><tr>'
-    +['Line Name','OE %','C/O','Cleaning','Trials','Start Up','Cons.Rep.','BD','Op.L','M/S','Spd.Red.'].map(function(h){return '<th>'+h+'</th>';}).join('')
-    +'</tr></thead><tbody>';
-  details.forEach(function(r){
-    html += '<tr><td style="font-weight:800;color:#1e3a5f;text-align:left">'+escHtml(r.line)+'</td>'
-      +'<td style="font-weight:900">'+prodBiFmt(r.oe,1)+'</td>'
-      +[['co',r.co],['cleaning',r.cleaning],['trials',r.trials],['startUp',r.startUp],['consRep',r.consRep],['bd',r.bd],['opL',r.opL],['ms',r.ms],['spdRed',r.spdRed]].map(function(pair){
-        return '<td style="background:'+prodBiHeat(pair[1])+'">'+prodBiFmt(pair[1],1)+'</td>';
-      }).join('')
-      +'</tr>';
-  });
-  if(details.length){
-    var avg = function(key){ return details.reduce(function(s,r){return s+(parseFloat(r[key])||0);},0)/details.length; };
-    html += '<tr class="pbi-total"><td style="text-align:left">Total / Avg</td><td>'+prodBiFmt(avg('oe'),1)+'</td>'
-      +['co','cleaning','trials','startUp','consRep','bd','opL','ms','spdRed'].map(function(k2){ return '<td>'+prodBiFmt(avg(k2),1)+'</td>'; }).join('')
-      +'</tr>';
-  }
-  html += '</tbody></table></div></div>';
+  var kpis = [
+    {l:'Downtime This Month', v:downtimeMonthMin+' min', s:downtimeMonth.length+' record(s)', c:downtimeMonthMin>0?'#dc2626':'#16a34a'},
+    {l:'Avg Yield %', v:avgYield!=null?avgYield.toFixed(1)+'%':'—', s:value.length+' entries', c:avgYield!=null&&avgYield<95?'#d97706':'#16a34a'},
+    {l:'Pending Clearance', v:clearancePending, s:clearance.length+' total', c:clearancePending>0?'#d97706':'#16a34a'},
+    {l:'Scrap This Month', v:scrapMonthKg.toFixed(1)+' kg', s:scrap.length+' entries', c:scrapMonthKg>0?'#dc2626':'#16a34a'},
+    {l:'Cleaning Pending', v:cleaningPending, s:cleaning.length+' total', c:cleaningPending>0?'#d97706':'#16a34a'}
+  ];
 
-  html += '<div class="pbi-foot">FMC Factory Performance Dashboard · Data updated '+(dash.updatedAt||'—')
-    +' · Source: sample seed'+( (prodData.downtimeRecords||[]).length?' + live downtime':'')+'</div>';
-  html += '</div></div></div>';
-  return html;
-}
+  var main = '<div class="pbi-layout">';
+  main += portalBiSideNav('Production Modules', sideItems, 'prod');
+  main += '<div class="pbi-main">'+portalBiProdKpis(kpis);
 
-function renderProdBiBudget(dash){
-  var b = dash.budget || {};
-  var split = b.unitSplit || {};
-  var qtyMode = _prodBiQtyMode;
-  var aVal = qtyMode==='qty' ? (split.biscuitsQty||0) : (split.biscuitsVol||0);
-  var bVal = qtyMode==='qty' ? (split.chocolatesQty||0) : (split.chocolatesVol||0);
-
-  var html = '';
-  html += '<div class="pbi-shell">';
-  html += '<div class="pbi-topbar">'
-    +'<div class="pbi-brand"><span class="pbi-logo">pladis</span><div class="pbi-title">Actual &amp; Budget Production Details</div></div>'
-    +'<div class="pbi-tabs">'
-    +'<button type="button" class="pbi-tab" onclick="setProdBiTab(\'daily\')">Daily Performance</button>'
-    +'<button type="button" class="pbi-tab active" onclick="setProdBiTab(\'budget\')">Actual &amp; Budget</button>'
-    +'</div></div>';
-
-  html += '<div class="pbi-budget-filters">'
-    +'<span class="pbi-pill">All Lines</span>'
-    +'<span class="pbi-pill">'+(dash.budgetDateFrom||dash.dateFrom||'—')+' → '+(dash.budgetDateTo||dash.dateTo||'—')+'</span>'
-    +'<button type="button" class="btn-ghost" style="font-size:.72rem;margin-left:auto" onclick="resetProdBiSample()">Reload Sample Data</button>'
-    +'</div>';
-
-  html += '<div class="pbi-budget-top">'
-    +'<div class="pbi-card" style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap">'
-    + buildProdBiGauge(b.ytdQty, 'YTD A/B Qty.', '#c8102e')
-    + buildProdBiGauge(b.ytdVol, 'YTD A/B Vol.', '#1e3a5f')
-    +'</div>'
-    +'<div class="pbi-card"><div class="pbi-card-title">Monthly A/B by Qty. %</div>'+buildProdBiVBars(b.monthlyQty||[], '#c8102e')+'</div>'
-    +'<div class="pbi-card"><div class="pbi-card-title">Monthly A/B by Vol. %</div>'+buildProdBiVBars(b.monthlyVol||[], '#1e3a5f')+'</div>'
-    +'<div class="pbi-card" style="overflow:auto"><div class="pbi-card-title">Budget by Line</div>'
-    +'<table class="pbi-table"><thead><tr><th>Line</th><th>Budget Qty.</th><th>Budget Vol.</th></tr></thead><tbody>';
-  var tQty=0,tVol=0;
-  (b.lineBudget||[]).forEach(function(r){
-    tQty+=r.qty||0; tVol+=r.vol||0;
-    html += '<tr><td style="text-align:left;font-weight:800;color:#1e3a5f">'+escHtml(r.line)+'</td><td>'+prodBiFmt(r.qty,0)+'</td><td>'+prodBiFmt(r.vol,0)+'</td></tr>';
-  });
-  html += '<tr class="pbi-total"><td style="text-align:left">Total</td><td>'+prodBiFmt(tQty,0)+'</td><td>'+prodBiFmt(tVol,0)+'</td></tr>';
-  html += '</tbody></table></div></div>';
-
-  html += '<div class="pbi-grid-2">'
-    +'<div class="pbi-card"><div class="pbi-card-title">FMC Quantity / Volume</div>'
-    +'<div style="display:flex;gap:8px;margin-bottom:10px">'
-    +'<button type="button" class="pbi-mini '+(qtyMode==='qty'?'active':'')+'" onclick="setProdBiQtyMode(\'qty\')">Quantity</button>'
-    +'<button type="button" class="pbi-mini '+(qtyMode==='vol'?'active':'')+'" onclick="setProdBiQtyMode(\'vol\')">Volume</button>'
-    +'</div>'
-    + buildProdBiDonutPct('Biscuits', aVal, 'Chocolates', bVal, '#1e3a5f', '#c8102e')
-    +'</div>'
-    +'<div class="pbi-card"><div class="pbi-card-title">Decomposition Tree — FMC Volume</div>'
-    + renderProdBiTree(b.tree)
-    +'</div></div>';
-
-  html += '<div class="pbi-foot">FMC Actual vs Budget · Sample seed aligned to plant dashboard layout</div>';
-  html += '</div>';
-  return html;
-}
-function renderProdBiTree(tree){
-  if(!tree) return '<div style="color:#94a3b8;padding:16px">No tree data</div>';
-  var html = '<div class="pbi-tree"><div class="pbi-tree-root"><b>FMC Volume</b> <span>'+prodBiFmt(tree.total,1)+'</span></div>';
-  (tree.units||[]).forEach(function(u){
-    var open = _prodTreeExpand.unit===u.name;
-    html += '<div class="pbi-tree-node">'
-      +'<button type="button" class="pbi-tree-btn" onclick="toggleProdTree(\'unit\',\''+u.name.replace(/'/g,"\\'")+'\')">'+(open?'▾':'▸')+' '+escHtml(u.name)+' <span>'+prodBiFmt(u.vol,1)+'</span></button>';
-    if(open){
-      (u.lines||[]).forEach(function(ln){
-        var lopen = _prodTreeExpand.line===ln.name;
-        var hasSku = ln.skus && ln.skus.length;
-        html += '<div class="pbi-tree-child">'
-          +'<button type="button" class="pbi-tree-btn" onclick="toggleProdTree(\'line\',\''+ln.name.replace(/'/g,"\\'")+'\')">'+(hasSku?(lopen?'▾':'▸'):'•')+' '+escHtml(ln.name)+' <span>'+prodBiFmt(ln.vol,1)+'</span></button>';
-        if(hasSku && lopen){
-          ln.skus.forEach(function(sk){
-            html += '<div class="pbi-tree-sku">'+escHtml(sk.name)+' <span>'+prodBiFmt(sk.vol,1)+'</span></div>';
-          });
-        }
-        html += '</div>';
-      });
+  if(!totalRecords){
+    main += '<div class="pbi-card"><div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-title">No production data recorded yet</div><div class="empty-state-hint">Log a Line Cleaning, Production Log, Downtime, Production Value, or Scrap entry to see live performance here.</div></div></div>';
+  } else if(filter==='risk'){
+    main += '<div class="pbi-grid-2">';
+    main += portalBiActivityCard('Attention Queue', activity);
+    main += portalBiDetailTable('Pending Items', ['Module','Records','Signal','Go'], moduleRows.filter(function(r,i){return [0,2].indexOf(i)>=0;}), '#78350f');
+    main += '</div>';
+  } else {
+    main += '<div class="pbi-grid-2">';
+    main += '<div class="pbi-card"><div class="pbi-card-title">Downtime by Type</div>'+(downtimeDonut.length && typeof buildDonutChart==='function' ? buildDonutChart(downtimeDonut, downtimeByType.Breakdown+downtimeByType.Planned+downtimeByType.Unplanned) : '<div class="empty-state empty-state-sm">No downtime recorded</div>')+'</div>';
+    main += '<div class="pbi-card"><div class="pbi-card-title">Downtime Trend — 7 Days</div>'+(downtime.length && typeof buildTrendChart==='function' ? buildTrendChart(downtimeTrend) : '<div class="empty-state empty-state-sm">No downtime recorded</div>')+'</div>';
+    main += '</div>';
+    if(downtimeLineBars.length && typeof buildBarChart==='function'){
+      main += '<div class="pbi-card"><div class="pbi-card-title">Downtime by Line (min)</div>'+buildBarChart(downtimeLineBars)+'</div>';
     }
-    html += '</div>';
+    main += '<div class="pbi-grid-2b">';
+    main += portalBiActivityCard('Recent Production Activity', activity);
+    main += portalBiDetailTable('Production Modules Detailed', ['Module','Records','Signal','Go'], moduleRows, '#78350f');
+    main += '</div>';
+  }
+  main += '</div></div>';
+
+  return (notifHtml||'') + portalBiShell({
+    theme:'prod',
+    title:'Production Daily Performance Dashboard',
+    tabsHtml: '<button type="button" class="pbi-tab active">Production Performance</button><button type="button" class="pbi-tab" onclick="nav(\'downtime\')">Downtime</button>',
+    body: main,
+    footer: 'Production Portal · Live Line Cleaning / Production Log / Clearance / Downtime / Value / Scrap'
   });
-  html += '</div>';
-  return html;
 }
 
 function renderProdDash(){
   const wrap=document.getElementById('proddash-body');
   if(!wrap) return;
-  var dash = mergeLiveDowntimeIntoBi(ensureProdBiSeed());
 
-  // Keep operational alerts above BI dash
+  // Keep operational alerts above the BI dash
   loadNotifications();
   const myNotifs=portalNotifications.filter(function(n){return n.target==='production'&&!n.read;});
-  var html='';
+  var notifHtml='';
   if(myNotifs.length){
-    html+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:12px 16px;margin-bottom:14px">';
-    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
-    html+='<div style="font-weight:800;color:#92400e;font-size:.85rem">'+myNotifs.length+' New Notification(s)</div>';
-    html+='<button type="button" onclick="markNotifsRead(\'production\')" class="btn-ghost" style="font-size:.72rem;padding:3px 10px">Mark as Read</button></div>';
+    notifHtml+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:12px 16px;margin-bottom:14px">';
+    notifHtml+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+    notifHtml+='<div style="font-weight:800;color:#92400e;font-size:.85rem">'+myNotifs.length+' New Notification(s)</div>';
+    notifHtml+='<button type="button" onclick="markNotifsRead(\'production\')" class="btn-ghost" style="font-size:.72rem;padding:3px 10px">Mark as Read</button></div>';
     myNotifs.forEach(function(n){
-      html+='<div style="background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:6px;border-left:3px solid #d97706">';
-      html+='<div style="font-weight:700;font-size:.8rem;color:#92400e">'+n.message+'</div>';
-      if(n.details) html+='<div style="font-size:.74rem;color:#6b7280;margin-top:4px;white-space:pre-line">'+n.details+'</div>';
-      html+='</div>';
+      notifHtml+='<div style="background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:6px;border-left:3px solid #d97706">';
+      notifHtml+='<div style="font-weight:700;font-size:.8rem;color:#92400e">'+n.message+'</div>';
+      if(n.details) notifHtml+='<div style="font-size:.74rem;color:#6b7280;margin-top:4px;white-space:pre-line">'+n.details+'</div>';
+      notifHtml+='</div>';
     });
-    html+='</div>';
+    notifHtml+='</div>';
   }
 
-  html += (_prodBiTab==='budget') ? renderProdBiBudget(dash) : renderProdBiDaily(dash);
-  wrap.innerHTML=html;
+  try{
+    wrap.innerHTML = buildProductionPortalBiHtml(prodData, notifHtml);
+  }catch(err){
+    console.error('Production BI hub failed, falling back', err);
+    wrap.innerHTML = notifHtml + '<div class="page-title">Production Dashboard</div><div class="pro-empty">Dashboard unavailable</div>';
+  }
 }
+
 
 
 function markNotifsRead(portal){
@@ -16035,7 +15602,6 @@ function loadProdData(){
   try{const s=localStorage.getItem('pqs_prod');if(s){var _pd=safeParse(s,null); if(_pd){ if(typeof applySchemaOnLoad==='function') _pd=applySchemaOnLoad(_pd,'pqs_prod'); prodData=_pd; if(typeof persistSchemaIfNeeded==='function') persistSchemaIfNeeded(_pd,'pqs_prod');}}}catch(e){}
   if(!prodData.prodValueRecords) prodData.prodValueRecords = [];
   if(!prodData.scrapRecords) prodData.scrapRecords = [];
-  if(!prodData.perfDash && typeof ensureProdBiSeed==='function') ensureProdBiSeed();
 }
 
 // ── Production Value ──
@@ -18132,7 +17698,6 @@ function startNoiseSurvey(){
 }
 function printNoiseSurvey(){
   var readings=safetyData.noiseReadings||[];
-  var w=window.open('','_blank'); if(!w){ showToast('Allow popups to print','red'); return; }
   var rows='';
   HSE_ENV_CATALOG.forEach(function(c){
     rows+='<tr><td colspan="7" style="background:#4C1D95;color:#fff;font-weight:800;padding:6px">'+c.group+' — '+c.line+'</td></tr>';
@@ -18143,13 +17708,11 @@ function printNoiseSurvey(){
       rows+='<tr style="background:'+col+'"><td>SPOT#'+s.spotNo+'</td><td>'+s.place+'</td><td>'+(r.noOp||'')+'</td><td>'+(r.withOp||r.decibels||'')+'</td><td>'+(r.std||85)+'</td><td>'+res+'</td><td>'+(r.date||'')+'</td></tr>';
     });
   });
-  w.document.write('<!doctype html><html><head><title>Noise Reading Results</title><style>body{font-family:Arial,sans-serif;padding:16px;font-size:11px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:4px 6px;text-align:left}th{background:#111827;color:#fff}@media print{body{padding:0}}</style></head><body>');
-  w.document.write('<h2 style="color:#4C1D95;margin:0 0 6px">NOISE Reading Results</h2>');
-  w.document.write('<div>Performed by: <b>'+(currentUser&&currentUser.name||'')+'</b> · Printed: '+new Date().toLocaleString()+' · STD Limit default: 85 dB(A)</div>');
-  w.document.write('<table style="margin-top:12px"><thead><tr><th>Spot #</th><th>Place</th><th>No Op</th><th>With Op</th><th>STD</th><th>Result</th><th>Tested Date</th></tr></thead><tbody>'+rows+'</tbody></table>');
-  w.document.write('</body></html>');
-  w.document.close();
-  setTimeout(function(){ try{w.print();}catch(e){} }, 300);
+  var css = 'table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:4px 6px;text-align:left}th{background:#111827;color:#fff}';
+  var body = '<h2 style="color:#4C1D95;margin:0 0 6px">NOISE Reading Results</h2>'
+    + '<div>Performed by: <b>'+(currentUser&&currentUser.name||'')+'</b> · Printed: '+new Date().toLocaleString()+' · STD Limit default: 85 dB(A)</div>'
+    + '<table style="margin-top:12px"><thead><tr><th>Spot #</th><th>Place</th><th>No Op</th><th>With Op</th><th>STD</th><th>Result</th><th>Tested Date</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  openPrintPreview('Noise Reading Results', body, css);
 }
 
 function renderLightLevel(){
@@ -18288,7 +17851,6 @@ function startLightSurvey(){
 }
 function printLightSurvey(){
   var readings=safetyData.lightReadings||[];
-  var w=window.open('','_blank'); if(!w){ showToast('Allow popups to print','red'); return; }
   var rows='';
   HSE_ENV_CATALOG.forEach(function(c){
     rows+='<tr><td colspan="8" style="background:#1e3a8a;color:#fff;font-weight:800;padding:6px">'+c.group+' — '+c.line+'</td></tr>';
@@ -18299,13 +17861,11 @@ function printLightSurvey(){
       rows+='<tr style="background:'+col+'"><td>SPOT#'+s.spotNo+'</td><td>'+s.place+'</td><td>'+(r.aboveHead||'')+'</td><td>'+(r.belowHead||'')+'</td><td>'+(r.std!=null?r.std:s.lightStd)+'</td><td>'+res+'</td><td>'+(r.date||'')+'</td><td>'+(r.notes||'')+'</td></tr>';
     });
   });
-  w.document.write('<!doctype html><html><head><title>Light measurement result F.HSE.64</title><style>body{font-family:Arial,sans-serif;padding:16px;font-size:11px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:4px 6px}th{background:#111827;color:#fff}</style></head><body>');
-  w.document.write('<h2 style="color:#1e3a8a;margin:0">Light measurement result</h2><div>Form No: <b>F.HSE.64</b> · Performed by: <b>'+(currentUser&&currentUser.name||'')+'</b> · '+new Date().toLocaleString()+'</div>');
-  w.document.write('<table style="margin-top:12px"><thead><tr><th>Spot #</th><th>Location</th><th>Above head</th><th>Below head</th><th>STD</th><th>Result</th><th>Tested Date</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table>');
-  w.document.write('<div style="margin-top:10px;font-size:9px;color:#6b7280">ISSUED NO:00 · ISSUED ON: 13.11.2019 · REV.NO:00 · REV.DATE: 13.11.2019</div>');
-  w.document.write('</body></html>');
-  w.document.close();
-  setTimeout(function(){ try{w.print();}catch(e){} }, 300);
+  var css = 'table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:4px 6px}th{background:#111827;color:#fff}';
+  var body = '<h2 style="color:#1e3a8a;margin:0">Light measurement result</h2><div>Form No: <b>F.HSE.64</b> · Performed by: <b>'+(currentUser&&currentUser.name||'')+'</b> · '+new Date().toLocaleString()+'</div>'
+    + '<table style="margin-top:12px"><thead><tr><th>Spot #</th><th>Location</th><th>Above head</th><th>Below head</th><th>STD</th><th>Result</th><th>Tested Date</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    + '<div style="margin-top:10px;font-size:9px;color:#6b7280">ISSUED NO:00 · ISSUED ON: 13.11.2019 · REV.NO:00 · REV.DATE: 13.11.2019</div>';
+  openPrintPreview('Light measurement result F.HSE.64', body, css);
 }
 
 function hseIsDoneRecently(ts, days){
@@ -18521,7 +18081,6 @@ function __renderWeeklyReportWork(){
     +'<button type="button" class="btn-primary" onclick="exportWeeklyManagementJSON()">Export JSON</button>'
     +'<button type="button" class="btn-ghost" onclick="exportWeeklyManagementCSV()">Export CSV</button>'
     +'<a class="btn-ghost" style="text-decoration:none;display:inline-flex;align-items:center" href="mailto:?subject=Weekly%20'+encodeURIComponent(portalLabel)+'%20Report&body='+body+'">Email Report</a>'
-    +'<button type="button" class="btn-ghost" onclick="window.print()">Print Snapshot</button>'
     +'</div></div></div>';
 }
 
@@ -19388,12 +18947,7 @@ function closeCreditsModal(){
     if(tag === 'TEXTAREA' || t.isContentEditable) return;
     if(t.getAttribute && t.getAttribute('data-enter-ok') === '1') return;
 
-    // 1) Owner gate / PIN / factory verify
-    if(t.id === 'owner-code-input'){
-      stopEnter(e);
-      if(typeof checkOwnerCode === 'function') checkOwnerCode();
-      return;
-    }
+    // 1) PIN / factory verify
     if(t.id === 'pin-input' || t.id === 'admin-pin-input'){
       stopEnter(e);
       if(typeof checkPin === 'function') checkPin();
