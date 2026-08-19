@@ -5485,7 +5485,6 @@ function printClearanceForm(lineIdx){
 }
 
 function printWO(){
-  var w = window.open('','_blank','width=900,height=700');
   var rows='';
   maintData.workOrders.forEach(function(wo,i){
     var sc={Open:'#2563eb','In Progress':'#d97706',Completed:'#16a34a',Cancelled:'#9ca3af'};
@@ -5498,12 +5497,11 @@ function printWO(){
     rows+='<td style="text-align:center"><span style="color:'+c+';font-weight:700">'+wo.status+'</span></td>';
     rows+='<td>'+wo.assignedTo+'</td><td>'+wo.date+'</td></tr>';
   });
-  w.document.write('<!DOCTYPE html><html><head><title>Work Orders Report</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px}h1{color:#0d4a44;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#0d4a44;color:#fff;padding:8px 10px;text-align:left;border:1px solid #fff;font-size:10px}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}@media print{body{padding:10px}}</style></head><body>');
-  w.document.write('<h1>WORK ORDERS REPORT</h1>');
-  w.document.write('<p>Total: <b>'+maintData.workOrders.length+'</b> | Open: <b style="color:#2563eb">'+maintData.workOrders.filter(function(w){return w.status==='Open';}).length+'</b> | Completed: <b style="color:#16a34a">'+maintData.workOrders.filter(function(w){return w.status==='Completed';}).length+'</b> | Generated: '+new Date().toLocaleDateString()+'</p>');
-  w.document.write('<table><tr><th>WO#</th><th>Line</th><th>Equipment</th><th>Priority</th><th>Description</th><th>Status</th><th>Assigned To</th><th>Date</th></tr>'+rows+'</table>');
-  w.document.write('</body></html>');
-  w.document.close();
+  var css = 'h1{color:#0d4a44;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#0d4a44;color:#fff;padding:8px 10px;text-align:left;border:1px solid #fff;font-size:10px}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}';
+  var body = '<h1>WORK ORDERS REPORT</h1>'
+    + '<p>Total: <b>'+maintData.workOrders.length+'</b> | Open: <b style="color:#2563eb">'+maintData.workOrders.filter(function(w){return w.status==='Open';}).length+'</b> | Completed: <b style="color:#16a34a">'+maintData.workOrders.filter(function(w){return w.status==='Completed';}).length+'</b> | Generated: '+new Date().toLocaleDateString()+'</p>'
+    + '<table><tr><th>WO#</th><th>Line</th><th>Equipment</th><th>Priority</th><th>Description</th><th>Status</th><th>Assigned To</th><th>Date</th></tr>'+rows+'</table>';
+  openPrintPreview('Work Orders Report', body, css);
 }
 
 function renderFilters(){
@@ -6006,12 +6004,8 @@ function renderManagerDash(){
 
 function printManagerReport(){
   const now = new Date();
-  const tab = currentMgrTab || 'week';
   const lbl = document.getElementById('mgr-week-label').textContent;
-  const w = window.open('','_blank','width=900,height=800');
-  w.document.write(`<!DOCTYPE html><html><head><title>Manager Report — ${lbl}</title>
-  <style>body{font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;padding:24px;font-size:12px;color:#111}
-  h1{color:#4C1D95;font-size:18px;margin:0 0 4px}
+  const css = `h1{color:#4C1D95;font-size:18px;margin:0 0 4px}
   .meta{color:#6b7280;font-size:11px;margin-bottom:20px}
   .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
   .kpi{border:1.5px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center}
@@ -6022,10 +6016,8 @@ function printManagerReport(){
   td{padding:6px 7px;border-bottom:1px solid #f1f5f9}
   tr:nth-child(even)td{background:#f8fafc}
   h2{color:#4C1D95;font-size:13px;margin:18px 0 8px;border-bottom:2px solid #4C1D95;padding-bottom:4px}
-  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700}
-  @media print{body{padding:12px}}
-  </style></head><body>
-  <h1>pladis — Manager Quality Report</h1>
+  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700}`;
+  const body = `<h1>pladis — Manager Quality Report</h1>
   <div class="meta">Period: ${lbl} &nbsp;|&nbsp; Generated: ${now.toLocaleString()} &nbsp;|&nbsp; By: ${currentUser?.name||'—'}</div>
 
   <div class="kpi-grid">
@@ -6056,10 +6048,8 @@ function printManagerReport(){
   ${holdPallets.filter(p=>!p.released).length?`<h2>Pallets On Hold</h2>
   <table><tr><th>Date</th><th>Pallet</th><th>Product</th><th>Qty</th><th>Reason</th></tr>
   ${holdPallets.filter(p=>!p.released).map(p=>`<tr><td>${p.date||'—'}</td><td>${p.pallet||'—'}</td><td>${p.prod||'—'}</td><td>${p.qty||'—'}</td><td>${(p.reason||'').slice(0,60)}</td></tr>`).join('')}
-  </table>`:''}
-
-  </body></html>`);
-  w.document.close();
+  </table>`:''}`;
+  openPrintPreview('Manager Report — '+lbl, body, css);
 }
 
 
@@ -7388,11 +7378,8 @@ function printIncident(i){
   if(r.photos&&r.photos.length){
     body += '<div class="part">Pictures</div>'+r.photos.map(function(p){return '<img src="'+p+'" alt="Uploaded evidence photo" style="max-width:220px;margin:6px;border:1px solid #ddd"/>';}).join('');
   }
-  var w=window.open('','_blank','width=900,height=1000');
-  if(!w){ showToast('Allow popups to print','red'); return; }
-  w.document.write('<html><head><title>'+title+'</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#111}table{width:100%;border-collapse:collapse;margin-top:12px}td{border:1px solid #ddd;padding:8px;vertical-align:top;font-size:12px}.k{width:18%;background:#f8fafc;font-weight:700;color:#4C1D95}.part{margin-top:18px;font-weight:800;color:#991b1b}</style></head><body>'+body+'</body></html>');
-  w.document.close();
-  try{ w.focus(); w.print(); }catch(e){}
+  var css = 'table{width:100%;border-collapse:collapse;margin-top:12px}td{border:1px solid #ddd;padding:8px;vertical-align:top;font-size:12px}.k{width:18%;background:#f8fafc;font-weight:700;color:#4C1D95}.part{margin-top:18px;font-weight:800;color:#991b1b}';
+  openPrintPreview(title, body, css);
 }
 
 // Official app logo asset (same file used app-wide for the header/splash),
@@ -8844,23 +8831,11 @@ const PORTAL_PRINT_CSS = `
 `;
 
 function openPortalPrint(docTitle, bodyHtml){
-  // Prefer hidden iframe print — avoids browser popup blockers
-  const htmlDoc = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${docTitle}</title><style>${PORTAL_PRINT_CSS}</style></head><body>${bodyHtml}</body></html>`;
-  let frame = document.getElementById('portal-print-frame');
-  if(!frame){
-    frame = document.createElement('iframe');
-    frame.id = 'portal-print-frame';
-    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none';
-    document.body.appendChild(frame);
-  }
-  try{
-    const doc = frame.contentDocument || frame.contentWindow.document;
-    doc.open(); doc.write(htmlDoc); doc.close();
-    setTimeout(function(){ try{ frame.contentWindow.focus(); frame.contentWindow.print(); }catch(e){} }, 220);
-    return frame.contentWindow;
-  }catch(e){
-    return openPrintPreview(docTitle, bodyHtml, PORTAL_PRINT_CSS);
-  }
+  // Routed through the same reliable in-app Preview -> Back / Print flow used everywhere
+  // else (openPrintPreview) instead of a hidden auto-printing iframe — this was already
+  // the function's own fallback path (see below), now made the primary path so every
+  // caller gets a visible preview with no silent/blocked print attempts.
+  return openPrintPreview(docTitle, bodyHtml, PORTAL_PRINT_CSS);
 }
 
 /** In-app print preview with Close + Print — safe on mobile (no stuck blank tab). */
@@ -9370,8 +9345,6 @@ function printFullScoringReport(){
   try{var s=localStorage.getItem('pqs_scoring');if(s)scoringList=JSON.parse(s);}catch(e){}
   if(!scoringList||!scoringList.length){showToast('No evaluations to export','red');return;}
 
-  var w=window.open('','_blank','width=1100,height=900');
-
   // Summary stats
   var exc=scoringList.filter(function(e){return e.result==='Exceeding';}).length;
   var good=scoringList.filter(function(e){return e.result==='Good';}).length;
@@ -9437,38 +9410,27 @@ function printFullScoringReport(){
     detailHTML+='</table></div>';
   });
 
-  w.document.write('<!DOCTYPE html><html><head><title>Product Scoring — Full Report</title>');
-  w.document.write('<style>body{font-family:Arial,sans-serif;padding:24px;font-size:11px;color:#1e293b}h1{color:#4C1D95;font-size:16px;margin:0 0 4px}h2{color:#1e3a5f;font-size:13px;margin:20px 0 8px}table{width:100%;border-collapse:collapse}th{background:linear-gradient(135deg,#4C1D95,#7C3AED);color:#fff;padding:8px 10px;text-align:center;border:1px solid #fff;font-size:10px}td{font-size:10px}.kpi{text-align:center;padding:12px;border-radius:8px;color:#fff}@media print{body{padding:12px}.no-print{display:none}}</style>');
-  w.document.write('</head><body>');
+  var css = 'h1{color:#4C1D95;font-size:16px;margin:0 0 4px}h2{color:#1e3a5f;font-size:13px;margin:20px 0 8px}table{width:100%;border-collapse:collapse}th{background:linear-gradient(135deg,#4C1D95,#7C3AED);color:#fff;padding:8px 10px;text-align:center;border:1px solid #fff;font-size:10px}td{font-size:10px}.kpi{text-align:center;padding:12px;border-radius:8px;color:#fff}';
 
   // Header
-  w.document.write('<div style="display:flex;justify-content:space-between;margin-bottom:16px;align-items:flex-start">');
-  w.document.write('<div><h1>FINAL PRODUCT EVALUATION — FULL REPORT</h1><p style="color:#6b7280;margin:0">Generated: '+new Date().toLocaleDateString()+' | Pladis Arabia FMC</p></div>');
-  w.document.write('<div style="display:flex;gap:10px">');
+  var kpiHtml = '';
   [['Total',scoringList.length,'#1e3a5f'],['Exceeding',exc,'#16a34a'],['Good',good,'#2563eb'],['Unsatisfactory',unsat,'#dc2626'],['Avg Score',avg,'#d97706'],['Pass Rate',passRate+'%','#0d9488']].forEach(function(k){
-    w.document.write('<div class="kpi" style="background:'+k[2]+'"><div style="font-size:1.3rem;font-weight:900">'+k[1]+'</div><div style="font-size:9px;opacity:.85">'+k[0]+'</div></div>');
+    kpiHtml += '<div class="kpi" style="background:'+k[2]+'"><div style="font-size:1.3rem;font-weight:900">'+k[1]+'</div><div style="font-size:9px;opacity:.85">'+k[0]+'</div></div>';
   });
-  w.document.write('</div></div>');
+  var body2 = '<div style="display:flex;justify-content:space-between;margin-bottom:16px;align-items:flex-start">'
+    + '<div><h1>FINAL PRODUCT EVALUATION — FULL REPORT</h1><p style="color:#6b7280;margin:0">Generated: '+new Date().toLocaleDateString()+' | Pladis Arabia FMC</p></div>'
+    + '<div style="display:flex;gap:10px">'+kpiHtml+'</div></div>'
+    + '<h2>Summary — All Evaluations</h2>'
+    + '<table><tr><th>#</th><th style="text-align:left">Product</th><th>Date</th><th>Shift</th><th>Score</th><th>Result</th><th style="text-align:left">Evaluated By</th><th style="text-align:left">Attendees</th></tr>'+sumRows+'</table>'
+    + '<p style="font-size:10px;color:#dc2626;margin-top:8px"><b>Evaluation Result:</b> The result will be rejected if the minimum score in any criterion or group cannot be achieved, or 70 points in total cannot be obtained.</p>'
+    + '<div style="margin-top:16px;border-top:2px solid #1e3a5f;padding-top:12px"><h2 style="margin-top:0">Detailed Breakdown — Per Product</h2>'+detailHTML+'</div>';
 
-  // Summary table
-  w.document.write('<h2>Summary — All Evaluations</h2>');
-  w.document.write('<table><tr><th>#</th><th style="text-align:left">Product</th><th>Date</th><th>Shift</th><th>Score</th><th>Result</th><th style="text-align:left">Evaluated By</th><th style="text-align:left">Attendees</th></tr>');
-  w.document.write(sumRows+'</table>');
-
-  // Evaluation Result note
-  w.document.write('<p style="font-size:10px;color:#dc2626;margin-top:8px"><b>Evaluation Result:</b> The result will be rejected if the minimum score in any criterion or group cannot be achieved, or 70 points in total cannot be obtained.</p>');
-
-  // Detailed breakdown
-  w.document.write('<div style="margin-top:16px;border-top:2px solid #1e3a5f;padding-top:12px"><h2 style="margin-top:0">Detailed Breakdown — Per Product</h2>'+detailHTML+'</div>');
-
-  w.document.write('</body></html>');
-  w.document.close();
+  openPrintPreview('Product Scoring — Full Report', body2, css);
 }
 
 function printScoring(i){
   try{ var stored=localStorage.getItem('pqs_scoring'); if(stored) scoringList=JSON.parse(stored); }catch(e){}
   var e = scoringList[i];
-  var w = window.open('','_blank','width=900,height=800');
   var rows = '';
   var idx2 = 0;
   SCORING_CRITERIA.forEach(function(grp){
@@ -9484,14 +9446,12 @@ function printScoring(i){
     });
   });
   var resultColor = e.result==='Exceeding'?'#16a34a':e.result==='Good'?'#2563eb':'#dc2626';
-  w.document.write('<!DOCTYPE html><html><head><title>Product Scoring — '+e.product+'</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px}h1{color:#4C1D95;font-size:15px}table{width:100%;border-collapse:collapse}th{background:linear-gradient(135deg,#4C1D95,#7C3AED);color:#fff;padding:7px 10px;text-align:center;border:1px solid #fff}td{padding:5px 10px;border-bottom:1px solid #f1f5f9}.sig{border-top:2px solid #1e3a5f;padding-top:8px;margin-top:20px}@media print{body{padding:10px}}</style></head><body>');
-  w.document.write('<div style="display:flex;justify-content:space-between;margin-bottom:12px"><div><h1>FINAL PRODUCT EVALUATION (SCORING) FORM</h1><p>Product: <b>'+e.product+'</b> | Date: <b>'+e.date+'</b> | Evaluated by: <b>'+e.evaluator+'</b></p></div><div style="text-align:right"><div style="font-size:1.6rem;font-weight:900;color:'+resultColor+'">'+e.total+'/100</div><div style="font-weight:700;color:'+resultColor+'">'+e.result+'</div></div></div>');
-  w.document.write('<table><tr><th style="text-align:left">Criterion</th><th>Full Score</th><th>Min Score</th><th>Points Given</th><th>Status</th></tr>');
-  w.document.write(rows+'</table>');
-  w.document.write('<div style="margin-top:12px;background:#f8fafc;padding:10px;border-radius:6px;font-size:10px;color:#374151"><b>Evaluation Result:</b> The result will be rejected if the minimum score in any criterion or group cannot be achieved, or 70 points in total cannot be obtained.</div>');
-  if(e.attendees.length){ w.document.write('<p style="margin-top:12px"><b>Attendees:</b> '+e.attendees.join(' | ')+'</p>'); }
-  w.document.write('</body></html>');
-  w.document.close();
+  var css = 'h1{color:#4C1D95;font-size:15px}table{width:100%;border-collapse:collapse}th{background:linear-gradient(135deg,#4C1D95,#7C3AED);color:#fff;padding:7px 10px;text-align:center;border:1px solid #fff}td{padding:5px 10px;border-bottom:1px solid #f1f5f9}.sig{border-top:2px solid #1e3a5f;padding-top:8px;margin-top:20px}';
+  var body = '<div style="display:flex;justify-content:space-between;margin-bottom:12px"><div><h1>FINAL PRODUCT EVALUATION (SCORING) FORM</h1><p>Product: <b>'+e.product+'</b> | Date: <b>'+e.date+'</b> | Evaluated by: <b>'+e.evaluator+'</b></p></div><div style="text-align:right"><div style="font-size:1.6rem;font-weight:900;color:'+resultColor+'">'+e.total+'/100</div><div style="font-weight:700;color:'+resultColor+'">'+e.result+'</div></div></div>'
+    + '<table><tr><th style="text-align:left">Criterion</th><th>Full Score</th><th>Min Score</th><th>Points Given</th><th>Status</th></tr>'+rows+'</table>'
+    + '<div style="margin-top:12px;background:#f8fafc;padding:10px;border-radius:6px;font-size:10px;color:#374151"><b>Evaluation Result:</b> The result will be rejected if the minimum score in any criterion or group cannot be achieved, or 70 points in total cannot be obtained.</div>'
+    + (e.attendees.length ? '<p style="margin-top:12px"><b>Attendees:</b> '+e.attendees.join(' | ')+'</p>' : '');
+  openPrintPreview('Product Scoring — '+e.product, body, css);
 }
 
 // HISTORY VIEW
@@ -13523,7 +13483,6 @@ function saveSP(){
 }
 
 function printPMSchedule(){
-  var w = window.open('','_blank','width=1000,height=700');
   var rows = '';
   maintData.pmList.forEach(function(p,i){
     var sc={Completed:'#16a34a',Overdue:'#dc2626','In Progress':'#d97706',Pending:'#6b7280'};
@@ -13538,16 +13497,14 @@ function printPMSchedule(){
   });
   var overdueCount = maintData.pmList.filter(function(p){return p.status==='Overdue';}).length;
   var doneCount = maintData.pmList.filter(function(p){return p.status==='Completed';}).length;
-  w.document.write('<!DOCTYPE html><html><head><title>PM Schedule Report</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px}h1{color:#0d4a44;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#0d4a44;color:#fff;padding:8px 10px;text-align:left;border:1px solid #fff;font-size:10px}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}@media print{body{padding:10px}}</style></head><body>');
-  w.document.write('<h1>PREVENTIVE MAINTENANCE SCHEDULE</h1>');
-  w.document.write('<p>Total: <b>'+maintData.pmList.length+'</b> | Completed: <b style="color:#16a34a">'+doneCount+'</b> | Overdue: <b style="color:#dc2626">'+overdueCount+'</b> | Generated: '+new Date().toLocaleDateString()+'</p>');
-  w.document.write('<table><tr><th>Line</th><th>Equipment</th><th>Task</th><th>Frequency</th><th>Last Done</th><th>Next Due</th><th>Assigned To</th><th>Status</th></tr>'+rows+'</table>');
-  w.document.write('</body></html>');
-  w.document.close();
+  var css = 'h1{color:#0d4a44;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#0d4a44;color:#fff;padding:8px 10px;text-align:left;border:1px solid #fff;font-size:10px}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}';
+  var body = '<h1>PREVENTIVE MAINTENANCE SCHEDULE</h1>'
+    + '<p>Total: <b>'+maintData.pmList.length+'</b> | Completed: <b style="color:#16a34a">'+doneCount+'</b> | Overdue: <b style="color:#dc2626">'+overdueCount+'</b> | Generated: '+new Date().toLocaleDateString()+'</p>'
+    + '<table><tr><th>Line</th><th>Equipment</th><th>Task</th><th>Frequency</th><th>Last Done</th><th>Next Due</th><th>Assigned To</th><th>Status</th></tr>'+rows+'</table>';
+  openPrintPreview('PM Schedule Report', body, css);
 }
 
 function printDowntime(){
-  var w = window.open('','_blank','width=1000,height=700');
   var rows = '';
   var total = 0;
   prodData.downtimeRecords.forEach(function(d,i){
@@ -13562,12 +13519,11 @@ function printDowntime(){
     rows+='<td style="text-align:center"><span style="background:'+c+'1a;color:'+c+';padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700">'+d.type+'</span></td>';
     rows+='<td>'+d.reportedBy+'</td></tr>';
   });
-  w.document.write('<!DOCTYPE html><html><head><title>Downtime Report</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px}h1{color:#7c2d12;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#7c2d12;color:#fff;padding:8px 10px;text-align:left;border:1px solid #fff;font-size:10px}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}@media print{body{padding:10px}}</style></head><body>');
-  w.document.write('<h1>DOWNTIME RECORDS REPORT</h1>');
-  w.document.write('<p>Total Records: <b>'+prodData.downtimeRecords.length+'</b> | Total Downtime: <b style="color:#dc2626">'+total+' minutes ('+Math.floor(total/60)+'h '+total%60+'m)</b> | Generated: '+new Date().toLocaleDateString()+'</p>');
-  w.document.write('<table><tr><th>Line</th><th>Date</th><th>Start Time</th><th>Duration</th><th>Reason</th><th>Type</th><th>Reported By</th></tr>'+rows+'</table>');
-  w.document.write('</body></html>');
-  w.document.close();
+  var css = 'h1{color:#7c2d12;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#7c2d12;color:#fff;padding:8px 10px;text-align:left;border:1px solid #fff;font-size:10px}td{padding:7px 10px;border-bottom:1px solid #f1f5f9}';
+  var body = '<h1>DOWNTIME RECORDS REPORT</h1>'
+    + '<p>Total Records: <b>'+prodData.downtimeRecords.length+'</b> | Total Downtime: <b style="color:#dc2626">'+total+' minutes ('+Math.floor(total/60)+'h '+total%60+'m)</b> | Generated: '+new Date().toLocaleDateString()+'</p>'
+    + '<table><tr><th>Line</th><th>Date</th><th>Start Time</th><th>Duration</th><th>Reason</th><th>Type</th><th>Reported By</th></tr>'+rows+'</table>';
+  openPrintPreview('Downtime Report', body, css);
 }
 
 function saveMaintData(){
@@ -17742,7 +17698,6 @@ function startNoiseSurvey(){
 }
 function printNoiseSurvey(){
   var readings=safetyData.noiseReadings||[];
-  var w=window.open('','_blank'); if(!w){ showToast('Allow popups to print','red'); return; }
   var rows='';
   HSE_ENV_CATALOG.forEach(function(c){
     rows+='<tr><td colspan="7" style="background:#4C1D95;color:#fff;font-weight:800;padding:6px">'+c.group+' — '+c.line+'</td></tr>';
@@ -17753,13 +17708,11 @@ function printNoiseSurvey(){
       rows+='<tr style="background:'+col+'"><td>SPOT#'+s.spotNo+'</td><td>'+s.place+'</td><td>'+(r.noOp||'')+'</td><td>'+(r.withOp||r.decibels||'')+'</td><td>'+(r.std||85)+'</td><td>'+res+'</td><td>'+(r.date||'')+'</td></tr>';
     });
   });
-  w.document.write('<!doctype html><html><head><title>Noise Reading Results</title><style>body{font-family:Arial,sans-serif;padding:16px;font-size:11px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:4px 6px;text-align:left}th{background:#111827;color:#fff}@media print{body{padding:0}}</style></head><body>');
-  w.document.write('<h2 style="color:#4C1D95;margin:0 0 6px">NOISE Reading Results</h2>');
-  w.document.write('<div>Performed by: <b>'+(currentUser&&currentUser.name||'')+'</b> · Printed: '+new Date().toLocaleString()+' · STD Limit default: 85 dB(A)</div>');
-  w.document.write('<table style="margin-top:12px"><thead><tr><th>Spot #</th><th>Place</th><th>No Op</th><th>With Op</th><th>STD</th><th>Result</th><th>Tested Date</th></tr></thead><tbody>'+rows+'</tbody></table>');
-  w.document.write('</body></html>');
-  w.document.close();
-  setTimeout(function(){ try{w.print();}catch(e){} }, 300);
+  var css = 'table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:4px 6px;text-align:left}th{background:#111827;color:#fff}';
+  var body = '<h2 style="color:#4C1D95;margin:0 0 6px">NOISE Reading Results</h2>'
+    + '<div>Performed by: <b>'+(currentUser&&currentUser.name||'')+'</b> · Printed: '+new Date().toLocaleString()+' · STD Limit default: 85 dB(A)</div>'
+    + '<table style="margin-top:12px"><thead><tr><th>Spot #</th><th>Place</th><th>No Op</th><th>With Op</th><th>STD</th><th>Result</th><th>Tested Date</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  openPrintPreview('Noise Reading Results', body, css);
 }
 
 function renderLightLevel(){
@@ -17898,7 +17851,6 @@ function startLightSurvey(){
 }
 function printLightSurvey(){
   var readings=safetyData.lightReadings||[];
-  var w=window.open('','_blank'); if(!w){ showToast('Allow popups to print','red'); return; }
   var rows='';
   HSE_ENV_CATALOG.forEach(function(c){
     rows+='<tr><td colspan="8" style="background:#1e3a8a;color:#fff;font-weight:800;padding:6px">'+c.group+' — '+c.line+'</td></tr>';
@@ -17909,13 +17861,11 @@ function printLightSurvey(){
       rows+='<tr style="background:'+col+'"><td>SPOT#'+s.spotNo+'</td><td>'+s.place+'</td><td>'+(r.aboveHead||'')+'</td><td>'+(r.belowHead||'')+'</td><td>'+(r.std!=null?r.std:s.lightStd)+'</td><td>'+res+'</td><td>'+(r.date||'')+'</td><td>'+(r.notes||'')+'</td></tr>';
     });
   });
-  w.document.write('<!doctype html><html><head><title>Light measurement result F.HSE.64</title><style>body{font-family:Arial,sans-serif;padding:16px;font-size:11px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:4px 6px}th{background:#111827;color:#fff}</style></head><body>');
-  w.document.write('<h2 style="color:#1e3a8a;margin:0">Light measurement result</h2><div>Form No: <b>F.HSE.64</b> · Performed by: <b>'+(currentUser&&currentUser.name||'')+'</b> · '+new Date().toLocaleString()+'</div>');
-  w.document.write('<table style="margin-top:12px"><thead><tr><th>Spot #</th><th>Location</th><th>Above head</th><th>Below head</th><th>STD</th><th>Result</th><th>Tested Date</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table>');
-  w.document.write('<div style="margin-top:10px;font-size:9px;color:#6b7280">ISSUED NO:00 · ISSUED ON: 13.11.2019 · REV.NO:00 · REV.DATE: 13.11.2019</div>');
-  w.document.write('</body></html>');
-  w.document.close();
-  setTimeout(function(){ try{w.print();}catch(e){} }, 300);
+  var css = 'table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:4px 6px}th{background:#111827;color:#fff}';
+  var body = '<h2 style="color:#1e3a8a;margin:0">Light measurement result</h2><div>Form No: <b>F.HSE.64</b> · Performed by: <b>'+(currentUser&&currentUser.name||'')+'</b> · '+new Date().toLocaleString()+'</div>'
+    + '<table style="margin-top:12px"><thead><tr><th>Spot #</th><th>Location</th><th>Above head</th><th>Below head</th><th>STD</th><th>Result</th><th>Tested Date</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    + '<div style="margin-top:10px;font-size:9px;color:#6b7280">ISSUED NO:00 · ISSUED ON: 13.11.2019 · REV.NO:00 · REV.DATE: 13.11.2019</div>';
+  openPrintPreview('Light measurement result F.HSE.64', body, css);
 }
 
 function hseIsDoneRecently(ts, days){
