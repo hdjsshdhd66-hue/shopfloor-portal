@@ -16302,7 +16302,7 @@ function renderProdRework(){
       +'<div class="form-row"><label style="font-size:.75rem">Production Notes</label><textarea id="rwc-pl-note-'+i+'" class="fi" rows="2" placeholder="Execution notes...">'+escHtml(r.production&&r.production.notes||'')+'</textarea></div>'
       +'<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'
       +(r.status==='Pending Production' ? '<button type="button" class="btn-ghost" onclick="rwcProdStart(\''+r.num+'\')">Start Re-Work</button>' : '')
-      +'<button type="button" class="btn-primary" onclick="rwcProdComplete(\''+r.num+'\')">Mark Production Complete — Send to Quality</button>'
+      +(r.status==='In Progress' ? '<button type="button" class="btn-primary" onclick="rwcProdComplete(\''+r.num+'\')">Mark Production Complete — Send to Quality</button>' : '')
       +'</div>'
       +'</div>';
   }).join('');
