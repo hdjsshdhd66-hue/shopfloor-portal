@@ -392,7 +392,7 @@ const PORTAL_SIDEBAR_MENUS = {
     ]},
     {id:'qc', icon:'shield', label:'Quality Control', submenu:[
       {label:'NCR', view:'ncr'}, {label:'Complaints', view:'complaints'}, {label:'Food Safety', view:'foodsafety'},
-      {label:'Hold Pallets', view:'holdpallets'}, {label:'Scoring', view:'scoring'}
+      {label:'Hold Pallets', view:'holdpallets'}, {label:'Re-Work Cases', view:'reworkcases'}, {label:'Scoring', view:'scoring'}
     ]},
     {id:'an', icon:'chart', label:'Analytics', submenu:[
       {label:'Team Dashboard', view:'teamdash'}, {label:'Issues Dashboard', view:'db-issues'}, {label:'CW Dashboard', view:'db-cw'}, {label:'Manager', view:'manager'}, {label:'Shift Compare', view:'shiftcompare'}, {label:'History', view:'history'}
@@ -437,7 +437,8 @@ const PORTAL_SIDEBAR_MENUS = {
     {id:'pops', icon:'factory', label:'Production', submenu:[
       {label:'Production Value', view:'prodvalue'}, {label:'Production Log', view:'prodlog'},
       {label:'Line Cleaning', view:'linecleaning'}, {label:'Clearance Request', view:'clearancereq'},
-      {label:'Downtime', view:'downtime'}, {label:'Scrap / Waste', view:'prodscrap'}
+      {label:'Downtime', view:'downtime'}, {label:'Scrap / Waste', view:'prodscrap'},
+      {label:'NCR Inbox', view:'ncrprodinbox'}, {label:'Re-Work Cases', view:'prodrework'}
     ]},
     {id:'pkpi', icon:'chart', label:'Performance', submenu:[
       {label:'Daily Performance', view:'proddash'}, {label:'Actual & Budget', view:'proddash'}, {label:'Production Value', view:'prodvalue'}, {label:'Scrap / Waste', view:'prodscrap'}
@@ -625,7 +626,7 @@ function togglePsGroup(id){
 // ============================================================
 // NAVIGATION
 // ============================================================
-const VIEWS=['portallanding','home','lines','checklist','handover','cw','md','db-issues','db-cw','ncr','clearance','history','complaints','foodsafety','holdpallets','teamdash','manager','scoring','safetyhome','safetydash','nearmiss','incidentinvest','capa','dailyinspection','fireext','permits','fullptw','firepump','lpgcooling','noiselevel','lightlevel','training','ppe','mainthome','maintdash','pmschedule','workorder','breakdown','spareparts','maintcalibration','prodhome','proddash','linecleaning','prodlog','clearancereq','downtime','prodvalue','prodscrap','riskassess','factoryaccess','rework','dailyhub','hsecalendar','shiftcompare','weeklyreport','permissions','synccenter','itintegration','qrstation'];
+const VIEWS=['portallanding','home','lines','checklist','handover','cw','md','db-issues','db-cw','ncr','clearance','history','complaints','foodsafety','holdpallets','teamdash','manager','scoring','safetyhome','safetydash','nearmiss','incidentinvest','capa','dailyinspection','fireext','permits','fullptw','firepump','lpgcooling','noiselevel','lightlevel','training','ppe','mainthome','maintdash','pmschedule','workorder','breakdown','spareparts','maintcalibration','prodhome','proddash','linecleaning','prodlog','clearancereq','downtime','prodvalue','prodscrap','riskassess','factoryaccess','rework','dailyhub','hsecalendar','shiftcompare','weeklyreport','permissions','synccenter','itintegration','qrstation','ncrprodinbox','reworkcases','prodrework'];
 function toggleHeaderMenu(e){
   if(e) e.stopPropagation();
   document.querySelector('.header-nav').classList.toggle('menu-open');
@@ -1596,6 +1597,9 @@ function nav(v){
   if(v==='downtime') renderDowntime();
   if(v==='prodvalue') renderProdValue();
   if(v==='prodscrap') renderProdScrap();
+  if(v==='ncrprodinbox') renderNcrProdInbox();
+  if(v==='reworkcases') renderReworkCases();
+  if(v==='prodrework') renderProdRework();
   if(v==='noiselevel') renderNoiseLevel();
   if(v==='lightlevel') renderLightLevel();
   if(v==='maintcalibration') renderMaintCalibration();
@@ -1956,6 +1960,12 @@ let accessRequests=[];
 let riskAssessments=[];
 let mdLog={};
 let complaints=[], fsIssues=[], holdPallets=[], filterLog={};
+// Re-Work Case Management (defect-correction Quality<->Production case
+// workflow) — a NEW, separate module from the pre-existing material-reuse
+// "Re-Work" (reworkData.generated/used, kg-based dough/batter tracking).
+// Kept in its own array/namespace on purpose so the two are never confused
+// in code or in the UI; the existing feature is untouched.
+let reworkCases=[];
 let portalNotifications=[];
 
 
@@ -2463,7 +2473,7 @@ function saveState(){
       checks, remarks, cwData, hoHistory, issues,
       lcChecks, ncrList, loginLog, mdLog,
       complaints, fsIssues, holdPallets, filterLog,
-      accessRequests, riskAssessments, checklistHistory
+      accessRequests, riskAssessments, checklistHistory, reworkCases
     };
     if(typeof ensureSchemaVersion==='function') ensureSchemaVersion(payload);
     var __enc = encryptData(JSON.stringify(payload));
@@ -2498,6 +2508,7 @@ function loadState(){
         accessRequests = d.accessRequests || [];
         riskAssessments = d.riskAssessments || [];
         checklistHistory = d.checklistHistory || [];
+        reworkCases = d.reworkCases || [];
         if(typeof persistSchemaIfNeeded==='function') persistSchemaIfNeeded(d, 'pqs_data');
         return;
       }
@@ -2527,7 +2538,7 @@ function clearAllState(){
   if(!confirm('\u26a0 This will delete ALL saved data. Are you sure?')) return;
   ['pqs_data','pqs_checks','pqs_remarks','pqs_cwData','pqs_hoHistory','pqs_issues','pqs_lcChecks','pqs_ncrList'].forEach(k=>localStorage.removeItem(k));
   checks={}; remarks={}; cwData={}; hoHistory=[]; issues=[]; lcChecks={}; ncrList=[];
-  complaints=[]; fsIssues=[]; holdPallets=[]; filterLog={};
+  complaints=[]; fsIssues=[]; holdPallets=[]; filterLog={}; reworkCases=[];
   renderHome();
   alert('\u2705 All data cleared.');
 }
@@ -2714,9 +2725,44 @@ function doLogin(){
   showToast('Login unavailable','red');
 }
 
+// Professional logout confirmation — replaces the old browser confirm()
+// dialog with the portal's own modal (same .modal-overlay/.modal styling
+// and entrance animation used everywhere else, so it's Light/Violet Noir
+// themed and respects prefers-reduced-motion automatically). The actual
+// sign-out logic (performLogout -> exitToWelcomeHome) is unchanged — this
+// only changes how the user confirms before it runs.
 function doLogout(){
-  if(!confirm('Sign out of the system?')) return;
-  performLogout();
+  var modal = document.getElementById('logout-confirm-modal');
+  if(!modal){ if(confirm('Sign out of the system?')) performLogout(); return; }
+  var name = (currentUser&&currentUser.name) || 'Guest';
+  var role = (currentUser&&currentUser.role) || '—';
+  var initials = name.split(' ').map(function(w){return w[0];}).filter(Boolean).slice(0,2).join('').toUpperCase();
+  var avatarEl = document.getElementById('logout-confirm-avatar');
+  if(avatarEl) avatarEl.textContent = initials || '?';
+  var nameEl = document.getElementById('logout-confirm-name');
+  if(nameEl) nameEl.textContent = name;
+  var roleEl = document.getElementById('logout-confirm-role');
+  if(roleEl) roleEl.textContent = role;
+  var actionsEl = document.getElementById('logout-confirm-actions');
+  if(actionsEl) actionsEl.style.display = 'flex';
+  var progressEl = document.getElementById('logout-confirm-progress');
+  if(progressEl) progressEl.style.display = 'none';
+  modal.classList.add('open');
+}
+function closeLogoutConfirm(){
+  var modal = document.getElementById('logout-confirm-modal');
+  if(modal) modal.classList.remove('open');
+}
+function confirmLogout(){
+  var actionsEl = document.getElementById('logout-confirm-actions');
+  var progressEl = document.getElementById('logout-confirm-progress');
+  if(actionsEl) actionsEl.style.display = 'none';
+  if(progressEl) progressEl.style.display = 'flex';
+  var reduced = (typeof window.matchMedia==='function') && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setTimeout(function(){
+    closeLogoutConfirm();
+    performLogout();
+  }, reduced ? 0 : 350);
 }
 
 function clearLoginSession(){
@@ -2950,6 +2996,9 @@ function refreshCurrentView(){
   if(active('view-db-issues')) renderIssues();
   if(active('view-complaints')) renderComplaints();
   if(active('view-holdpallets')) renderHoldPallets();
+  if(active('view-reworkcases')) renderReworkCases();
+  if(active('view-prodrework')) renderProdRework();
+  if(active('view-ncrprodinbox')) renderNcrProdInbox();
   if(active('view-nearmiss')) renderNearMissList();
   if(active('view-permits')) renderPermitsList();
   if(active('view-fullptw')) renderPermitsList('fmc13','fullptw-list');
@@ -3184,9 +3233,9 @@ function startAutoExportTimer(){
 
 // Role-based access: which nav items each role can see
 const SAFETY_VIEWS = ['safetyhome','portallanding','dailyhub','safetydash','nearmiss','incidentinvest','capa','dailyinspection','fireext','permits','fullptw','firepump','lpgcooling','noiselevel','lightlevel','training','ppe','riskassess','hsecalendar','weeklyreport','qrstation'];
-const QUALITY_VIEWS = ['home','portallanding','dailyhub','lines','checklist','handover','cw','md','db-issues','db-cw','ncr','clearance','history','complaints','foodsafety','holdpallets','teamdash','manager','rework','shiftcompare','weeklyreport','qrstation'];
+const QUALITY_VIEWS = ['home','portallanding','dailyhub','lines','checklist','handover','cw','md','db-issues','db-cw','ncr','clearance','history','complaints','foodsafety','holdpallets','teamdash','manager','rework','reworkcases','shiftcompare','weeklyreport','qrstation'];
 const MAINTENANCE_VIEWS = ['mainthome','portallanding','dailyhub','maintdash','pmschedule','workorder','breakdown','spareparts','maintcalibration','weeklyreport'];
-const PRODUCTION_VIEWS = ['prodhome','portallanding','dailyhub','proddash','linecleaning','prodlog','clearancereq','downtime','prodvalue','prodscrap','riskassess','weeklyreport'];
+const PRODUCTION_VIEWS = ['prodhome','portallanding','dailyhub','proddash','linecleaning','prodlog','clearancereq','downtime','prodvalue','prodscrap','riskassess','weeklyreport','ncrprodinbox','prodrework'];
 
 const ROLE_ACCESS = {
   'Quality Manager':          [...QUALITY_VIEWS,'scoring'],
@@ -4305,6 +4354,7 @@ function renderIssues(){
       </div>
       <div class="issue-param"> ${escHtml(iss.param)}</div>
       <div class="issue-action"> ${escHtml(iss.action||'No action recorded')}</div>
+      ${iss.holdFlag===true && (parseInt(iss.holdQty)||0)>0 ? `<div style="margin-top:4px"><span style="background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 8px;font-size:.7rem;font-weight:700">On Hold · ${escHtml(String(iss.holdQty))} pallet${iss.holdQty===1?'':'s'} — <a href="#" onclick="event.stopPropagation();nav('holdpallets');return false" style="color:#dc2626;text-decoration:underline">view</a></span></div>` : ''}
       ${(typeof photosHTML==='function'?photosHTML(iss.photos):'')}
       <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center">
         <span>${iss.severity==='high'?'<span style="background:#fef2f2;color:var(--red);border-radius:99px;padding:2px 8px;font-size:.7rem;font-weight:700"> Critical</span>':
@@ -4334,9 +4384,18 @@ function editIssue(i){
   document.getElementById('mi-action').value = iss.action||'';
   document.getElementById('mi-reporter').value = iss.reporter||'';
   setSeverity(iss.severity||'medium');
+  document.getElementById('mi-prod').value = iss.prod||'';
+  document.getElementById('mi-batch').value = iss.batch||'';
+  document.getElementById('mi-hold-flag').value = iss.holdFlag===true?'Yes':iss.holdFlag===false?'No':'';
+  document.getElementById('mi-hold-qty').value = iss.holdQty||'';
+  toggleIssueHoldQty(document.getElementById('mi-hold-flag').value);
   if(typeof setFormPhotos==='function') setFormPhotos('issue', iss.photos||[]);
   if(typeof mountFormPhotoHosts==='function') mountFormPhotoHosts();
   document.getElementById('issue-modal').classList.add('open');
+}
+function toggleIssueHoldQty(val){
+  var row = document.getElementById('mi-hold-qty-row');
+  if(row) row.style.display = (val==='Yes') ? 'block' : 'none';
 }
 function toggleIssueStatus(i){
   if(issues[i]) issues[i].status=issues[i].status==='open'?'closed':'open';
@@ -4363,6 +4422,11 @@ function openIssueModal(){
   currentSeverity='';
   ['high','medium','low'].forEach(x=>{ const b=document.getElementById('mi-sev-'+x); if(b){b.classList.remove('ok','issue','active','on');} });
   document.getElementById('mi-severity').value='';
+  document.getElementById('mi-prod').value='';
+  document.getElementById('mi-batch').value='';
+  document.getElementById('mi-hold-flag').value='';
+  document.getElementById('mi-hold-qty').value='';
+  toggleIssueHoldQty('');
   if(typeof clearFormPhotos==='function') clearFormPhotos('issue');
   if(typeof mountFormPhotoHosts==='function') mountFormPhotoHosts();
   document.getElementById('issue-modal').classList.add('open');
@@ -4405,6 +4469,8 @@ function saveIssue(){
   ensureIssuesWeek();
   const week = document.getElementById('db-week').value || ensureIssuesWeek();
   const base = (editingIssueIdx!=null && issues[editingIssueIdx]) ? issues[editingIssueIdx] : null;
+  const holdFlag = document.getElementById('mi-hold-flag').value==='Yes' ? true : document.getElementById('mi-hold-flag').value==='No' ? false : null;
+  const holdQty = holdFlag ? (parseInt(document.getElementById('mi-hold-qty').value)||0) : 0;
   const rec={
     id: (base && base.id) ? base.id : ('ISS-'+Date.now()+'-'+Math.random().toString(36).slice(2,7)),
     week: week,
@@ -4415,6 +4481,10 @@ function saveIssue(){
     severity:document.getElementById('mi-severity').value||'medium',
     action:document.getElementById('mi-action').value,
     reporter:document.getElementById('mi-reporter').value||'QC Officer',
+    prod:document.getElementById('mi-prod').value,
+    batch:document.getElementById('mi-batch').value,
+    holdFlag: holdFlag,
+    holdQty: holdQty,
     photos: (typeof getFormPhotos==='function'?getFormPhotos('issue'):[]).slice(),
     status: base ? base.status : 'open',
     timestamp: base && base.timestamp ? base.timestamp : new Date().toISOString()
@@ -4422,12 +4492,14 @@ function saveIssue(){
   // Always append new unless explicitly editing an index
   if(editingIssueIdx!=null && issues[editingIssueIdx]){ issues[editingIssueIdx]=rec; }
   else { issues.push(rec); }
+  if(typeof issueSyncHoldPallet==='function') issueSyncHoldPallet(rec);
   editingIssueIdx=null;
   if(typeof clearFormPhotos==='function') clearFormPhotos('issue');
   closeIssueModal();
   saveState();
   renderIssues();
-  ['mi-param','mi-action'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['mi-param','mi-action','mi-prod','mi-batch'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('mi-hold-flag').value=''; document.getElementById('mi-hold-qty').value=''; toggleIssueHoldQty('');
   currentSeverity='';
   ['high','medium','low'].forEach(x=>{ const b=document.getElementById('mi-sev-'+x); if(b) b.classList.remove('ok','issue'); });
   const sev=document.getElementById('mi-severity'); if(sev) sev.value='';
@@ -5624,22 +5696,38 @@ function renderHoldPallets(){
       <div style="font-size:2.5rem;margin-bottom:10px"></div>No pallets on hold.</div>`;
     return;
   }
-  wrap.innerHTML = holdPallets.map((p,i)=>{
+  const srcFilter = document.getElementById('hold-source-filter')?.value||'';
+  const stFilter = document.getElementById('hold-status-filter')?.value||'';
+  let visible = holdPallets.map((p,i)=>({p,i}));
+  if(srcFilter) visible = visible.filter(x=>(x.p.sourceType||'Manual')===srcFilter);
+  if(stFilter==='released') visible = visible.filter(x=>x.p.released);
+  else if(stFilter==='on-hold') visible = visible.filter(x=>!x.p.released);
+  if(!visible.length){
+    wrap.innerHTML = `<div style="text-align:center;padding:50px;color:var(--muted);background:#fff;border-radius:12px">
+      <div style="font-size:2.5rem;margin-bottom:10px"></div>No pallets match this filter.</div>`;
+    return;
+  }
+  wrap.innerHTML = visible.map(({p,i})=>{
     const days = Math.floor((now - new Date(p.date).getTime())/86400000);
     const isAging = !p.released && days > 3;
     return `<div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:4px solid ${p.released?'#16a34a':isAging?'#dc2626':'#d97706'}">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div>
           <b style="color:var(--navy)">${p.pallet||'—'}</b> — ${p.prod||'—'}
-          <div style="font-size:.75rem;color:var(--muted)">Held: ${p.date} (${days} day${days===1?'':'s'} ago) | Qty: ${p.qty||'—'} | Loc: ${p.loc||'—'} ${p.ncr?'| NCR# '+p.ncr:''}</div>
+          <div style="font-size:.75rem;color:var(--muted)">Held: ${p.date} (${days} day${days===1?'':'s'} ago) | Qty: ${p.qty||'—'} | Loc: ${p.loc||'—'} ${p.ncr?'| '+(p.sourceType==='Quality Issue'?'Issue Ref# ':'NCR# ')+p.ncr:''}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${p.released?'<span style="background:#d1fae5;color:#16a34a;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:700"> Released</span>'
             : isAging ? '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:700"> Aging</span>'
             : '<span style="background:#fef3c7;color:#d97706;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:700">⏳ On Hold</span>'}
+          ${p.sourceType==='NCR' ? `<span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:99px;font-size:.7rem;font-weight:700">Source: NCR ${escHtml(p.sourceReference||'')}</span>`
+            : p.sourceType==='Quality Issue' ? `<span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:99px;font-size:.7rem;font-weight:700">Source: Quality Issue ${escHtml(p.sourceReference||'')}</span>`
+            : `<span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:99px;font-size:.7rem;font-weight:700">Source: Manual</span>`}
         </div>
       </div>
       <div style="font-size:.83rem;color:#374151;margin-top:6px">${p.reason||'—'}</div>
+      ${p.sourceType==='NCR' && p.sourceReference ? `<div style="margin-top:6px"><a href="#" onclick="nav('ncr');return false" style="font-size:.78rem;color:#2563eb">→ View linked NCR ${escHtml(p.sourceReference)}</a></div>` : ''}
+      ${p.sourceType==='Quality Issue' && p.sourceReference ? `<div style="margin-top:6px"><a href="#" onclick="nav('db-issues');return false" style="font-size:.78rem;color:#2563eb">→ View linked Quality Issue</a></div>` : ''}
       ${!p.released?`<button type="button" onclick="releasePallet(${i})" class="btn-ghost" style="margin-top:10px;font-size:.78rem"> Mark as Released</button>`:''}
       ${admDelBtn('deleteHoldPallet('+i+')')}
     </div>`;
@@ -5672,13 +5760,90 @@ function saveHoldPallet(){
     reason: document.getElementById('hp-reason').value,
     photos: (typeof getFormPhotos==='function'?getFormPhotos('hold'):[]).slice(),
     released: false,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    sourceType: 'Manual',
+    sourceReference: document.getElementById('hp-ncr').value || null
   });
   if(typeof clearFormPhotos==='function') clearFormPhotos('hold');
   saveState();
   closeHoldModal();
   renderHoldPallets();
   showToast(' Pallet added to hold list','green');
+}
+// Auto-create/update the Hold Pallets record linked to an NCR — ONLY when the
+// NCR explicitly states "Pallets Placed on Hold" = Yes AND a pallet count > 0
+// (never inferred from free text or from the unrelated "Quantity on Hold"
+// field). Idempotent: re-saving the same NCR updates its one linked Hold
+// record in place rather than creating a duplicate every edit, and never
+// auto-deletes/auto-releases an existing hold — release stays an explicit
+// action on the Hold Pallets screen.
+function ncrSyncHoldPallet(ncrRec){
+  if(!ncrRec || !ncrRec.num) return;
+  var existingIdx = holdPallets.findIndex(function(h){ return h.sourceType==='NCR' && h.sourceReference===ncrRec.num; });
+  if(!(ncrRec.holdFlag===true && (parseInt(ncrRec.holdQty)||0)>0)){
+    return; // condition not (or no longer) met — existing hold, if any, is left untouched (release stays manual)
+  }
+  var qtyLabel = ncrRec.holdQty + ' pallet' + (ncrRec.holdQty===1?'':'s');
+  if(existingIdx>=0){
+    var h = holdPallets[existingIdx];
+    h.date = ncrRec.date || h.date;
+    h.prod = ncrRec.prod || h.prod;
+    h.pallet = ncrRec.batch || h.pallet;
+    h.qty = qtyLabel;
+    h.reason = ncrRec.desc || h.reason;
+    h.ncr = ncrRec.num;
+  } else {
+    holdPallets.unshift({
+      date: ncrRec.date || new Date().toISOString().split('T')[0],
+      pallet: ncrRec.batch || '',
+      prod: ncrRec.prod || '',
+      qty: qtyLabel,
+      loc: '',
+      ncr: ncrRec.num,
+      reason: ncrRec.desc || ('Linked to NCR '+ncrRec.num),
+      photos: [],
+      released: false,
+      timestamp: new Date().toISOString(),
+      sourceType: 'NCR',
+      sourceReference: ncrRec.num
+    });
+    showToast('Hold Pallets record created from '+ncrRec.num, 'amber');
+  }
+}
+// Same strict Yes/qty>0-gated auto-linking as ncrSyncHoldPallet, for the
+// Weekly Quality Issue form. Never inferred from free text.
+function issueSyncHoldPallet(issRec){
+  if(!issRec || !issRec.id) return;
+  var existingIdx = holdPallets.findIndex(function(h){ return h.sourceType==='Quality Issue' && h.sourceReference===issRec.id; });
+  if(!(issRec.holdFlag===true && (parseInt(issRec.holdQty)||0)>0)){
+    return;
+  }
+  var qtyLabel = issRec.holdQty + ' pallet' + (issRec.holdQty===1?'':'s');
+  if(existingIdx>=0){
+    var h = holdPallets[existingIdx];
+    h.date = issRec.date || h.date;
+    h.prod = issRec.prod || h.prod;
+    h.pallet = issRec.batch || h.pallet;
+    h.qty = qtyLabel;
+    h.reason = issRec.param || h.reason;
+    h.ncr = issRec.id;
+  } else {
+    holdPallets.unshift({
+      date: issRec.date || new Date().toISOString().split('T')[0],
+      pallet: issRec.batch || '',
+      prod: issRec.prod || '',
+      qty: qtyLabel,
+      loc: '',
+      ncr: issRec.id,
+      reason: issRec.param || ('Linked to Quality Issue'),
+      photos: [],
+      released: false,
+      timestamp: new Date().toISOString(),
+      sourceType: 'Quality Issue',
+      sourceReference: issRec.id
+    });
+    showToast('Hold Pallets record created from Quality Issue', 'amber');
+  }
 }
 function releasePallet(i){
   if(!confirm('Mark this pallet as released?')) return;
@@ -6229,11 +6394,6 @@ window._safetyDoLogin = async function(){
   psOpenId = null;
   if(typeof renderPortalSidebar==='function') renderPortalSidebar();
 }
-
-window.doLogout = function(){
-  if(!confirm('Sign out of the system?')) return;
-  performLogout();
-};
 
 // ============================================================
 // SAFETY STATE — extend saveState / loadState
@@ -11356,7 +11516,13 @@ function printRiskAssessment(i){
 function renderNCRList(){
   const m=document.getElementById('ncr-month-sel').value;
   const y=document.getElementById('ncr-year-sel').value;
-  const filtered=ncrList.filter(n=>isActiveRec(n) && n.date&&n.date.startsWith(y+'-'+m));
+  const prodStatusFilter=document.getElementById('ncr-prod-status-filter')?.value||'';
+  let filtered=ncrList.filter(n=>isActiveRec(n) && n.date&&n.date.startsWith(y+'-'+m));
+  if(prodStatusFilter==='Closed'){
+    filtered = filtered.filter(n=>n.status==='closed');
+  } else if(prodStatusFilter){
+    filtered = filtered.filter(n=>n.production && n.production.status===prodStatusFilter);
+  }
   const open=filtered.filter(n=>n.status==='open').length;
   const closed=filtered.filter(n=>n.status==='closed').length;
   const cls1=filtered.filter(n=>n.cls===1).length;
@@ -11409,6 +11575,8 @@ function renderNCRList(){
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span class="ncr-chip" style="background:${clsColors[n.cls]||'#6b7280'}">${clsLabels[n.cls]||'—'}</span>
+          ${n.production && n.production.required ? `<span class="ncr-chip" style="background:${n.production.status==='Pending Production Input'?'#b45309':n.production.status==='Returned to Quality'?'#0f766e':'#6b7280'}">${escHtml(n.production.status||'Routed to Production')}</span>` : ''}
+          ${n.holdFlag===true && (parseInt(n.holdQty)||0)>0 ? `<span class="ncr-chip" style="background:#dc2626">On Hold · ${escHtml(String(n.holdQty))} pallet${n.holdQty===1?'':'s'}</span>` : ''}
           <button type="button" class="ncr-status-btn" onclick="toggleNCRStatus(${i})" style="background:${n.status==='open'?'#fef2f2':'#f0fdf4'};color:${n.status==='open'?'#b91c1c':'#15803d'};border:1px solid ${n.status==='open'?'#fecaca':'#bbf7d0'}">
             ${n.status==='open'?'Open':'Closed'}</button>
         </div>
@@ -11420,6 +11588,21 @@ function renderNCRList(){
         <div><b>Raised By</b><br>${n.raised||'—'}</div>
       </div>
       <div class="ncr-block"><b>Description</b><br>${escHtml(n.desc||'—')}</div>
+      ${(function(){
+        const linkedRework = (typeof reworkCases!=='undefined'?reworkCases:[]).filter(rc=>rc.sourceType==='NCR' && rc.sourceReference===n.num);
+        const hasProd = n.production && n.production.required;
+        const hasHold = n.holdFlag===true && (parseInt(n.holdQty)||0)>0;
+        if(!hasProd && !hasHold && !linkedRework.length) return '';
+        var h = '<div class="ncr-block" style="background:#f8fafc;border:1px dashed #cbd5e1"><b>Linked Records</b>';
+        if(hasProd) h += `<div style="margin-top:4px;font-size:.8rem">→ Production routing: <b>${escHtml(n.production.status||'—')}</b>${n.production.completedBy?(' · completed by '+escHtml(n.production.completedBy)):''}${n.production.notes?(`<div style="color:#64748b;margin-top:2px">Production notes: ${escHtml(n.production.notes)}</div>`):''}</div>`;
+        if(hasHold) h += `<div style="margin-top:4px;font-size:.8rem">→ Hold Pallets: <b>${escHtml(String(n.holdQty))} pallet${n.holdQty===1?'':'s'}</b> linked to this NCR — <a href="#" onclick="nav('holdpallets');return false" style="color:#2563eb">view Hold Pallets</a></div>`;
+        linkedRework.forEach(function(rc){
+          h += `<div style="margin-top:4px;font-size:.8rem">→ Re-Work Case: <b>${escHtml(rc.num)}</b> — ${escHtml(rc.status)} — <a href="#" onclick="nav('reworkcases');return false" style="color:#2563eb">view</a></div>`;
+        });
+        h += `<div style="margin-top:8px"><button type="button" class="btn-ghost" style="font-size:.72rem;padding:4px 10px" onclick="openReworkCaseModal('NCR','${n.num}',{prod:'${(n.prod||'').replace(/'/g,"&#39;")}',batch:'${(n.batch||'').replace(/'/g,"&#39;")}',reason:'${(n.desc||'').slice(0,140).replace(/'/g,"&#39;")}'})">+ Start Re-Work from this NCR</button></div>`;
+        h += '</div>';
+        return h;
+      })()}
       ${typeof photosHTML==='function'?photosHTML(n.photos):''}
       ${n.capaRows&&n.capaRows.length?`<div class="ncr-block ok">
         <b>Part 3 — Corrective / Preventive Actions</b>
@@ -11496,6 +11679,10 @@ function editNCR(i){
   document.getElementById('ncr-qty-rel').value = n.qtyRel||'';
   document.getElementById('ncr-qty-rej').value = n.qtyRej||'';
   document.getElementById('ncr-root').value = n.root||'';
+  document.getElementById('ncr-prod-required').value = n.prodRequired===true?'Yes':n.prodRequired===false?'No':'';
+  document.getElementById('ncr-hold-flag').value = n.holdFlag===true?'Yes':n.holdFlag===false?'No':'';
+  document.getElementById('ncr-hold-qty').value = n.holdQty||'';
+  toggleNcrHoldQty(document.getElementById('ncr-hold-flag').value);
   document.getElementById('capa-rows').innerHTML=''; capaRowCount=0;
   (n.capaRows&&n.capaRows.length?n.capaRows:[{}]).forEach(r=>addCapaRow(r));
   if(typeof setFormPhotos==='function') setFormPhotos('ncr', n.photos||[]);
@@ -11525,6 +11712,10 @@ function openNCRModal(){
   ['ncr-pt-rm','ncr-pt-pm','ncr-pt-sf','ncr-pt-fp','ncr-pt-ot','ncr-act-rej','ncr-act-rep','ncr-act-rbl','ncr-act-srt','ncr-act-oth'].forEach(id=>{ const el=document.getElementById(id); if(el) el.checked=false; });
   const locOther=document.getElementById('ncr-location-other'); if(locOther){ locOther.style.display='none'; locOther.value=''; }
   ['ncr-pt-ot-other','ncr-act-oth-other'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.style.display='none'; el.value=''; } });
+  const prodReqEl=document.getElementById('ncr-prod-required'); if(prodReqEl) prodReqEl.value='';
+  const holdFlagEl=document.getElementById('ncr-hold-flag'); if(holdFlagEl) holdFlagEl.value='';
+  const holdQtyEl=document.getElementById('ncr-hold-qty'); if(holdQtyEl) holdQtyEl.value='';
+  toggleNcrHoldQty('');
   resetCapaRows();
   if(typeof clearFormPhotos==='function') clearFormPhotos('ncr');
   if(typeof mountFormPhotoHosts==='function') mountFormPhotoHosts();
@@ -11599,7 +11790,18 @@ function reviewNCRSubmit(){
     ['Qty Released', document.getElementById('ncr-qty-rel').value],
     ['Qty Rejected', document.getElementById('ncr-qty-rej').value],
     ['Root Cause', document.getElementById('ncr-root').value],
+    ['Requires Production Input?', document.getElementById('ncr-prod-required').value],
+    ['Pallets Placed on Hold?', document.getElementById('ncr-hold-flag').value],
+    ['Number of Pallets on Hold', document.getElementById('ncr-hold-flag').value==='Yes'?document.getElementById('ncr-hold-qty').value:''],
   ], saveNCR);
+}
+// Show/hide the "Number of Pallets on Hold" field — only relevant, and only
+// ever read, when "Pallets Placed on Hold?" is explicitly Yes (see saveNCR /
+// ncrSyncHoldPallet: a Hold Pallets record is created only for Yes + qty>0,
+// never inferred from free text or from the existing "Quantity on Hold" field).
+function toggleNcrHoldQty(val){
+  var row = document.getElementById('ncr-hold-qty-row');
+  if(row) row.style.display = (val==='Yes') ? 'block' : 'none';
 }
 function saveNCR(){
   const getChk=id=>document.getElementById(id)?.checked;
@@ -11615,6 +11817,9 @@ function saveNCR(){
   if(getChk('ncr-pt-sf'))ptypes.push('Semi-finished');
   if(getChk('ncr-pt-fp'))ptypes.push('Finished Product');
   const ptOth=chkOtherLabel('ncr-pt-ot','ncr-pt-ot-other'); if(ptOth)ptypes.push(ptOth);
+  const prodRequired = document.getElementById('ncr-prod-required').value==='Yes' ? true : document.getElementById('ncr-prod-required').value==='No' ? false : null;
+  const holdFlag = document.getElementById('ncr-hold-flag').value==='Yes' ? true : document.getElementById('ncr-hold-flag').value==='No' ? false : null;
+  const holdQty = holdFlag ? (parseInt(document.getElementById('ncr-hold-qty').value)||0) : 0;
   let rec={
     num:document.getElementById('ncr-num').value,
     date:document.getElementById('ncr-date').value,
@@ -11637,13 +11842,30 @@ function saveNCR(){
     capaRows:collectCapaRows(),
     photos: (typeof getFormPhotos==='function'?getFormPhotos('ncr'):[]).slice(),
     status: editingNCRIdx!=null ? ncrList[editingNCRIdx].status : 'open',
-    timestamp: editingNCRIdx!=null ? ncrList[editingNCRIdx].timestamp : new Date().toISOString()
+    timestamp: editingNCRIdx!=null ? ncrList[editingNCRIdx].timestamp : new Date().toISOString(),
+    prodRequired: prodRequired,
+    holdFlag: holdFlag,
+    holdQty: holdQty
   };
+  var isNewNCR = editingNCRIdx==null;
   if(editingNCRIdx!=null){
     var __old = JSON.parse(JSON.stringify(ncrList[editingNCRIdx]));
     rec.workflow = ncrList[editingNCRIdx].workflow || null;
     rec.history = (__old.history||[]).slice();
     rec.createdBy = __old.createdBy; rec.createdAt = __old.createdAt;
+    // Production routing sub-status is additive to (not part of) the existing
+    // Draft/Submitted/Under Review/Approved/Closed workflow engine above —
+    // preserve its history across edits; only (re)enter "Pending Production
+    // Input" if it wasn't already routed/returned, so re-saving an NCR never
+    // resets Production's progress on it.
+    rec.production = __old.production || null;
+    if(prodRequired && (!rec.production || !rec.production.status)){
+      rec.production = { required:true, status:'Pending Production Input', history:[{status:'Pending Production Input', by:(currentUser&&currentUser.name)||'user', at:new Date().toISOString(), note:'NCR requires Production input'}] };
+    } else if(rec.production){
+      rec.production.required = !!prodRequired;
+    } else if(prodRequired===false){
+      rec.production = { required:false, status:null, history:[] };
+    }
     ncrList[editingNCRIdx]=recordAudit(__old, rec, 'edit');
     if(typeof wfNormalizeRecord==='function') wfNormalizeRecord(ncrList[editingNCRIdx]);
   } else {
@@ -11651,15 +11873,30 @@ function saveNCR(){
       state: 'Submitted',
       history: [{ state:'Submitted', by:(currentUser&&currentUser.name)||'user', at:new Date().toISOString(), note:'NCR raised' }]
     };
+    rec.production = prodRequired
+      ? { required:true, status:'Pending Production Input', history:[{status:'Pending Production Input', by:(currentUser&&currentUser.name)||'user', at:new Date().toISOString(), note:'NCR requires Production input'}] }
+      : { required:false, status:null, history:[] };
     rec = recordAudit(null, rec, 'create');
     ncrList.push(rec);
   }
+  var savedRec = editingNCRIdx!=null ? ncrList[editingNCRIdx] : ncrList[ncrList.length-1];
   editingNCRIdx=null;
   if(typeof clearFormPhotos==='function') clearFormPhotos('ncr');
+  if(typeof ncrSyncHoldPallet==='function') ncrSyncHoldPallet(savedRec);
   saveState();
   closeNCRModal();
   renderNCRList();
   if(typeof runEscalationScan==='function') runEscalationScan(true);
+  if(isNewNCR && prodRequired && typeof notifyPortal==='function'){
+    notifyPortal('production', {
+      type:'ncr-production-input',
+      from:'Quality Portal',
+      message:'New NCR awaiting Production input — '+(savedRec.num||''),
+      details:(savedRec.prod?('Product: '+savedRec.prod+'\n'):'')+(savedRec.batch?('Batch: '+savedRec.batch+'\n'):'')+'Reason: '+(savedRec.desc||'').slice(0,120),
+      actionView:'ncrprodinbox'
+    });
+  }
+  showToast(isNewNCR ? (prodRequired ? 'NCR saved — routed to Production' : 'NCR saved') : 'NCR updated', 'green');
 }
 function toggleNCRStatus(i){
   var __old = JSON.parse(JSON.stringify(ncrList[i]));
@@ -15084,13 +15321,27 @@ function buildProductionPortalBiHtml(pd, notifHtml){
   downtime.forEach(function(r){ var l=r.line||'—'; downtimeByLine[l]=(downtimeByLine[l]||0)+(parseInt(r.duration)||0); });
   var downtimeLineBars = Object.keys(downtimeByLine).map(function(k){return [k, downtimeByLine[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
 
+  // Re-Work Case KPIs — only calculated from real reworkCases[] records, never fabricated.
+  var rwc = (typeof reworkCases!=='undefined' ? reworkCases : []);
+  var rwcOpen = rwc.filter(function(r){return ['Pending Production','In Progress','Awaiting Quality Verification','Further Investigation','Hold'].indexOf(r.status)>=0;}).length;
+  var rwcInProgress = rwc.filter(function(r){return r.status==='In Progress';}).length;
+  var rwcAwaitingProd = rwc.filter(function(r){return r.status==='Pending Production';}).length;
+  var rwcAwaitingQual = rwc.filter(function(r){return r.status==='Awaiting Quality Verification';}).length;
+  var rwcClosedMonth = rwc.filter(function(r){return r.status==='Closed' && (r.updatedAt||r.createdAt||'').slice(0,7)===thisMonth;}).length;
+  var rwcQtyMonth = rwc.filter(function(r){return (r.production&&r.production.completionDate||'').startsWith(thisMonth);})
+    .reduce(function(s,r){return s+(parseFloat(r.production&&r.production.completedQty)||0);},0);
+  var prodOutputMonth = value.filter(function(r){return (r.date||'').startsWith(thisMonth);})
+    .reduce(function(s,r){return s+(parseFloat(r.actualUnits)||0);},0);
+  var rwcPctOfProd = (rwcQtyMonth>0 && prodOutputMonth>0) ? (rwcQtyMonth/prodOutputMonth*100) : null;
+
   var moduleRows = [
     ['Line Cleaning', cleaning.length, cleaningPending+' pending submit', 'linecleaning'],
     ['Production Log', logs.length, logs.length ? ('Last: '+(logs[0].date||'—')) : 'No entries', 'prodlog'],
     ['Clearance Requests', clearance.length, clearancePending+' pending', 'clearancereq'],
     ['Downtime', downtime.length, downtimeAllMin+' total min', 'downtime'],
     ['Production Value', value.length, avgYield!=null ? (avgYield.toFixed(1)+'% avg yield') : 'No entries', 'prodvalue'],
-    ['Scrap / Waste', scrap.length, scrapAllKg.toFixed(1)+' kg total', 'prodscrap']
+    ['Scrap / Waste', scrap.length, scrapAllKg.toFixed(1)+' kg total', 'prodscrap'],
+    ['Re-Work Cases', rwc.length, rwcOpen+' open', 'prodrework']
   ].map(function(r){
     return [portalBiEsc(r[0]), portalBiEsc(String(r[1])), portalBiEsc(String(r[2])),
       '<button type="button" class="btn-ghost" style="font-size:.68rem;padding:2px 8px" onclick="nav(\''+r[3]+'\')">Open</button>'];
@@ -15106,6 +15357,7 @@ function buildProductionPortalBiHtml(pd, notifHtml){
     .concat(downtime.map(function(r){return {t:'Downtime — '+(r.type||''), s:(r.line||'')+' — '+(r.duration||0)+' min', ts:r.timestamp, c:dtColors[r.type]||'#78350f', view:'downtime'};}))
     .concat(value.map(function(r){return {t:'Production Value', s:(r.line||'')+(r.product?' — '+r.product:''), ts:r.timestamp, c:'#92400e', view:'prodvalue'};}))
     .concat(scrap.map(function(r){return {t:'Scrap Logged', s:(r.line||'')+' — '+(r.scrapKg||0)+' kg', ts:r.timestamp, c:'#dc2626', view:'prodscrap'};}))
+    .concat(rwc.map(function(r){return {t:'Re-Work — '+(r.status||''), s:(r.num||'')+(r.prod?(' — '+r.prod):''), ts:r.updatedAt||r.createdAt, c:'#7c3aed', view:'prodrework'};}))
     .filter(function(a){return a.ts;}).sort(function(a,b){return new Date(b.ts)-new Date(a.ts);}).slice(0,10)
     .map(function(a){return {t:a.t,s:a.s,c:a.c,view:a.view,ago:portalBiAgo(a.ts)};});
 
@@ -15117,7 +15369,8 @@ function buildProductionPortalBiHtml(pd, notifHtml){
     {key:'cr', label:'Clearance Requests', view:'clearancereq', val:clearancePending},
     {key:'dt', label:'Downtime', view:'downtime', val:downtime.length},
     {key:'pv', label:'Production Value', view:'prodvalue', val:value.length},
-    {key:'sc', label:'Scrap / Waste', view:'prodscrap', val:scrap.length}
+    {key:'sc', label:'Scrap / Waste', view:'prodscrap', val:scrap.length},
+    {key:'rw', label:'Re-Work Cases', view:'prodrework', val:rwcOpen}
   ];
 
   var kpis = [
@@ -15125,7 +15378,10 @@ function buildProductionPortalBiHtml(pd, notifHtml){
     {l:'Avg Yield %', v:avgYield!=null?avgYield.toFixed(1)+'%':'—', s:value.length+' entries', c:avgYield!=null&&avgYield<95?'#d97706':'#16a34a'},
     {l:'Pending Clearance', v:clearancePending, s:clearance.length+' total', c:clearancePending>0?'#d97706':'#16a34a'},
     {l:'Scrap This Month', v:scrapMonthKg.toFixed(1)+' kg', s:scrap.length+' entries', c:scrapMonthKg>0?'#dc2626':'#16a34a'},
-    {l:'Cleaning Pending', v:cleaningPending, s:cleaning.length+' total', c:cleaningPending>0?'#d97706':'#16a34a'}
+    {l:'Cleaning Pending', v:cleaningPending, s:cleaning.length+' total', c:cleaningPending>0?'#d97706':'#16a34a'},
+    {l:'Re-Work Open', v:rwcOpen, s:rwcAwaitingProd+' awaiting Production · '+rwcAwaitingQual+' awaiting Quality', c:rwcOpen>0?'#7c3aed':'#16a34a'},
+    {l:'Re-Work Closed This Month', v:rwcClosedMonth, s:rwc.length+' total cases', c:'#16a34a'},
+    {l:'Re-Work Qty This Month', v:rwcQtyMonth>0?rwcQtyMonth.toFixed(0):'—', s:rwcPctOfProd!=null?(rwcPctOfProd.toFixed(2)+'% of production output'):'No production value data yet', c:rwcQtyMonth>0?'#d97706':'#16a34a'}
   ];
 
   var main = '<div class="pbi-layout">';
@@ -15742,6 +15998,360 @@ function deleteScrap(i){
   prodData.scrapRecords.splice(i,1);
   saveProdData();
   renderProdScrap();
+}
+
+// ============================================================
+// Production NCR Inbox — NOT a second NCR database. Reads and writes the
+// SAME ncrList[] records Quality owns; Production only ever sees/edits the
+// Production-routing sub-status (rec.production) and never overwrites the
+// original Quality-authored fields.
+// ============================================================
+function renderNcrProdInbox(){
+  const wrap=document.getElementById('ncrprodinbox-body');
+  if(!wrap) return;
+  const all = ncrList.filter(isActiveRec);
+  const pending = all.filter(n=>n.production && n.production.required && n.production.status==='Pending Production Input');
+  const returnedCount = all.filter(n=>n.production && n.production.status==='Returned to Quality').length;
+  var html='<div class="view-head-bar"><div class="page-title">NCR Inbox — Production Input</div></div>';
+  html+='<div class="page-sub" style="margin-bottom:14px">NCRs raised by Quality that require Production input. This is the same NCR record Quality sees — completing it here returns it to Quality for review, it does not create a new NCR.</div>';
+  html+=dashKpiCards([
+    {l:'Pending Production Input', v:pending.length, c:'#b45309'},
+    {l:'Returned to Quality (all time)', v:returnedCount, c:'#16a34a'},
+    {l:'Total NCRs (active)', v:all.length, c:'#64748b'},
+  ]);
+  if(!pending.length){
+    html+=emptyState('📥','No NCRs awaiting Production input','New NCRs that require Production action will appear here automatically.');
+    wrap.innerHTML=html;
+    return;
+  }
+  const clsColors={1:'#dc2626',2:'#d97706',3:'#2563eb',4:'#6b7280'};
+  const clsLabels={1:'Class I – Critical',2:'Class II – Important',3:'Class III – Corrective',4:'Class IV – Remedial'};
+  html += pending.map(function(n){
+    const i = ncrList.indexOf(n);
+    const holdWarn = (n.holdFlag===true && (parseInt(n.holdQty)||0)>0)
+      ? '<div style="margin-top:8px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;font-size:.78rem;color:#78350f"><b>⚠ Pallets on Hold:</b> '+(n.holdQty)+' pallet'+(n.holdQty===1?'':'s')+' linked to this NCR (see Hold Pallets)</div>'
+      : '';
+    return '<div class="pro-list-card" style="border-left-color:'+(clsColors[n.cls]||'#6b7280')+'">'
+      +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+      +'<b style="color:#1e3a5f">NCR # '+escHtml(n.num)+'</b>'
+      +'<span class="ncr-chip" style="background:'+(clsColors[n.cls]||'#6b7280')+'">'+(clsLabels[n.cls]||'—')+'</span>'
+      +'</div>'
+      +'<div style="font-size:.78rem;color:#6b7280;margin-top:2px">'+escHtml(n.date||'')+' '+escHtml(n.time||'')+' · '+escHtml(n.location||'—')+' · Shift '+escHtml(n.shift||'—')+'</div>'
+      +'<div style="font-size:.82rem;margin-top:8px"><b>Product:</b> '+escHtml(n.prod||'—')+(n.batch?(' · <b>Batch:</b> '+escHtml(n.batch)):'')+'</div>'
+      +'<div style="font-size:.82rem;margin-top:4px;color:#374151"><b>Quality Issue:</b> '+escHtml(n.desc||'—')+'</div>'
+      +holdWarn
+      +'<div style="margin-top:10px">'
+      +'<label style="font-size:.75rem;font-weight:700;color:#374151;display:block;margin-bottom:4px">Production Notes / Action Taken</label>'
+      +'<textarea id="ncr-prod-note-'+i+'" class="fi" rows="2" placeholder="Describe the Production action taken for this NCR..." style="width:100%"></textarea>'
+      +'</div>'
+      +'<div style="margin-top:10px">'
+      +'<button type="button" class="btn-primary" onclick="ncrProdComplete('+i+')">Mark Production Complete — Return to Quality</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+  wrap.innerHTML=html;
+}
+function ncrProdComplete(i){
+  const n = ncrList[i];
+  if(!n || !n.production){ return; }
+  const noteEl = document.getElementById('ncr-prod-note-'+i);
+  const note = noteEl ? noteEl.value.trim() : '';
+  var __old = JSON.parse(JSON.stringify(n));
+  n.production.status = 'Returned to Quality';
+  n.production.completedBy = (currentUser&&currentUser.name)||'user';
+  n.production.completedAt = new Date().toISOString();
+  n.production.notes = note;
+  if(!Array.isArray(n.production.history)) n.production.history = [];
+  n.production.history.push({ status:'Returned to Quality', by:(currentUser&&currentUser.name)||'user', at:new Date().toISOString(), note: note || 'Production input completed' });
+  ncrList[i] = recordAudit(__old, n, 'edit');
+  saveState();
+  renderNcrProdInbox();
+  if(typeof notifyPortal==='function'){
+    notifyPortal('quality', {
+      type:'ncr-returned-quality',
+      from:'Production Portal',
+      message:'NCR returned from Production — '+(n.num||''),
+      details:(note?('Production notes: '+note.slice(0,150)):'Production input completed, awaiting Quality review'),
+      actionView:'ncr'
+    });
+  }
+  showToast('Production input saved — '+(n.num||'')+' returned to Quality','green');
+}
+
+// ============================================================
+// RE-WORK CASE MANAGEMENT — a defect-correction case workflow shared
+// between Quality and Production (ONE record, both portal views).
+// This is a NEW, separate module from the pre-existing "Re-Work" material
+// reuse traceability feature (reworkData.generated/used, kg-based dough
+// tracking, Quality-only) — that feature is completely unchanged. Kept in
+// its own reworkCases[] array and its own view names (reworkcases /
+// prodrework) specifically to avoid any collision with it.
+// ============================================================
+let editingReworkNum = null;
+let _rwcSource = null; // {sourceType, sourceReference, prod, batch} when launched from an NCR
+function nextReworkCaseNum(){
+  var year = new Date().getFullYear();
+  var seq = (reworkCases||[]).filter(function(r){return (r.num||'').indexOf('RWC-'+year)===0;}).length + 1;
+  return 'RWC-'+year+'-'+String(seq).padStart(4,'0');
+}
+function openReworkCaseModal(sourceType, sourceReference, prefill){
+  editingReworkNum = null;
+  _rwcSource = sourceType ? {sourceType:sourceType, sourceReference:sourceReference||null} : null;
+  var srcLine = document.getElementById('rwc-source-line');
+  if(srcLine){
+    if(sourceType && sourceReference){
+      srcLine.style.display='block';
+      srcLine.textContent = 'Linked to '+sourceType+' '+sourceReference+' — Product/Batch pre-filled from source.';
+    } else { srcLine.style.display='none'; srcLine.textContent=''; }
+  }
+  document.getElementById('rwc-prod').value = (prefill&&prefill.prod)||'';
+  document.getElementById('rwc-batch').value = (prefill&&prefill.batch)||'';
+  document.getElementById('rwc-line').value = (prefill&&prefill.line)||'';
+  document.getElementById('rwc-qty').value = '';
+  document.getElementById('rwc-reason').value = (prefill&&prefill.reason)||'';
+  document.getElementById('rwc-precondition').value = '';
+  document.getElementById('rwc-modal').classList.add('open');
+}
+function closeReworkCaseModal(){ document.getElementById('rwc-modal').classList.remove('open'); editingReworkNum=null; _rwcSource=null; }
+function saveReworkCase(){
+  var prod = document.getElementById('rwc-prod').value.trim();
+  var reason = document.getElementById('rwc-reason').value.trim();
+  if(!prod || !reason){ showToast('Enter at least Product and Reason for Re-Work','red'); return; }
+  var now = new Date().toISOString();
+  var who = (currentUser&&currentUser.name)||'user';
+  var rec = {
+    num: nextReworkCaseNum(),
+    date: now.split('T')[0],
+    prod: prod,
+    batch: document.getElementById('rwc-batch').value.trim(),
+    line: document.getElementById('rwc-line').value.trim(),
+    qty: document.getElementById('rwc-qty').value.trim(),
+    reason: reason,
+    precondition: document.getElementById('rwc-precondition').value.trim(),
+    sourceType: (_rwcSource && _rwcSource.sourceType) || 'Manual',
+    sourceReference: (_rwcSource && _rwcSource.sourceReference) || null,
+    status: 'Pending Production',
+    cycleCount: 0,
+    production: { startDate:null, executionStatus:null, completedQty:null, scrapQty:null, completionDate:null, notes:'', by:null },
+    quality: { disposition:null, notes:'', verifiedBy:null, verifiedAt:null },
+    history: [
+      { status:'Re-Work Created', by:who, at:now, note:'Re-Work case created' },
+      { status:'Pending Production', by:who, at:now, note:'Routed to Production' }
+    ]
+  };
+  rec = recordAudit(null, rec, 'create');
+  reworkCases.unshift(rec);
+  saveState();
+  closeReworkCaseModal();
+  if(typeof renderReworkCases==='function') renderReworkCases();
+  if(typeof renderNCRList==='function' && document.getElementById('view-ncr')?.classList.contains('active')) renderNCRList();
+  if(typeof notifyPortal==='function'){
+    notifyPortal('production', {
+      type:'rework-pending-production',
+      from:'Quality Portal',
+      message:'New Re-Work case awaiting Production — '+rec.num,
+      details:'Product: '+(rec.prod||'')+(rec.batch?('\nBatch: '+rec.batch):'')+'\nReason: '+(rec.reason||'').slice(0,120),
+      actionView:'prodrework'
+    });
+  }
+  showToast('Re-Work case '+rec.num+' created — routed to Production','green');
+}
+function rwcIndexByNum(num){ return reworkCases.findIndex(function(r){return r.num===num;}); }
+
+// ── Quality Re-Work Control & Verification View ──
+let _reworkCaseFilter = '';
+function setReworkCaseFilter(v){ _reworkCaseFilter = v; renderReworkCases(); }
+function renderReworkCases(){
+  const wrap=document.getElementById('reworkcases-body');
+  if(!wrap) return;
+  const all = reworkCases||[];
+  const open = all.filter(r=>['Pending Production','In Progress','Awaiting Quality Verification','Further Investigation','Hold'].indexOf(r.status)>=0);
+  const awaitingVerify = all.filter(r=>r.status==='Awaiting Quality Verification');
+  const closedThisMonth = all.filter(r=>r.status==='Closed' && (r.updatedAt||r.createdAt||'').slice(0,7)===new Date().toISOString().slice(0,7));
+  var html='<div class="view-head-bar"><div class="page-title">Re-Work Case Control &amp; Verification</div><button type="button" class="btn-primary" style="margin-left:auto" onclick="openReworkCaseModal()">+ New Re-Work Case</button></div>';
+  html+='<div class="page-sub" style="margin-bottom:14px">Defect-correction case workflow shared with Production. Separate from the material Re-Work (traceability) log.</div>';
+  html+=dashKpiCards([
+    {l:'Open Cases', v:open.length, c:'#7c3aed'},
+    {l:'Awaiting Quality Verification', v:awaitingVerify.length, c:'#b45309'},
+    {l:'Closed This Month', v:closedThisMonth.length, c:'#16a34a'},
+    {l:'Total Cases', v:all.length, c:'#64748b'},
+  ]);
+  if(!all.length){
+    wrap.innerHTML = html + emptyState('🔁','No Re-Work cases yet','Create one manually, or start one from an NCR\'s Linked Records panel.');
+    return;
+  }
+  html += '<div class="fg" style="margin-bottom:10px"><label class="fl">Status</label>'
+    + '<select class="fi" onchange="setReworkCaseFilter(this.value)" style="max-width:260px">'
+    + '<option value="">All</option>'
+    + ['Pending Production','In Progress','Awaiting Quality Verification','Closed','Hold','Further Investigation'].map(function(s){
+        return '<option value="'+s+'"'+(_reworkCaseFilter===s?' selected':'')+'>'+s+'</option>';
+      }).join('')
+    + '</select></div>';
+  const listed = _reworkCaseFilter ? all.filter(r=>r.status===_reworkCaseFilter) : all;
+  if(!listed.length){
+    wrap.innerHTML = html + emptyState('🔁','No Re-Work cases match this filter','Try a different status.');
+    return;
+  }
+  const stColors={'Re-Work Created':'#6b7280','Pending Production':'#b45309','In Progress':'#2563eb','Production Completed':'#0f766e','Awaiting Quality Verification':'#7c3aed','Accepted':'#16a34a','Rework Again':'#d97706','Scrap':'#dc2626','Hold':'#dc2626','Further Investigation':'#0891b2','Closed':'#16a34a'};
+  html += listed.map(function(r){
+    const i = rwcIndexByNum(r.num);
+    const canVerify = r.status==='Awaiting Quality Verification';
+    return '<div class="pro-list-card" style="border-left-color:'+(stColors[r.status]||'#6b7280')+'">'
+      +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+      +'<b style="color:#1e3a5f">'+escHtml(r.num)+'</b>'
+      +'<span class="ncr-chip" style="background:'+(stColors[r.status]||'#6b7280')+'">'+escHtml(r.status)+(r.cycleCount>0?(' · Cycle '+(r.cycleCount+1)):'')+'</span>'
+      +'</div>'
+      +'<div style="font-size:.78rem;color:#6b7280;margin-top:2px">'+escHtml(r.date||'')+(r.sourceType==='NCR'?(' · Source: NCR '+escHtml(r.sourceReference||'')):'')+'</div>'
+      +'<div style="font-size:.82rem;margin-top:8px"><b>Product:</b> '+escHtml(r.prod||'—')+(r.batch?(' · <b>Batch:</b> '+escHtml(r.batch)):'')+(r.line?(' · <b>Line:</b> '+escHtml(r.line)):'')+(r.qty?(' · <b>Qty:</b> '+escHtml(r.qty)):'')+'</div>'
+      +'<div style="font-size:.82rem;margin-top:4px;color:#374151"><b>Reason:</b> '+escHtml(r.reason||'—')+'</div>'
+      +(r.production && r.production.by ? '<div class="ncr-block ok" style="margin-top:8px"><b>Production Input</b><br>Completed Qty: '+escHtml(r.production.completedQty||'—')+' · Scrap: '+escHtml(r.production.scrapQty||'—')+' · By: '+escHtml(r.production.by||'—')+(r.production.notes?('<div style="margin-top:4px;color:#64748b">'+escHtml(r.production.notes)+'</div>'):'')+'</div>' : '')
+      +(r.quality && r.quality.disposition ? '<div class="ncr-block" style="margin-top:8px;background:#f0fdf4;border-color:#bbf7d0"><b>Quality Verification</b><br>Disposition: '+escHtml(r.quality.disposition)+' · By: '+escHtml(r.quality.verifiedBy||'—')+(r.quality.notes?('<div style="margin-top:4px;color:#64748b">'+escHtml(r.quality.notes)+'</div>'):'')+'</div>' : '')
+      +(canVerify ? (
+        '<div style="margin-top:10px">'
+        +'<label style="font-size:.75rem;font-weight:700;color:#374151;display:block;margin-bottom:4px">Quality Verification Notes</label>'
+        +'<textarea id="rwc-verify-note-'+i+'" class="fi" rows="2" placeholder="Post-verification notes..." style="width:100%"></textarea>'
+        +'</div>'
+        +'<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'
+        +'<button type="button" class="btn-primary" style="background:#16a34a" onclick="rwcVerify(\''+r.num+'\',\'Accepted\')">Accept — Close</button>'
+        +'<button type="button" class="btn-ghost" onclick="rwcVerify(\''+r.num+'\',\'Rework Again\')">Re-Work Again</button>'
+        +'<button type="button" class="btn-ghost" style="color:#dc2626" onclick="rwcVerify(\''+r.num+'\',\'Scrap\')">Scrap</button>'
+        +'<button type="button" class="btn-ghost" style="color:#dc2626" onclick="rwcVerify(\''+r.num+'\',\'Hold\')">Hold</button>'
+        +'<button type="button" class="btn-ghost" onclick="rwcVerify(\''+r.num+'\',\'Further Investigation\')">Further Investigation</button>'
+        +'</div>'
+      ) : '')
+      +'</div>';
+  }).join('');
+  wrap.innerHTML=html;
+}
+function rwcVerify(num, disposition){
+  const i = rwcIndexByNum(num);
+  if(i<0) return;
+  var r = reworkCases[i];
+  var noteEl = document.getElementById('rwc-verify-note-'+i);
+  var note = noteEl ? noteEl.value.trim() : '';
+  var __old = JSON.parse(JSON.stringify(r));
+  var who = (currentUser&&currentUser.name)||'user';
+  var now = new Date().toISOString();
+  r.quality.disposition = disposition;
+  r.quality.notes = note;
+  r.quality.verifiedBy = who;
+  r.quality.verifiedAt = now;
+  if(disposition==='Rework Again'){
+    r.cycleCount = (r.cycleCount||0)+1;
+    r.status = 'Pending Production';
+    r.production = { startDate:null, executionStatus:null, completedQty:null, scrapQty:null, completionDate:null, notes:'', by:null };
+    r.history.push({ status:'Pending Production', by:who, at:now, note: (r.cycleCount>=2?'Review Recommended — ':'') + (note||'Sent back for another Re-Work cycle') });
+  } else if(disposition==='Accepted' || disposition==='Scrap'){
+    r.status = 'Closed';
+    r.history.push({ status:'Closed', by:who, at:now, note: disposition+(note?(': '+note):'') });
+  } else {
+    r.status = disposition; // 'Hold' or 'Further Investigation' — stays open, no forced transition
+    r.history.push({ status:disposition, by:who, at:now, note: note||('Marked '+disposition) });
+  }
+  reworkCases[i] = recordAudit(__old, r, 'edit');
+  saveState();
+  renderReworkCases();
+  if(disposition==='Rework Again' && typeof notifyPortal==='function'){
+    notifyPortal('production', {
+      type:'rework-pending-production',
+      from:'Quality Portal',
+      message:'Re-Work case sent back to Production — '+r.num,
+      details:(r.cycleCount>=2?'Review Recommended (cycle '+(r.cycleCount+1)+'). ':'')+(note||''),
+      actionView:'prodrework'
+    });
+  }
+  showToast('Re-Work case '+r.num+' — '+disposition,'green');
+}
+
+// ── Production Re-Work View ──
+function renderProdRework(){
+  const wrap=document.getElementById('prodrework-body');
+  if(!wrap) return;
+  const all = reworkCases||[];
+  const pending = all.filter(r=>r.status==='Pending Production');
+  const inProgress = all.filter(r=>r.status==='In Progress');
+  const awaitingVerify = all.filter(r=>r.status==='Awaiting Quality Verification');
+  const actionable = pending.concat(inProgress);
+  var html='<div class="view-head-bar"><div class="page-title">Re-Work Cases — Production</div></div>';
+  html+='<div class="page-sub" style="margin-bottom:14px">Defect-correction Re-Work cases from Quality. Complete the execution fields and return to Quality for verification.</div>';
+  html+=dashKpiCards([
+    {l:'Pending Production', v:pending.length, c:'#b45309'},
+    {l:'In Progress', v:inProgress.length, c:'#2563eb'},
+    {l:'Awaiting Quality Verification', v:awaitingVerify.length, c:'#7c3aed'},
+    {l:'Total Cases', v:all.length, c:'#64748b'},
+  ]);
+  if(!actionable.length){
+    wrap.innerHTML = html + emptyState('🔁','No Re-Work cases awaiting Production','New cases routed from Quality will appear here.');
+    return;
+  }
+  html += actionable.map(function(r){
+    const i = rwcIndexByNum(r.num);
+    return '<div class="pro-list-card" style="border-left-color:#b45309">'
+      +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+      +'<b style="color:#1e3a5f">'+escHtml(r.num)+'</b>'
+      +'<span class="ncr-chip" style="background:'+(r.status==='In Progress'?'#2563eb':'#b45309')+'">'+escHtml(r.status)+(r.cycleCount>0?(' · Cycle '+(r.cycleCount+1)):'')+'</span>'
+      +'</div>'
+      +'<div style="font-size:.78rem;color:#6b7280;margin-top:2px">'+escHtml(r.date||'')+(r.sourceType==='NCR'?(' · Source: NCR '+escHtml(r.sourceReference||'')):'')+'</div>'
+      +'<div style="font-size:.82rem;margin-top:8px"><b>Product:</b> '+escHtml(r.prod||'—')+(r.batch?(' · <b>Batch:</b> '+escHtml(r.batch)):'')+(r.line?(' · <b>Line:</b> '+escHtml(r.line)):'')+(r.qty?(' · <b>Target Qty:</b> '+escHtml(r.qty)):'')+'</div>'
+      +'<div style="font-size:.82rem;margin-top:4px;color:#374151"><b>Reason:</b> '+escHtml(r.reason||'—')+'</div>'
+      +(r.precondition?('<div style="font-size:.78rem;margin-top:4px;color:#64748b"><b>Pre-Condition:</b> '+escHtml(r.precondition)+'</div>'):'')
+      +'<div class="form-2col" style="margin-top:10px">'
+      +'<div class="form-row"><label style="font-size:.75rem">Completed Qty</label><input type="text" id="rwc-pl-cqty-'+i+'" class="fi" value="'+escHtml(r.production&&r.production.completedQty||'')+'" placeholder="e.g. 110 units"/></div>'
+      +'<div class="form-row"><label style="font-size:.75rem">Scrap Generated</label><input type="text" id="rwc-pl-scrap-'+i+'" class="fi" value="'+escHtml(r.production&&r.production.scrapQty||'')+'" placeholder="e.g. 10 units"/></div>'
+      +'</div>'
+      +'<div class="form-row"><label style="font-size:.75rem">Production Notes</label><textarea id="rwc-pl-note-'+i+'" class="fi" rows="2" placeholder="Execution notes...">'+escHtml(r.production&&r.production.notes||'')+'</textarea></div>'
+      +'<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'
+      +(r.status==='Pending Production' ? '<button type="button" class="btn-ghost" onclick="rwcProdStart(\''+r.num+'\')">Start Re-Work</button>' : '')
+      +'<button type="button" class="btn-primary" onclick="rwcProdComplete(\''+r.num+'\')">Mark Production Complete — Send to Quality</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+  wrap.innerHTML=html;
+}
+function rwcProdStart(num){
+  const i = rwcIndexByNum(num);
+  if(i<0) return;
+  var r = reworkCases[i];
+  var __old = JSON.parse(JSON.stringify(r));
+  r.status = 'In Progress';
+  r.production.startDate = new Date().toISOString().split('T')[0];
+  r.production.executionStatus = 'In Progress';
+  r.production.by = (currentUser&&currentUser.name)||'user';
+  r.history.push({ status:'In Progress', by:r.production.by, at:new Date().toISOString(), note:'Production started' });
+  reworkCases[i] = recordAudit(__old, r, 'edit');
+  saveState();
+  renderProdRework();
+  showToast('Re-Work case '+r.num+' started','green');
+}
+function rwcProdComplete(num){
+  const i = rwcIndexByNum(num);
+  if(i<0) return;
+  var r = reworkCases[i];
+  var __old = JSON.parse(JSON.stringify(r));
+  var who = (currentUser&&currentUser.name)||'user';
+  var now = new Date().toISOString();
+  r.production.completedQty = document.getElementById('rwc-pl-cqty-'+i)?.value.trim() || r.production.completedQty;
+  r.production.scrapQty = document.getElementById('rwc-pl-scrap-'+i)?.value.trim() || r.production.scrapQty;
+  r.production.notes = document.getElementById('rwc-pl-note-'+i)?.value.trim() || r.production.notes;
+  r.production.completionDate = now.split('T')[0];
+  r.production.executionStatus = 'Completed';
+  r.production.by = who;
+  r.status = 'Awaiting Quality Verification';
+  r.history.push({ status:'Production Completed', by:who, at:now, note:'Execution complete' });
+  r.history.push({ status:'Awaiting Quality Verification', by:who, at:now, note:'Returned to Quality for verification' });
+  reworkCases[i] = recordAudit(__old, r, 'edit');
+  saveState();
+  renderProdRework();
+  if(typeof notifyPortal==='function'){
+    notifyPortal('quality', {
+      type:'rework-awaiting-verification',
+      from:'Production Portal',
+      message:'Re-Work case awaiting Quality verification — '+r.num,
+      details:'Completed Qty: '+(r.production.completedQty||'—')+' · Scrap: '+(r.production.scrapQty||'—'),
+      actionView:'reworkcases'
+    });
+  }
+  showToast('Re-Work case '+r.num+' returned to Quality for verification','green');
 }
 
 // Load all portal data on startup
