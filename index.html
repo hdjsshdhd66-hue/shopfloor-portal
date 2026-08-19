@@ -397,10 +397,6 @@ try{
       <div style="color:rgba(255,255,255,.16);font-size:.65rem;margin-top:6px">© Saud Al-mutairi</div>
     </div>
   </div>
-
-  <!-- discreet owner-access entry point (relocated here now that portal-select screen is gone) -->
-  <div onclick="openOwnerGate()" style="position:absolute;bottom:14px;right:16px;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.12);font-size:.9rem;cursor:pointer;z-index:3;transition:color .2s"
-    onmouseover="this.style.color='rgba(255,255,255,.4)'" onmouseout="this.style.color='rgba(255,255,255,.12)'"></div>
 </div>
 
 
@@ -500,38 +496,6 @@ try{
   </div>
 </div>
 
-<!-- OWNER ACCESS GATE -->
-<div id="owner-gate-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1600;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:16px;width:90%;max-width:320px;padding:28px 24px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.5)">
-    <div style="font-size:1.6rem;margin-bottom:6px"></div>
-    <div style="font-weight:800;font-size:1rem;color:#1e3a5f;margin-bottom:14px">Owner Access</div>
-    <input type="password" id="owner-code-input" placeholder="Access code" autocomplete="off"
-      style="width:100%;text-align:center;font-size:.95rem;padding:10px;border:2px solid #e5e7eb;border-radius:8px;outline:none;font-weight:700;box-sizing:border-box;font-family:inherit"
-      onkeydown="if(event.key==='Enter')checkOwnerCode()"/>
-    <div id="owner-code-error" style="color:#dc2626;font-size:.76rem;margin-top:8px;min-height:16px"></div>
-    <div style="display:flex;gap:10px;margin-top:10px">
-      <button type="button" onclick="closeOwnerGate()" style="flex:1;background:#f1f5f9;border:none;border-radius:8px;padding:10px;font-weight:700;font-size:.85rem;cursor:pointer;color:#374151;font-family:inherit">Cancel</button>
-      <button type="button" onclick="checkOwnerCode()" style="flex:1;background:#1e3a5f;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:700;font-size:.85rem;cursor:pointer;font-family:inherit">Enter</button>
-    </div>
-  </div>
-</div>
-
-<!-- OWNER PANEL -->
-<div id="owner-panel-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1600;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:16px;width:94%;max-width:640px;max-height:86vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.5)">
-    <div style="background:#1e3a5f;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:1">
-      <div style="color:#fff;font-weight:800;font-size:1rem"> Owner Panel</div>
-      <button type="button" onclick="closeOwnerPanel()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:.9rem;flex-shrink:0"></button>
-    </div>
-    <div style="padding:20px 22px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-        <div style="font-weight:800;color:#1e3a5f;font-size:.92rem">Account Access Requests</div>
-        <button type="button" onclick="enableOwnerEditMode()" id="owner-edit-btn" style="background:#fefce8;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:6px 12px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit"> Enable Edit Mode</button>
-      </div>
-      <div id="owner-requests-list"></div>
-    </div>
-  </div>
-</div>
 
 <!-- HEADER -->
 <div class="header">
@@ -1762,7 +1726,7 @@ try{
     <div class="page-title">Quality Team Dashboard</div>
     <span id="teamdash-range-label" style="margin-left:auto;font-size:.8rem;color:var(--muted)"></span>
   </div>
-  <div class="page-sub">لوحة شاملة لفريق الجودة — كل الوحدات في نظرة واحدة (ليست خاصة بالمانجر فقط)</div>
+  <div class="page-sub">لوحة شاملة لفريق الجودة — كل الوحدات في نظرة واحدة</div>
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
     <button type="button" class="nav-btn active" data-teamtab="week" onclick="teamDashTab('week')">This Week</button>
     <button type="button" class="nav-btn" data-teamtab="month" onclick="teamDashTab('month')">This Month</button>
@@ -2151,7 +2115,8 @@ try{
 <div id="view-dailyinspection" class="view">
   <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
     <div class="page-title">Daily HSE Inspection — F.HSE.130</div>
-    <button type="button" class="btn-primary" style="margin-left:auto" onclick="saveDailyInspection()">Submit Inspection</button>
+    <button type="button" class="btn-ghost" style="margin-left:auto" onclick="printCurrentDailyInspection()">Print</button>
+    <button type="button" class="btn-primary" onclick="saveDailyInspection()">Submit Inspection</button>
   </div>
   <div class="page-sub">F.HSE.130-00 — Daily Health, Safety & Environmental Inspection</div>
   <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
@@ -2544,7 +2509,8 @@ try{
   <div id="fs-tab-filters" class="fs-tab-pane" style="display:none">
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
       <div class="fg"><label class="fl">Inspection Date</label><input class="fi" type="date" id="filt-date" onchange="renderFilters()"/></div>
-      <button type="button" class="btn-primary" onclick="saveFilterInspection()" style="margin-left:auto"> Save Inspection</button>
+      <button type="button" class="btn-ghost" style="margin-left:auto" onclick="printFilterInspection()">Print</button>
+      <button type="button" class="btn-primary" onclick="saveFilterInspection()"> Save Inspection</button>
     </div>
     <div id="filters-body"></div>
   </div>

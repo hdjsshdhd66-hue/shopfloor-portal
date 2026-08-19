@@ -534,6 +534,12 @@ function ppeMatrixMark(v){
 }
 function ppeBuildMatrix(){
   if(typeof PPE_DATA==='undefined') return '<div class="empty-state"><div class="empty-state-title">PPE data not loaded</div></div>';
+  return ppeBuildMatrixHead() + '<div id="ppe-matrix-results">' + ppeBuildMatrixResultsInner() + '</div>';
+}
+// Toolbar + filters + legend only — rebuilt on select/checkbox changes and on Edit Matrix
+// toggle, NOT on every keystroke in the search box, so the search <input> DOM node stays
+// alive while the user is typing (keeps focus + caret; see ppeMatrixFilterChange below).
+function ppeBuildMatrixHead(){
   var f = _ppeMatrixFilter;
   var editing = adminMode && _ppeEditMatrix;
   var groupOpts = ['<option value="all">All Categories</option>'].concat(ppeGroups().map(function(g){
@@ -557,7 +563,12 @@ function ppeBuildMatrix(){
       + '<span class="trn-legend-item">'+ppeMatrixMark('-')+' Not Required</span>'
       + (editing ? '<span class="trn-legend-item" style="font-weight:700;color:#7f1d1d">✎ Click any cell to cycle Mandatory → Recommended → Not Required</span>' : '')
     + '</div>';
-
+  return head;
+}
+// Desktop table + mobile task-picker card + deactivated-tasks panel — this is what
+// re-renders on every search keystroke (and on cell/task edits).
+function ppeBuildMatrixResultsInner(){
+  var editing = adminMode && _ppeEditMatrix;
   // ---- Mobile: Task/Area picker -> Mandatory/Recommended card lists ----
   var allTasks = ppeMatrixRows();
   var mobileTaskOpts = ['<option value="">— Select a Task / Area —</option>'].concat(allTasks.map(function(t){
@@ -626,14 +637,21 @@ function ppeBuildMatrix(){
     }
   }
 
-  return head
-    + '<div class="ppe-matrix-desktop-only">'+desktopTable+inactiveTasksHtml+'</div>'
+  return '<div class="ppe-matrix-desktop-only">'+desktopTable+inactiveTasksHtml+'</div>'
     + '<div class="ppe-matrix-mobile-only">'+mobileBody+'</div>';
+}
+// Lightweight in-place update — keeps the search box (and every other filter control)
+// alive in the DOM so focus/caret are never lost while typing.
+function ppeUpdateMatrixResults(){
+  var results = document.getElementById('ppe-matrix-results');
+  if(!results){ ppeRenderPane(); return; } // fallback if the pane isn't in its expected state
+  results.innerHTML = ppeBuildMatrixResultsInner();
 }
 function ppeMatrixFilterChange(key, val){
   if(key==='mandatoryOnly' || key==='recommendedOnly') _ppeMatrixFilter[key] = !!val;
   else _ppeMatrixFilter[key] = val;
-  ppeRenderPane();
+  if(key==='q' && _ppeTab==='matrix') ppeUpdateMatrixResults();
+  else ppeRenderPane();
 }
 function ppeToggleEditMatrix(){
   if(!requireAdmin('Edit PPE Matrix')) return;
@@ -663,8 +681,12 @@ function ppeFilteredItems(){
 }
 function ppeBuildInventory(){
   if(typeof PPE_DATA==='undefined') return '<div class="empty-state"><div class="empty-state-title">PPE data not loaded</div></div>';
+  return ppeBuildInventoryHead() + '<div id="ppe-inv-results">' + ppeBuildInventoryResults() + '</div>';
+}
+// Toolbar + filters only — rebuilt on select/checkbox changes, NOT on every search keystroke
+// (see ppeInvFilterChange), so the search <input> stays alive and keeps focus while typing.
+function ppeBuildInventoryHead(){
   var f = _ppeInvFilter;
-  var items = ppeFilteredItems();
   var catOpts = ['<option value="all">All Categories</option>'].concat(PPE_CATEGORIES.map(function(c){
     return '<option value="'+escHtml(c)+'"'+(f.category===c?' selected':'')+'>'+escHtml(c)+'</option>';
   })).join('');
@@ -673,8 +695,8 @@ function ppeBuildInventory(){
     return '<option value="'+s+'"'+(f.status===s?' selected':'')+'>'+lbl+'</option>';
   }).join('');
 
-  var head = '<div class="trn-toolbar"><div class="page-title" style="margin:0">PPE Inventory</div>'
-    + '<span class="empty-state-hint" style="margin-left:6px">'+items.length+' item(s)</span>'
+  return '<div class="trn-toolbar"><div class="page-title" style="margin:0">PPE Inventory</div>'
+    + '<span class="empty-state-hint" id="ppe-inv-count" style="margin-left:6px">'+ppeFilteredItems().length+' item(s)</span>'
     + '<div class="trn-toolbar-actions">'
       + '<button type="button" class="btn-ghost" onclick="ppeExportInventory()">Export Inventory</button>'
       + (adminMode ? '<button type="button" class="btn-primary" onclick="ppeOpenAddItem()">+ Add Inventory Item</button>' : '')
@@ -685,9 +707,12 @@ function ppeBuildInventory(){
       + '<select onchange="ppeInvFilterChange(\'status\',this.value)">'+statusOpts+'</select>'
       + '<label class="trn-inline-check"><input type="checkbox" '+(f.showInactive?'checked':'')+' onchange="ppeInvFilterChange(\'showInactive\',this.checked)"/> Show inactive</label>'
     + '</div>';
-
+}
+// Item cards only — this is what re-renders on every search keystroke.
+function ppeBuildInventoryResults(){
+  var items = ppeFilteredItems();
   if(!items.length){
-    return head + '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-title">No items match this filter</div></div>';
+    return '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-title">No items match this filter</div></div>';
   }
 
   var rows = items.map(function(it){
@@ -713,9 +738,20 @@ function ppeBuildInventory(){
         + '</div>'
       + '</div></div>';
   }).join('');
-  return head + rows;
+  return rows;
 }
-function ppeInvFilterChange(key, val){ _ppeInvFilter[key] = val; ppeRenderPane(); }
+function ppeUpdateInventoryResults(){
+  var results = document.getElementById('ppe-inv-results');
+  if(!results){ ppeRenderPane(); return; }
+  results.innerHTML = ppeBuildInventoryResults();
+  var countEl = document.getElementById('ppe-inv-count');
+  if(countEl) countEl.textContent = ppeFilteredItems().length + ' item(s)';
+}
+function ppeInvFilterChange(key, val){
+  _ppeInvFilter[key] = val;
+  if(key==='q' && _ppeTab==='inventory') ppeUpdateInventoryResults();
+  else ppeRenderPane();
+}
 
 function ppeOpenAddItem(){
   document.getElementById('ppe-item-modal-title').textContent = 'Add Inventory Item';
@@ -1010,15 +1046,19 @@ function ppeFilteredRecords(){
   }).sort(function(a,b){ return new Date(b.dateIssued||b.timestamp||0) - new Date(a.dateIssued||a.timestamp||0); });
 }
 function ppeBuildRecords(){
+  return ppeBuildRecordsHead() + '<div id="ppe-rec-results">' + ppeBuildRecordsResults() + '</div>';
+}
+// Toolbar + filters only — rebuilt on select/date changes, NOT on every search keystroke
+// (see ppeRecordsFilterChange), so the search <input> stays alive and keeps focus while typing.
+function ppeBuildRecordsHead(){
   var f = _ppeRecordsFilter;
-  var recs = ppeFilteredRecords();
   var deptOpts = ['<option value="all">All Departments</option>'].concat(ppeDepartments().map(function(d){ return '<option value="'+escHtml(d)+'"'+(f.dept===d?' selected':'')+'>'+escHtml(d)+'</option>'; })).join('');
   var catOpts = ['<option value="all">All Categories</option>'].concat(PPE_CATEGORIES.map(function(c){ return '<option value="'+escHtml(c)+'"'+(f.category===c?' selected':'')+'>'+escHtml(c)+'</option>'; })).join('');
   var reasonOpts = ['<option value="all">All Reasons</option>'].concat(ppeReasons().map(function(r){ return '<option value="'+escHtml(r)+'"'+(f.reason===r?' selected':'')+'>'+escHtml(r)+'</option>'; })).join('');
   var byOpts = ['<option value="all">All — Issued By</option>'].concat(ppeIssuedByList().map(function(n){ return '<option value="'+escHtml(n)+'"'+(f.issuedBy===n?' selected':'')+'>'+escHtml(n)+'</option>'; })).join('');
 
-  var head = '<div class="trn-toolbar"><div class="page-title" style="margin:0">Issuance History</div>'
-    + '<span class="empty-state-hint" style="margin-left:6px">'+recs.length+' record(s)</span>'
+  return '<div class="trn-toolbar"><div class="page-title" style="margin:0">Issuance History</div>'
+    + '<span class="empty-state-hint" id="ppe-rec-count" style="margin-left:6px">'+ppeFilteredRecords().length+' record(s)</span>'
     + '<div class="trn-toolbar-actions">'
       + '<button type="button" class="btn-ghost" onclick="ppeExportIssuance()">Export</button>'
       + '<button type="button" class="btn-primary" onclick="ppeOpenIssueModal()">+ Issue PPE</button>'
@@ -1033,11 +1073,14 @@ function ppeBuildRecords(){
       + '<input type="date" value="'+escHtml(f.dateTo)+'" onchange="ppeRecordsFilterChange(\'dateTo\',this.value)" title="To date"/>'
       + '<button type="button" class="btn-ghost" onclick="ppeOpenEmployeeHistorySearch()">Employee PPE History</button>'
     + '</div>';
-
+}
+// Record cards only — this is what re-renders on every search keystroke.
+function ppeBuildRecordsResults(){
+  var recs = ppeFilteredRecords();
   if(!recs.length){
-    return head + '<div class="empty-state"><div class="empty-state-icon">🗂</div><div class="empty-state-title">No issuance records yet</div><div class="empty-state-hint">Use "+ Issue PPE" to log the first one.</div></div>';
+    return '<div class="empty-state"><div class="empty-state-icon">🗂</div><div class="empty-state-title">No issuance records yet</div><div class="empty-state-hint">Use "+ Issue PPE" to log the first one.</div></div>';
   }
-  var rows = recs.map(function(r){
+  return recs.map(function(r){
     return '<div class="pro-list-card">'
       + '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">'
         + '<div><div style="font-weight:800">'+escHtml(r.refNo||'')+' — '+escHtml(r.itemName||r.itemId)+'</div>'
@@ -1049,9 +1092,19 @@ function ppeBuildRecords(){
         + '</div>'
       + '</div></div>';
   }).join('');
-  return head + rows;
 }
-function ppeRecordsFilterChange(key, val){ _ppeRecordsFilter[key] = val; ppeRenderPane(); }
+function ppeUpdateRecordsResults(){
+  var results = document.getElementById('ppe-rec-results');
+  if(!results){ ppeRenderPane(); return; }
+  results.innerHTML = ppeBuildRecordsResults();
+  var countEl = document.getElementById('ppe-rec-count');
+  if(countEl) countEl.textContent = ppeFilteredRecords().length + ' record(s)';
+}
+function ppeRecordsFilterChange(key, val){
+  _ppeRecordsFilter[key] = val;
+  if(key==='q' && _ppeTab==='records') ppeUpdateRecordsResults();
+  else ppeRenderPane();
+}
 function ppeOpenRecordView(id){
   var r = ppeIssuanceArr().filter(function(x){return x.id===id;})[0];
   if(!r){ showToast('Record not found','red'); return; }

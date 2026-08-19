@@ -3285,8 +3285,12 @@ body{overflow-x:hidden}
   }
   .view{overflow-x:visible}
   img,svg,canvas{max-width:100%}
-  /* Only force nowrap inside real data tables that already scroll */
-  .view table th,.view table td{white-space:nowrap}
+  /* Headers stay nowrap (short column titles) — but NOT body cells: forcing every td to
+     nowrap clipped/compressed long free-text columns (Remarks, Description, Corrective
+     Action, Training Name, Area, Comments...) into unreadable horizontal-scroll strips on
+     mobile. Short structured values (ID/Date/Time/Status/short codes) don't wrap anyway at
+     normal column widths, so removing this for td is safe and needs no per-table changes. */
+  .view table th{white-space:nowrap}
   .pmt-check-label,.choice-chip span,.cls-pick .ho-st-btn,.page-title{white-space:normal!important}
   #ncr-modal .modal,#permit-modal .modal{
     width:100%!important;max-width:100%!important;max-height:92vh;overflow:auto;-webkit-overflow-scrolling:touch;
@@ -3575,7 +3579,7 @@ body:not(.login-active) #login-screen{
 .trn-sticky-name a{ color:var(--primary); text-decoration:none; font-weight:800; }
 .trn-sticky-name a:hover{ text-decoration:underline; }
 .trn-sub{ font-size:.66rem; color:var(--muted); font-weight:600; }
-.trn-inactive-badge{ display:inline-block; background:#fee2e2; color:#b91c1c; font-size:.62rem; font-weight:800; border-radius:99px; padding:1px 7px; margin-left:4px; }
+.trn-inactive-badge{ display:inline-block; background:#fee2e2; color:#b91c1c; font-size:.7rem; font-weight:800; border-radius:99px; padding:1px 7px; margin-left:4px; }
 .trn-cell{ text-align:center; }
 .trn-pager{ display:flex; align-items:center; gap:12px; justify-content:center; margin-top:10px; font-size:.78rem; color:var(--muted); font-weight:700; }
 
