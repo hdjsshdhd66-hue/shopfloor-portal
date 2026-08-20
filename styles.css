@@ -2764,35 +2764,54 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
 .hpv-wrap{margin-bottom:18px;display:flex;gap:14px;flex-wrap:wrap;align-items:stretch}
 .hpv-card{
   position:relative;overflow:hidden;flex:0 0 auto;
-  width:190px;min-height:172px;border-radius:18px;border:none;cursor:pointer;
-  padding:16px 14px 14px;display:flex;flex-direction:column;align-items:center;
-  background:linear-gradient(160deg,#1f2937,#0f172a);
-  box-shadow:0 10px 30px rgba(0,0,0,.28);
+  width:200px;min-height:188px;border-radius:16px;border:none;cursor:pointer;
+  padding:18px 16px 16px;display:flex;flex-direction:column;align-items:center;
+  background:linear-gradient(160deg,#1f2937,#0b1220);
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 12px 32px rgba(0,0,0,.34);
   animation:hpvEnter .45s cubic-bezier(.22,.9,.3,1) both;
   transition:transform .18s,box-shadow .18s;
 }
-.hpv-card:hover,.hpv-card:focus-visible{transform:translateY(-2px);box-shadow:0 16px 38px rgba(0,0,0,.34)}
+.hpv-card::before{
+  /* restrained warning edge — a thin top accent line, not a full glow */
+  content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent,#facc15,transparent);opacity:.55;
+}
+.hpv-wrap[data-state="empty"] .hpv-card::before{background:linear-gradient(90deg,transparent,#64748b,transparent)}
+.hpv-card:hover,.hpv-card:focus-visible{transform:translateY(-2px);box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 18px 40px rgba(0,0,0,.4)}
 .hpv-card:focus-visible{outline:2px solid #facc15;outline-offset:2px}
 @keyframes hpvEnter{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-.hpv-pallet{width:100%;height:56px;position:relative;margin-bottom:8px}
+.hpv-status-dot{
+  position:absolute;top:10px;right:10px;width:8px;height:8px;border-radius:50%;
+  background:#94a3b8;box-shadow:0 0 0 3px rgba(148,163,184,.18);
+}
+.hpv-wrap[data-state="hold"] .hpv-status-dot{background:#facc15;box-shadow:0 0 0 3px rgba(250,204,21,.22)}
+.hpv-wrap[data-state="aging"] .hpv-status-dot{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.25);animation:hpvDotPulse 2.2s ease-in-out infinite}
+@keyframes hpvDotPulse{0%,100%{box-shadow:0 0 0 3px rgba(245,158,11,.25)}50%{box-shadow:0 0 0 6px rgba(245,158,11,0)}}
+.hpv-pallet{width:100%;height:64px;position:relative;margin-bottom:10px;filter:drop-shadow(0 6px 6px rgba(0,0,0,.28))}
 .hpv-pallet-svg{width:100%;height:100%;display:block}
+.hpv-load{fill:rgba(217,119,6,.16);stroke:rgba(217,119,6,.4);stroke-width:1}
+.hpv-load-edge{fill:none;stroke:rgba(255,255,255,.08);stroke-width:1}
 .hpv-slat{fill:#a16207}
 .hpv-block{fill:#78350f}
+.hpv-wrap[data-state="empty"] .hpv-load{fill:rgba(100,116,139,.12);stroke:rgba(100,116,139,.3)}
 .hpv-wrap[data-state="empty"] .hpv-slat{fill:#475569}
 .hpv-wrap[data-state="empty"] .hpv-block{fill:#334155}
 .hpv-scan{stroke:rgba(250,204,21,.85);stroke-width:1.5;transform:translateY(0);animation:hpvScan 2.6s ease-in-out infinite}
 .hpv-wrap[data-state="empty"] .hpv-scan{display:none}
-@keyframes hpvScan{0%{transform:translateY(2px);opacity:.15}50%{transform:translateY(52px);opacity:.85}100%{transform:translateY(2px);opacity:.15}}
+@keyframes hpvScan{0%{transform:translateY(2px);opacity:.15}50%{transform:translateY(60px);opacity:.85}100%{transform:translateY(2px);opacity:.15}}
 .hpv-label{
   display:inline-block;background:#facc15;color:#111827;font-weight:900;font-size:.72rem;
-  letter-spacing:.08em;padding:3px 12px;border-radius:99px;text-transform:uppercase;
+  letter-spacing:.08em;padding:4px 14px 4px;border-radius:4px 4px 0 0;text-transform:uppercase;
+  position:relative;box-shadow:0 2px 6px rgba(0,0,0,.25);
+  clip-path:polygon(6% 0,94% 0,100% 100%,0 100%);
 }
 .hpv-wrap[data-state="aging"] .hpv-label{background:#f59e0b;color:#111827;animation:hpvPulse 2.2s ease-in-out infinite}
 .hpv-wrap[data-state="empty"] .hpv-label{background:#94a3b8;color:#111827}
 @keyframes hpvPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.45)}50%{box-shadow:0 0 0 7px rgba(245,158,11,0)}}
-.hpv-count{font-size:2.4rem;font-weight:900;color:#fff;line-height:1.1;margin-top:6px}
+.hpv-count{font-size:2.6rem;font-weight:900;color:#fff;line-height:1.05;margin-top:8px;letter-spacing:-.02em}
 .hpv-wrap[data-state="empty"] .hpv-count{color:#cbd5e1}
-.hpv-sub{font-size:.72rem;color:rgba(255,255,255,.68);margin-top:2px;text-align:center;line-height:1.35}
+.hpv-caption{font-size:.66rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-top:2px}
+.hpv-sub{font-size:.72rem;color:rgba(255,255,255,.68);margin-top:6px;text-align:center;line-height:1.35}
 .hpv-aging-chip{
   align-self:center;margin-top:8px;font-size:.68rem;font-weight:800;color:#fff;
   background:rgba(245,158,11,.22);border:1px solid rgba(245,158,11,.55);
@@ -2803,6 +2822,7 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
   .hpv-card{animation:none}
   .hpv-scan{animation:none;opacity:.5}
   .hpv-wrap[data-state="aging"] .hpv-label{animation:none}
+  .hpv-wrap[data-state="aging"] .hpv-status-dot{animation:none}
 }
 
 /* ============================================================
