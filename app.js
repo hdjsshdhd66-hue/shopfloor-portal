@@ -5689,19 +5689,23 @@ function holdPalletVisualHtml(active, aging, totalQty){
     : 'No pallets currently on hold';
   return `<div class="hpv-wrap" data-state="${state}">
     <button type="button" class="hpv-card" onclick="nav('holdpallets')" aria-label="Hold Pallets — ${totalQty} pallets currently on hold, opens Hold Pallets list">
+      <span class="hpv-status-dot" aria-hidden="true"></span>
       <div class="hpv-pallet">
-        <svg viewBox="0 0 120 60" class="hpv-pallet-svg" aria-hidden="true">
-          <rect x="14" y="6" width="9" height="46" class="hpv-block"/>
-          <rect x="55.5" y="6" width="9" height="46" class="hpv-block"/>
-          <rect x="97" y="6" width="9" height="46" class="hpv-block"/>
-          <rect x="6" y="42" width="108" height="7" rx="2" class="hpv-slat"/>
-          <rect x="6" y="29" width="108" height="7" rx="2" class="hpv-slat"/>
-          <rect x="6" y="16" width="108" height="7" rx="2" class="hpv-slat"/>
+        <svg viewBox="0 0 120 68" class="hpv-pallet-svg" aria-hidden="true">
+          <rect x="18" y="4" width="84" height="20" rx="1.5" class="hpv-load"/>
+          <rect x="18" y="4" width="84" height="20" rx="1.5" class="hpv-load-edge"/>
+          <rect x="14" y="26" width="9" height="34" class="hpv-block"/>
+          <rect x="55.5" y="26" width="9" height="34" class="hpv-block"/>
+          <rect x="97" y="26" width="9" height="34" class="hpv-block"/>
+          <rect x="6" y="53" width="108" height="7" rx="2" class="hpv-slat"/>
+          <rect x="6" y="40" width="108" height="7" rx="2" class="hpv-slat"/>
+          <rect x="6" y="27" width="108" height="7" rx="2" class="hpv-slat"/>
           <line x1="4" y1="2" x2="116" y2="2" class="hpv-scan"/>
         </svg>
       </div>
       <span class="hpv-label">HOLD</span>
       <div class="hpv-count" id="hpv-count-val" data-target="${totalQty}">0</div>
+      <div class="hpv-caption">Pallets on Hold</div>
       <div class="hpv-sub">${sub}</div>
     </button>
   </div>`;
@@ -8363,6 +8367,11 @@ function startMDReminder(){
   try{
     if(window._mdRI) clearInterval(window._mdRI);
     window._mdRI = setInterval(function(){
+      // Metal Detector is a Quality-only check — this reminder must never
+      // surface while viewing another portal (checked live, not just at
+      // interval-start, since currentPortal can change while the interval
+      // is running).
+      if(currentPortal!=='quality') return;
       var logs = Object.values(mdLog||{});
       if(!logs.length) return;
       var last = logs.sort(function(a,b){ return new Date(b.timestamp||0)-new Date(a.timestamp||0); })[0];
@@ -8501,6 +8510,10 @@ function renderPermitForm(forceType){
       ${pSectionHdr('Needed Work Permits — تصاريح العمل المطلوبة')}
       ${pTextArea('Required Permits','pmt-needed-permits','List any additional permits required...',{rows:2})}
       ${pRow('Issued By (Originator) — القائم بالعمل','pmt-originator','text',currentUser?.name||'')}
+      <div style="padding:8px 12px;background:#fef3c7;border-top:1px solid #fcd34d;font-size:.72rem;color:#92400e;line-height:1.5">
+        <strong>Declaration:</strong> During the work period I &amp; my team will apply all plant safety requirements; I will use qualified people to do the work; I will keep the work area in good housekeeping order during the work and bring everything back to its original, safe condition free of any observations after finishing. If the work needs more than one shift, the Safety Leader must inspect it daily.
+        <br><strong>الإقرار:</strong> خلال فترة العمل أتعهد بأن ألتزم أنا وفريقي بتطبيق جميع متطلبات قواعد وتعليمات وأنظمة السلامة والصحة الصناعية بالشركة، وأن يكون جميع العاملين مؤهلين للوظائف التي يعملون عليها، والمحافظة على النظافة والترتيب بمنطقة العمل أثناء القيام بالعمل، وإعادة الوضع إلى ما كان عليه سليماً وآمناً وخالياً من أي ملاحظات بعد الانتهاء من العمل. إذا كان العمل يحتاج لأكثر من وردية يجب على مشرف السلامة التفتيش عليه يومياً.
+      </div>
       </div>
       ${sigRow('Originator — القائم بالعمل','QA Manager — مدير الجودة','Safety Manager — مدير السلامة')}
       ${pSectionHdr('Daily Check — الفحص اليومي','#374151')}
@@ -8542,9 +8555,13 @@ function renderPermitForm(forceType){
         'Eye wash & Safety Shower — مغسلة عيون و دش سلامة',
       ].map((a,i)=>pCheckRow(a,'hwp'+i)).join('')}
       <div style="padding:8px 12px;background:#fef3c7;border-top:1px solid #fcd34d;font-size:.74rem;color:#92400e">
-        <strong>Important:</strong> Working area must be observed for at least 30 min after welding. Not to exceed 8 hrs.
+        <strong>Important:</strong> This permit must be obtained before starting any hot work such as cutting, drilling, or welding. The working area must be observed for at least 30 min after the welding process finishes, to ensure there is no fire. Not to exceed 8 hrs.
       </div>
       ${pRow('Issued By — أصدر بواسطة','pmt-originator','text',currentUser?.name||'')}
+      <div style="padding:8px 12px;background:#f8fafc;border-top:1px solid #e5e7eb;font-size:.72rem;color:#374151;line-height:1.5">
+        <strong>Declaration:</strong> The undersigned individuals confirm the risks of this work have been studied and all necessary safety precautions have been taken.
+        <br><strong>الإقرار:</strong> الأشخاص الموقعون أدناه يشهدون بأن المخاطر المحتمل مواجهتها أثناء تأدية هذا العمل قد تم دراستها وتم اتخاذ احتياطات السلامة اللازمة.
+      </div>
       </div>
       ${sigRow('Issued By — أصدر بواسطة','Dept. Manager — مدير القسم','Safety Manager — مدير السلامة')}
       <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
@@ -8573,7 +8590,7 @@ function renderPermitForm(forceType){
         'Scaffold ladder from inside — سلم السقالة من الداخل',
       ].map((a,i)=>pCheckRow(a,'hl'+i)).join('')}
       <div style="padding:8px 12px;background:#fef3c7;border-top:1px solid #fcd34d;font-size:.74rem;color:#92400e">
-        This permit valid for <strong>8 hours only</strong>. Must be displayed in the vicinity of area work.
+        This permit is valid for <strong>one shift, 8 hours maximum</strong>. This permit is not considered a substitute for a working-near-hazard-area permit. Must be displayed in the vicinity of the work area.
       </div>
       ${pRow('Issued By — أصدر بواسطة','pmt-originator','text',currentUser?.name||'')}
       </div>
@@ -8677,6 +8694,230 @@ function renderPermitForm(forceType){
       ${sigRow('Issued By — أصدر بواسطة','Dept. Manager — مدير القسم','Safety Manager — مدير السلامة')}
       <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
     ${saveBtn('heavy')}`;
+
+  } else if(type==='excavation'){
+    wrap.innerHTML = pFormHdr('F.HSE.05','Excavation Permit — تصريح الحفر') + `
+      ${pRow('Starting Date — تاريخ بداية التصريح','pmt-start','date')}
+      ${pRow('Excavation Date(s) — تواريخ الحفر','ex-dates','text','e.g. 12–14 Aug')}
+      ${pRow('Place / Building / Level — الموقع','pmt-place','text','e.g. Yard / Utility Trench')}
+      ${pTextArea('Work Description — وصف العمل','pmt-desc','Describe the excavation work...',{rows:2})}
+      ${pSectionHdr('Possible Hazardous Contents — المخاطر المحتملة')}
+      ${pCheckHeader()}
+      ${[
+        'Is this a high-risk job? — هل العمل ذو خطورة عالية',
+        'Special shoring required? — هل يحتاج تدعيم خاص',
+        'Special de-watering required? — هل يحتاج عملية اخراج ماء خاصة',
+        "Was diggers' hot line called? — هل تم الاتصال بخط الحفارين الساخن",
+        'Were plant drawings used to verify risk? — هل تم مراجعة المخططات للتأكد من مخاطر الحفر',
+        'Is Energy Isolation required? — هل عزل الطاقة مطلوب',
+        'Are hot work permits required? — هل هناك حاجة لتصريح أعمال ساخنة',
+        'Is a pathogen pail needed?',
+        'Confined Space Requirements (air monitoring / safety watch) — متطلبات المكان المغلق',
+      ].map((a,i)=>pCheckRow(a,'ex'+i)).join('')}
+      <div class="pmt-field-row"><div class="pmt-field-label">Excavation Width / Depth / Length</div>
+        <div class="pmt-field-input" style="display:flex;gap:6px">
+          <input type="text" id="ex-width" placeholder="Width"/><input type="text" id="ex-depth" placeholder="Depth"/><input type="text" id="ex-length" placeholder="Length"/>
+        </div></div>
+      ${pSectionHdr('Coordination — التنسيق')}
+      ${pTextArea('Electrical Safety — comment (power, control, camera, lighting conduit/wire)','ex-elec-comment','',{rows:1})}
+      ${pTextArea('Fire Safety — comment (sprinklers/alarms/fire pipes)','ex-fire-comment','',{rows:1})}
+      ${pTextArea('Utilities — comment (water, sewage, storm, process piping)','ex-util-comment','',{rows:1})}
+      <div class="pmt-field-row"><div class="pmt-field-label">Soil Type — نوع التربة</div>
+        <div class="pmt-field-input" style="display:flex;gap:14px;align-items:center">
+          ${['A','B','C'].map(s=>`<label style="display:flex;align-items:center;gap:4px;font-size:.8rem;font-weight:700;cursor:pointer"><input type="radio" name="ex-soil" value="${s}"/> ${s}</label>`).join('')}
+        </div></div>
+      ${pSectionHdr('Excavation Checklist — قائمة فحص الحفر')}
+      ${pCheckHeader()}
+      ${[
+        "Diggers' hot line and electricians contacted 3 working days prior — تم التنسيق مع الكهربائيين والحفارة قبل 3 أيام",
+        'All underground utilities identified and marked — تم تحديد جميع الخدمات تحت الأرض',
+        'Hazardous objects removed from area or secured — تم إزالة المخاطر أو تأمينها',
+        'Proper shoring, shielding, or sloping in place — تم تدعيم وعزل مكان الحفر بشكل جيد',
+        'Access/egress provided protecting from cave-ins — تم عمل مخرج يحمي العاملين من الانهيارات',
+        'Ladder/steps provided for elevation breaks ≥49cm — تم إحضار سلم لأي عمق أكثر من 49سم',
+        'Excavated material stored ≥61cm from edge — تم تخزين مخلفات الحفر على بعد أكثر من 61سم',
+        'Competent person inspects excavation each shift — تم تعيين شخص لفحص الحفر قبل كل وردية',
+        'Trench protected by fence, signals, or barricades — تم عزل الحفر بسياج وإشارات',
+        'Trench free of standing water — الحفر خالٍ من المياه الراكدة',
+        'Employees wearing proper PPE — العاملون يرتدون معدات الحماية الشخصية',
+        'Protective systems installed top-down / removed bottom-up, backfilled as dismantled',
+        'Emergency response program in place — تم وضع نظام طوارئ',
+        'Warning signs available on site — تم وضع إشارات تحذيرية',
+      ].map((a,i)=>pCheckRow(a,'exc'+i)).join('')}
+      ${pSectionHdr('Air Quality Testing — فحص جودة الهواء')}
+      <div class="pmt-field-row"><div class="pmt-field-label">Oxygen (O2) — 19.5% min to 23% max</div><div class="pmt-field-input"><input type="text" id="ex-o2" placeholder="%"/></div></div>
+      <div class="pmt-field-row"><div class="pmt-field-label">Carbon Monoxide (CO) — less than 35 ppm</div><div class="pmt-field-input"><input type="text" id="ex-co" placeholder="ppm"/></div></div>
+      <div class="pmt-field-row"><div class="pmt-field-label">Hydrogen Sulfide (H2S) — less than 10 ppm</div><div class="pmt-field-input"><input type="text" id="ex-h2s" placeholder="ppm"/></div></div>
+      <div class="pmt-field-row"><div class="pmt-field-label">Lower Explosive Limit (LEL) — less than 10%</div><div class="pmt-field-input"><input type="text" id="ex-lel" placeholder="%"/></div></div>
+      ${pRow('Issued By — القائم بالعمل','pmt-originator','text',currentUser?.name||'')}
+      </div>
+      <div class="pmt-sig-row" style="grid-template-columns:repeat(4,1fr)">
+        ${['Issued By — القائم بالعمل','Dept. Manager — مدير القسم','Safety Manager — مدير السلامة','Utilities — الخدمات'].map((s,idx)=>`<div style="${idx>0?'border-left:1px solid #e5e7eb;':''}padding:10px 12px"><div style="font-size:.73rem;font-weight:700;color:#1e3a5f;margin-bottom:20px;line-height:1.35">${s}</div><div style="border-top:1px solid #374151;padding-top:4px;font-size:.68rem;color:#9ca3af">Name / Date / Signature</div></div>`).join('')}
+      </div>
+      ${pSectionHdr('Daily Check — الفحص اليومي','#374151')}
+      <div class="pmt-day-grid">
+        ${[1,2,3,4,5,6].map(n=>`<div class="pmt-day-cell">Day ${n}<br><input type="text" style="width:100%;border:1px solid #e5e7eb;border-radius:6px;font-size:.72rem;margin-top:6px;text-align:center;font-family:inherit;padding:6px;box-sizing:border-box" placeholder="Name/Sign"/></div>`).join('')}
+      </div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+    ${saveBtn('excavation')}`;
+
+  } else if(type==='scaffold'){
+    wrap.innerHTML = pFormHdr('F.HSE.11','Scaffold Erection Permit — تصريح إنشاء السقالات') + `
+      ${pRow('Starting Date — تاريخ بداية التصريح','pmt-start','date')}
+      ${pRow('Ending Date — تاريخ انتهاء التصريح','pmt-end','date')}
+      ${pRow('Place / Building / Level — الموقع','pmt-place','text','e.g. Production Hall')}
+      ${pTextArea('Work Description — وصف العمل','pmt-desc','Describe the scaffold work...',{rows:2})}
+      ${pSectionHdr('Employees Who Will Erect the Scaffold — أسماء الأفراد القائمين بالعمل')}
+      <div style="display:grid;grid-template-columns:1fr 100px;border-bottom:1px solid #1e3a5f;background:#f1f5f9">
+        <div style="padding:6px 10px;font-size:.72rem;font-weight:700;color:#1e3a5f">Name — الاسم</div>
+        <div style="text-align:center;border-left:1px solid #e5e7eb;padding:6px;font-size:.72rem;font-weight:700;color:#1e3a5f">Trained? — مدرب</div>
+      </div>
+      ${[1,2,3,4].map(n=>`
+      <div style="display:grid;grid-template-columns:1fr 100px;border-bottom:1px solid #e5e7eb;min-height:34px;align-items:center">
+        <input type="text" id="sc-worker-${n}" placeholder="Worker ${n} — Name"
+          style="border:none;outline:none;padding:7px 10px;font-size:.8rem;font-family:inherit;width:100%;box-sizing:border-box"/>
+        <div style="border-left:1px solid #e5e7eb;display:flex;justify-content:center;gap:8px;padding:4px">
+          <label style="font-size:.72rem;font-weight:700;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="sct${n}" value="yes"/> Yes</label>
+          <label style="font-size:.72rem;font-weight:700;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="sct${n}" value="no"/> No</label>
+        </div>
+      </div>`).join('')}
+      ${pSectionHdr('Before Erection — قبل الإنشاء')}
+      ${pCheckHeader()}
+      ${[
+        'Is this a high-risk job? — هل العمل ذو خطورة عالية',
+        'Written scaffolding plan? — هل هناك خطة لإنشاء السقالة',
+        'Alternate approaches considered? — هل هناك بدائل أخرى',
+        'Competent person available to supervise erection? — هل هناك شخص مؤهل للإشراف على الإنشاء',
+        'Qualified personnel available to erect/dismantle? — هل هناك شخص مؤهل على عملية الإنشاء والفك',
+      ].map((a,i)=>pCheckRow(a,'sc'+i)).join('')}
+      ${pRow('Issued By — أصدر بواسطة','pmt-originator','text',currentUser?.name||'')}
+      </div>
+      ${sigRow('Issued By — أصدر بواسطة','Dept. Manager — مدير القسم','Safety Manager — مدير السلامة')}
+      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+    ${saveBtn('scaffold')}`;
+
+  } else if(type==='radiation'){
+    wrap.innerHTML = pFormHdr('F.HSE.10','Radiation Usage Permit — تصريح استخدام الإشعاع') + `
+      ${pRow('Starting Date — تاريخ بداية التصريح','pmt-start','date')}
+      ${pRow('Place / Building / Level — الموقع','pmt-place','text','e.g. Inspection Bay')}
+      ${pRow('Contractor — المقاول','rd-contractor','text','')}
+      ${pRow('Source Description — وصف المصدر','rd-source-desc','text','')}
+      ${pRow('Source Type — نوع المصدر','rd-source-type','text','')}
+      ${pRow('Source Intensity — شدة / قوة المصدر','rd-source-intensity','text','')}
+      ${pRow('Work Duration — From / To — مدة العمل','rd-duration','text','e.g. 08:00–12:00')}
+      ${pTextArea('Work Description — وصف العمل','pmt-desc','Describe the radiography work...',{rows:2})}
+      ${pSectionHdr('Conditions — الظروف')}
+      ${pCheckHeader()}
+      ${[
+        'Can this work be done in a place with less risk? — يمكن القيام بهذا العمل في مكان أقل خطورة',
+        'Warning signs / lights needed — لوحات تحذير وإضاءة كاشفة',
+        'Physical borders needed — حواجز قائمة',
+        'Wearing radioactive badges (film/dosimeter) needed — ارتداء بادجات الأفلام والدوزيميتر',
+        'Evacuate the area needed — إخلاء المنطقة',
+      ].map((a,i)=>pCheckRow(a,'rd'+i)).join('')}
+      <div style="padding:8px 12px;background:#f8fafc;border-top:1px solid #e5e7eb;font-size:.72rem;color:#374151;line-height:1.5">
+        <strong>Declaration:</strong> I agree that I know the risk of this work and the working limit.
+        <br><strong>الإقرار:</strong> أقر بكامل معرفتي وإدراكي للخطورة المحيطة بهذا العمل والحدود المفروضة لذلك.
+      </div>
+      ${pTextArea('Other Requirements — احتياطات أخرى','rd-other-req','',{rows:2})}
+      ${pRow('Safety Distance — المسافة الآمنة','rd-safety-distance','text','e.g. 10m')}
+      ${pRow('Issued By — القائم بالعمل','pmt-originator','text',currentUser?.name||'')}
+      </div>
+      ${sigRow('Issued By — القائم بالعمل','Safety Manager — مدير السلامة','Dept. Manager — مدير القسم')}
+      <div style="padding:8px 12px;background:#fef3c7;border-top:1px solid #fcd34d;font-size:.74rem;color:#92400e">
+        This permit is valid for <strong>one shift, 8 hours maximum</strong>. Not a substitute for a working-near-hazard-area permit. Must be displayed in the vicinity of the work area.
+      </div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+    ${saveBtn('radiation')}`;
+
+  } else if(type==='emergencyequip'){
+    wrap.innerHTML = pFormHdr('F.HSE.14','Emergency Equipment Using — استخدام معدات الطوارئ',
+      'Required before taking any equipment from the rescue equipment box — the key is held by Security and Risk Management') + `
+      ${pRow('Requester Name — إسم الشخص الطالب','ee-requester','text','')}
+      ${pRow('Requesting Department — القسم الطالب','ee-dept','text','')}
+      ${pRow('Requester ID — رقم الشخص الطالب','ee-requester-id','text','')}
+      ${pRow('Usage Date — تاريخ الاستخدام','ee-use-date','date')}
+      ${pRow('Return Date — تاريخ الإعادة','ee-return-date','date')}
+      ${pRow('Shift — النوبة','ee-shift','text','')}
+      ${pRow('Name of Person Who Returned the Equipment — إسم من أعاد المعدات','ee-returned-by','text','')}
+      ${pTextArea('Work Required — العمل المطلوب أداؤه','pmt-desc','Describe the required work...',{rows:2})}
+      ${pSectionHdr('Safety Cabinet Equipment Requested — معدات السلامة المطلوبة من الدولاب')}
+      ${pCheckHeader()}
+      ${[
+        'Manual winch — الونش اليدوي',
+        'Acid / caustic soda suit — بدلة حامض أو صودا كاوية',
+        'Air fan — مروحة الهواء',
+        'Oxygen percentage meter — جهاز قياس نسبة الأوكسجين',
+        'Intercom — إنتركوم',
+        'Handheld flashlight 6–12V — كشاف كهرباء يدوي إضاءة 6-12 فولت',
+        '2× half-hour rescue breathing cylinders (full accessories) — عدد 2 إسطوانة تنفس للإنقاذ نصف ساعة',
+        'Rubber boots — الحذاء المطاطي',
+        '2× chest harness — عدد 2 حزام صدر',
+        '1× 5-minute rescue breathing cylinder — عدد 1 إسطوانة تنفس للإنقاذ 5 دقائق',
+        '1× 30-minute breathing cylinder — عدد 1 إسطوانة تنفس 30 دقيقة',
+        'Manual alarm whistle — صفارة إنذار يدوية',
+      ].map((a,i)=>pCheckRow(a,'ee'+i)).join('')}
+      <div style="padding:8px 12px;background:#f8fafc;border-top:1px solid #e5e7eb;font-size:.72rem;color:#374151;line-height:1.5">
+        <strong>Note:</strong> HSE confirms the requesting department has returned all equipment in very good condition and it is currently back in the cabinet. This signature clears the requesting department of liability; otherwise the equipment remains their responsibility.
+        <br><strong>ملاحظة:</strong> يشهد قسم الصحة والسلامة بأن القسم الطالب للمعدات قد أعادها جميعها بحالة جيدة جداً بعد استخدامها وهي موجودة في الدولاب حالياً، وبتوقيع قسم الصحة والسلامة على هذا النموذج يكون القسم الطالب قد أخلى مسؤوليته، وبخلاف ذلك تبقى عهدة في ذمة القسم الطالب.
+      </div>
+      </div>
+      <div class="pmt-sig-row" style="grid-template-columns:1fr 1fr">
+        <div style="padding:10px 12px"><div style="font-size:.73rem;font-weight:700;color:#1e3a5f;margin-bottom:20px;line-height:1.35">Requester — الشخص الطالب</div><div style="border-top:1px solid #374151;padding-top:4px;font-size:.68rem;color:#9ca3af">Name / Date / Signature</div></div>
+        <div style="border-left:1px solid #e5e7eb;padding:10px 12px"><div style="font-size:.73rem;font-weight:700;color:#1e3a5f;margin-bottom:20px;line-height:1.35">Safety Manager Approval — اعتماد مدير السلامة</div><div style="border-top:1px solid #374151;padding-top:4px;font-size:.68rem;color:#9ca3af">Name / Date / Signature</div></div>
+      </div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+    ${saveBtn('emergencyequip')}`;
+
+  } else if(type==='cutliftlock'){
+    wrap.innerHTML = pFormHdr('F.HSE.15','Cut / Lift Lock Form — نموذج قص / رفع القفل') + `
+      ${pRow('Permit Date / Time — تاريخ التصريح / الوقت','pmt-start','date')}
+      ${pRow('Department — القسم','pmt-dept','text','')}
+      ${pRow('Equipment — المعدة','cl-equipment','text','')}
+      ${pRow('Lock Owner Name — اسم صاحب القفل','cl-owner','text','')}
+      ${pCheckRow('Is the lock owner present? — هل صاحب القفل موجود','cl-present')}
+      ${pTextArea('What efforts were made to reach the lock owner? — ما هي المجهودات التي تمت للوصول إلى صاحب القفل؟','cl-efforts','',{rows:2})}
+      ${pTextArea('Was the reason the lock was left on the equipment identified? — هل تم معرفة سبب ترك القفل على المعدة؟','cl-reason','',{rows:2})}
+      <div style="padding:8px 12px;background:#f8fafc;border-top:1px solid #e5e7eb;font-size:.72rem;color:#374151;line-height:1.5">
+        <strong>Declaration:</strong> We certify that all efforts were made to check the possibility of lifting/cutting the lock, and that energy has been disconnected/isolated from the equipment without any danger or damage to the equipment or exposure of any individual to the equipment's energy.
+        <br><strong>الإقرار:</strong> نشهد بأن جميع المجهودات تمت لفحص إمكانية رفع / قص القفل، وتم فصل / عزل الطاقة عن المعدة دون وجود أدنى خطر أو تلف للمعدة أو تعرض أي فرد لخطر الطاقة الواصلة للمعدة.
+      </div>
+      ${pSectionHdr('Lock Cut / Lift Committee Signatures — توقيعات لجنة قص / رفع قفل السلامة')}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid #1e3a5f;background:#f1f5f9">
+        <div style="padding:6px 10px;font-size:.72rem;font-weight:700;color:#1e3a5f">Name — الاسم</div>
+        <div style="padding:6px 10px;border-left:1px solid #e5e7eb;font-size:.72rem;font-weight:700;color:#1e3a5f">Position — الوظيفة</div>
+        <div style="padding:6px 10px;border-left:1px solid #e5e7eb;font-size:.72rem;font-weight:700;color:#1e3a5f">Date — التاريخ</div>
+      </div>
+      ${[1,2,3,4,5,6].map(n=>`
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid #e5e7eb;min-height:34px;align-items:center">
+        <input type="text" id="cl-member-name-${n}" placeholder="Name ${n}" style="border:none;outline:none;padding:7px 10px;font-size:.8rem;font-family:inherit;width:100%;box-sizing:border-box"/>
+        <input type="text" id="cl-member-pos-${n}" placeholder="Position" style="border:none;border-left:1px solid #e5e7eb;outline:none;padding:7px 10px;font-size:.8rem;font-family:inherit;width:100%;box-sizing:border-box"/>
+        <input type="date" id="cl-member-date-${n}" style="border:none;border-left:1px solid #e5e7eb;outline:none;padding:7px 10px;font-size:.8rem;font-family:inherit;width:100%;box-sizing:border-box"/>
+      </div>`).join('')}
+      <div style="padding:8px 12px;background:#f8fafc;border-top:1px solid #e5e7eb;font-size:.7rem;color:#6b7280;line-height:1.6">
+        This copy is kept with the Safety Manager. A copy of this form is sent to the direct manager. A copy is filed with the energy isolation technical standards file.
+        <br>هذه النسخة متاحة لدى مدير السلامة. يتم إرسال نسخة من هذا النموذج إلى المدير المباشر. تحفظ نسخة منه بالملف الخاص بمعيار فصل / عزل الطاقة.
+      </div>
+      <div style="margin-top:10px">${pRow('Safety Manager Approval — اعتماد مدير السلامة في المصنع','cl-safety-approval','text',currentUser?.name||'')}</div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+    ${saveBtn('cutliftlock')}`;
+
+  } else if(type==='photography'){
+    wrap.innerHTML = pFormHdr('F.HSE.09','Photography Permit — تصريح تصوير',
+      'A visitor MUST be accompanied by a guide for any photography in the plant — يمنع منعا باتا ترك الزائر يقوم بمفرده بعملية التصوير، لابد من وجود مرافق') + `
+      ${pRow('Name of Photographer — إسم الشخص الذي سيقوم بعملية التصوير','ph-photographer','text','')}
+      ${pRow('Requested By — إسم الشخص الطالب لعملية التصوير','pmt-originator','text',currentUser?.name||'')}
+      ${pRow('Department / Company — القسم أو الشركة','pmt-dept','text','')}
+      ${pRow('Accompanied By — إسم الشخص المرافق','ph-guide','text','')}
+      ${pRow('Date — التاريخ','pmt-start','date')}
+      ${pRow('Duration of This Permit — المدة المراد بها التصوير','ph-duration','text','e.g. 2 hours')}
+      ${pTextArea('Permitted Locations — أماكن التصوير داخل المصنع','pmt-place','List the permitted locations...',{rows:2})}
+      ${pTextArea('Purpose of Photography — السبب والغرض من التصوير','pmt-desc','Purpose of the photography...',{rows:2})}
+      </div>
+      ${sigRow('Safety Manager — مدير السلامة','Factory Manager — مدير المصنع','HR Director — مدير الموارد البشرية')}
+      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+    ${saveBtn('photography')}`;
+
   } else if(type==='fmc13'){
     // ── Full Comprehensive PTW matching FMC-F/HSE/13-02 (pladis KSA)
     const chk=(id,label)=>`<label style="display:flex;align-items:flex-start;gap:6px;font-size:.72rem;color:#374151;padding:3px 0;cursor:pointer"><input type="checkbox" id="${id}" style="margin-top:2px;flex-shrink:0"/><span>${label}</span></label>`;
@@ -8877,7 +9118,9 @@ function collectPermitChecklist(){
   container.querySelectorAll('input[type="radio"][name]').forEach(el=>{
     if(seenNames.has(el.name)) return;
     seenNames.add(el.name);
-    if(/^cst\d+$/.test(el.name)) return; // handled separately as part of the workers table
+    if(/^cst\d+$/.test(el.name)) return; // handled separately as part of the confined-space workers table
+    if(/^sct\d+$/.test(el.name)) return; // handled separately as part of the scaffold workers table
+    if(el.name==='ex-soil') return; // handled separately (A/B/C, not Yes/No)
     if(/^fmc/i.test(el.name)) return;
     const checked = container.querySelector('input[name="'+el.name+'"]:checked');
     const row = el.closest('div[style*="1fr 60px 60px"]') || el.closest('[data-check-row]') || el.parentElement?.parentElement?.parentElement;
@@ -8918,6 +9161,58 @@ function savePermit(type){
     permit.load=document.getElementById('he-load')?.value||'';
     permit.height=document.getElementById('he-height')?.value||'';
     permit.craneLoad=document.getElementById('he-craneload')?.value||'';
+  } else if(type==='excavation'){
+    permit.excavationDates=document.getElementById('ex-dates')?.value||'';
+    permit.width=document.getElementById('ex-width')?.value||'';
+    permit.depth=document.getElementById('ex-depth')?.value||'';
+    permit.length=document.getElementById('ex-length')?.value||'';
+    permit.elecComment=document.getElementById('ex-elec-comment')?.value||'';
+    permit.fireComment=document.getElementById('ex-fire-comment')?.value||'';
+    permit.utilComment=document.getElementById('ex-util-comment')?.value||'';
+    permit.soilType=document.querySelector('input[name="ex-soil"]:checked')?.value||'';
+    permit.o2=document.getElementById('ex-o2')?.value||'';
+    permit.co=document.getElementById('ex-co')?.value||'';
+    permit.h2s=document.getElementById('ex-h2s')?.value||'';
+    permit.lel=document.getElementById('ex-lel')?.value||'';
+  } else if(type==='scaffold'){
+    permit.workers=[1,2,3,4].map(n=>({
+      name:document.getElementById(`sc-worker-${n}`)?.value||'',
+      trained:document.querySelector(`input[name="sct${n}"]:checked`)?.value||''
+    })).filter(w=>w.name);
+  } else if(type==='radiation'){
+    permit.contractor=document.getElementById('rd-contractor')?.value||'';
+    permit.sourceDesc=document.getElementById('rd-source-desc')?.value||'';
+    permit.sourceType=document.getElementById('rd-source-type')?.value||'';
+    permit.sourceIntensity=document.getElementById('rd-source-intensity')?.value||'';
+    permit.duration=document.getElementById('rd-duration')?.value||'';
+    permit.otherReq=document.getElementById('rd-other-req')?.value||'';
+    permit.safetyDistance=document.getElementById('rd-safety-distance')?.value||'';
+  } else if(type==='emergencyequip'){
+    permit.requester=document.getElementById('ee-requester')?.value||'';
+    permit.dept=document.getElementById('ee-dept')?.value||'';
+    permit.requesterId=document.getElementById('ee-requester-id')?.value||'';
+    permit.useDate=document.getElementById('ee-use-date')?.value||'';
+    permit.returnDate=document.getElementById('ee-return-date')?.value||'';
+    permit.shift=document.getElementById('ee-shift')?.value||'';
+    permit.returnedBy=document.getElementById('ee-returned-by')?.value||'';
+  } else if(type==='cutliftlock'){
+    permit.dept=document.getElementById('pmt-dept')?.value||'';
+    permit.equipment=document.getElementById('cl-equipment')?.value||'';
+    permit.lockOwner=document.getElementById('cl-owner')?.value||'';
+    permit.ownerPresent=document.querySelector('input[name="cl-present"]:checked')?.value||'';
+    permit.efforts=document.getElementById('cl-efforts')?.value||'';
+    permit.reasonIdentified=document.getElementById('cl-reason')?.value||'';
+    permit.safetyApproval=document.getElementById('cl-safety-approval')?.value||'';
+    permit.committee=[1,2,3,4,5,6].map(n=>({
+      name:document.getElementById(`cl-member-name-${n}`)?.value||'',
+      position:document.getElementById(`cl-member-pos-${n}`)?.value||'',
+      date:document.getElementById(`cl-member-date-${n}`)?.value||''
+    })).filter(m=>m.name);
+  } else if(type==='photography'){
+    permit.photographer=document.getElementById('ph-photographer')?.value||'';
+    permit.dept=document.getElementById('pmt-dept')?.value||'';
+    permit.guide=document.getElementById('ph-guide')?.value||'';
+    permit.duration=document.getElementById('ph-duration')?.value||'';
   } else if(type==='fmc13'){
     // The Full PTW form uses its own fmc-* field IDs, not the generic pmt-* ones — capture them all here
     permit.serial = document.getElementById('fmc-serial')?.value||'';
@@ -8945,8 +9240,8 @@ function renderPermitsList(filterType, targetId){
     wrap.innerHTML = emptyState('🛂','No work permits yet','Issue a new permit to get started.');
     return;
   }
-  const tColors={working:'#1e3a5f',hotwork:'#dc2626',highlevel:'#d97706',confined:'#7c3aed',heavy:'#16a34a',fmc13:'#0f1e33'};
-  const tLabels={working:'Working Permit — F.HSE.13',hotwork:'Hot Work — F.HSE.08',highlevel:'High Level — F.HSE.07',confined:'Confined Space — F.HSE.04',heavy:'Heavy Equipment — F.HSE.06',fmc13:'Full PTW — FMC-F/HSE/13'};
+  const tColors={working:'#1e3a5f',hotwork:'#dc2626',highlevel:'#d97706',confined:'#7c3aed',heavy:'#16a34a',excavation:'#78350f',scaffold:'#0369a1',radiation:'#be185d',emergencyequip:'#b91c1c',cutliftlock:'#4338ca',photography:'#0f766e',fmc13:'#0f1e33'};
+  const tLabels={working:'Working Permit — F.HSE.13',hotwork:'Hot Work — F.HSE.08',highlevel:'High Level — F.HSE.07',confined:'Confined Space — F.HSE.04',heavy:'Heavy Equipment — F.HSE.06',excavation:'Excavation — F.HSE.05',scaffold:'Scaffold Erection — F.HSE.11',radiation:'Radiation Usage — F.HSE.10',emergencyequip:'Emergency Equipment Using — F.HSE.14',cutliftlock:'Cut / Lift Lock — F.HSE.15',photography:'Photography — F.HSE.09',fmc13:'Full PTW — FMC-F/HSE/13'};
   wrap.innerHTML=list.map((p,i)=>`
     <div style="background:#fff;border-radius:10px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:4px solid ${tColors[p.type]||'#6b7280'}">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
@@ -9135,7 +9430,7 @@ function printPermit(i){
 function __printPermitWork(i){
   const p=safetyData.permits[i];
   if(!p){ showToast('Permit not found','red'); return; }
-  const tLabels={working:'WORKING PERMIT — F.HSE.13',hotwork:'HOT WORK PERMIT — F.HSE.08',highlevel:'HIGH LEVEL PERMIT — F.HSE.07',confined:'CONFINED SPACE ENTRANCE PERMIT — F.HSE.04',heavy:'HEAVY EQUIPMENT PERMIT — F.HSE.06',fmc13:'FULL PERMIT TO WORK — FMC-F/HSE/13'};
+  const tLabels={working:'WORKING PERMIT — F.HSE.13',hotwork:'HOT WORK PERMIT — F.HSE.08',highlevel:'HIGH LEVEL PERMIT — F.HSE.07',confined:'CONFINED SPACE ENTRANCE PERMIT — F.HSE.04',heavy:'HEAVY EQUIPMENT PERMIT — F.HSE.06',excavation:'EXCAVATION PERMIT — F.HSE.05',scaffold:'SCAFFOLD ERECTION PERMIT — F.HSE.11',radiation:'RADIATION USAGE PERMIT — F.HSE.10',emergencyequip:'EMERGENCY EQUIPMENT USING — F.HSE.14',cutliftlock:'CUT / LIFT LOCK FORM — F.HSE.15',photography:'PHOTOGRAPHY PERMIT — F.HSE.09',fmc13:'FULL PERMIT TO WORK — FMC-F/HSE/13'};
   const title = tLabels[p.type]||'WORK PERMIT';
   const meta = `Shop Floor Digital Portal · Safety · ${printEsc(p.serial||('Issued '+ (p.timestamp?new Date(p.timestamp).toLocaleDateString():new Date().toLocaleDateString())))} · Printed ${new Date().toLocaleString()}`;
 
@@ -9164,6 +9459,7 @@ function __printPermitWork(i){
 
   const checklistRows = (p.checklist||[]).map(c=>`<tr><td>${printEsc(c.label)}</td>${printAnsCell(c.value)}</tr>`).join('');
   const workersRows = (p.workers||[]).map(w=>`<tr><td>${printEsc(w.name)}</td>${printAnsCell(w.trained)}</tr>`).join('');
+  const committeeRows = (p.committee||[]).map(m=>`<tr><td>${printEsc(m.name)}</td><td>${printEsc(m.position)}</td><td>${printEsc(m.date)}</td></tr>`).join('');
 
   let detailRows = `
     <tr><td class="k">Starting Date</td><td>${printEsc(p.start)}</td><td class="k">Ending Date</td><td>${printEsc(p.end)}</td></tr>
@@ -9174,6 +9470,28 @@ function __printPermitWork(i){
     ${p.welder?`<tr><td class="k">Welder Name</td><td colspan="3">${printEsc(p.welder)}</td></tr>`:''}
     ${p.load?`<tr><td class="k">Load Weight</td><td>${printEsc(p.load)}</td><td class="k">Lifting Height</td><td>${printEsc(p.height)}</td></tr>`:''}
     ${p.craneLoad?`<tr><td class="k">Crane Minimum Load</td><td colspan="3">${printEsc(p.craneLoad)}</td></tr>`:''}
+    ${p.excavationDates?`<tr><td class="k">Excavation Date(s)</td><td colspan="3">${printEsc(p.excavationDates)}</td></tr>`:''}
+    ${(p.width||p.depth||p.length)?`<tr><td class="k">Width / Depth / Length</td><td colspan="3">${printEsc(p.width)} / ${printEsc(p.depth)} / ${printEsc(p.length)}</td></tr>`:''}
+    ${p.soilType?`<tr><td class="k">Soil Type</td><td colspan="3">${printEsc(p.soilType)}</td></tr>`:''}
+    ${p.elecComment?`<tr><td class="k">Electrical Safety Comment</td><td colspan="3">${printEsc(p.elecComment)}</td></tr>`:''}
+    ${p.fireComment?`<tr><td class="k">Fire Safety Comment</td><td colspan="3">${printEsc(p.fireComment)}</td></tr>`:''}
+    ${p.utilComment?`<tr><td class="k">Utilities Comment</td><td colspan="3">${printEsc(p.utilComment)}</td></tr>`:''}
+    ${(p.o2||p.co||p.h2s||p.lel)?`<tr><td class="k">Air Quality — O2 / CO / H2S / LEL</td><td colspan="3">${printEsc(p.o2)} / ${printEsc(p.co)} / ${printEsc(p.h2s)} / ${printEsc(p.lel)}</td></tr>`:''}
+    ${p.contractor?`<tr><td class="k">Contractor</td><td colspan="3">${printEsc(p.contractor)}</td></tr>`:''}
+    ${p.sourceDesc?`<tr><td class="k">Source Description</td><td>${printEsc(p.sourceDesc)}</td><td class="k">Source Type</td><td>${printEsc(p.sourceType)}</td></tr>`:''}
+    ${p.sourceIntensity?`<tr><td class="k">Source Intensity</td><td colspan="3">${printEsc(p.sourceIntensity)}</td></tr>`:''}
+    ${p.duration?`<tr><td class="k">Duration</td><td colspan="3">${printEsc(p.duration)}</td></tr>`:''}
+    ${p.otherReq?`<tr><td class="k">Other Requirements</td><td colspan="3">${printEsc(p.otherReq)}</td></tr>`:''}
+    ${p.safetyDistance?`<tr><td class="k">Safety Distance</td><td colspan="3">${printEsc(p.safetyDistance)}</td></tr>`:''}
+    ${p.requester?`<tr><td class="k">Requester</td><td>${printEsc(p.requester)}</td><td class="k">Requester ID</td><td>${printEsc(p.requesterId)}</td></tr>`:''}
+    ${p.useDate?`<tr><td class="k">Usage Date</td><td>${printEsc(p.useDate)}</td><td class="k">Return Date</td><td>${printEsc(p.returnDate)}</td></tr>`:''}
+    ${p.shift?`<tr><td class="k">Shift</td><td>${printEsc(p.shift)}</td><td class="k">Returned By</td><td>${printEsc(p.returnedBy)}</td></tr>`:''}
+    ${p.equipment?`<tr><td class="k">Equipment</td><td colspan="3">${printEsc(p.equipment)}</td></tr>`:''}
+    ${p.lockOwner?`<tr><td class="k">Lock Owner</td><td>${printEsc(p.lockOwner)}</td><td class="k">Owner Present?</td><td>${printEsc(p.ownerPresent)}</td></tr>`:''}
+    ${p.efforts?`<tr><td class="k">Efforts to Reach Owner</td><td colspan="3">${printEsc(p.efforts)}</td></tr>`:''}
+    ${p.reasonIdentified?`<tr><td class="k">Reason Identified</td><td colspan="3">${printEsc(p.reasonIdentified)}</td></tr>`:''}
+    ${p.safetyApproval?`<tr><td class="k">Safety Manager Approval</td><td colspan="3">${printEsc(p.safetyApproval)}</td></tr>`:''}
+    ${p.photographer?`<tr><td class="k">Photographer</td><td>${printEsc(p.photographer)}</td><td class="k">Accompanied By</td><td>${printEsc(p.guide)}</td></tr>`:''}
     <tr><td class="k">Issued By</td><td colspan="3">${printEsc(p.originator)}</td></tr>
     <tr><td class="k">Status</td><td colspan="3"><span class="chip">${printEsc(p.status||'Active')}</span></td></tr>
   `;
@@ -9181,6 +9499,7 @@ function __printPermitWork(i){
   const body = printSheetHeader(title, meta) + `
     <table><tbody>${detailRows}</tbody></table>
     ${workersRows?`<div class="sec">Workers</div><table><tr><th>Name &amp; Employee ID</th><th style="text-align:center;width:90px">Trained</th></tr>${workersRows}</table>`:''}
+    ${committeeRows?`<div class="sec">Committee Signatures</div><table><tr><th>Name</th><th>Position</th><th>Date</th></tr>${committeeRows}</table>`:''}
     ${checklistRows?`<div class="sec">Checklist</div><table><tr><th>Item</th><th style="text-align:center;width:90px">Answer</th></tr>${checklistRows}</table>`:''}
     <div class="sig-row">
       <div class="sig">Originator<span>Name / Date / Sign</span></div>
@@ -11624,6 +11943,7 @@ function renderNCRList(){
       </div>
       <div class="ncr-grid">
         <div><b>Product</b><br>${n.prod||'—'} ${n.item?'('+n.item+')':''}</div>
+        <div><b>MRR #</b><br>${n.mrr||'—'}</div>
         <div><b>Qty on Hold</b><br>${n.qty||'—'}</div>
         <div><b>Detected By</b><br>${n.detected||'—'}</div>
         <div><b>Raised By</b><br>${n.raised||'—'}</div>
@@ -11701,6 +12021,7 @@ function editNCR(i){
   }
   document.getElementById('ncr-prod').value = n.prod||'';
   document.getElementById('ncr-item').value = n.item||'';
+  document.getElementById('ncr-mrr').value = n.mrr||'';
   document.getElementById('ncr-qty').value = n.qty||'';
   document.getElementById('ncr-batch').value = n.batch||'';
   document.getElementById('ncr-desc').value = n.desc||'';
@@ -11726,6 +12047,13 @@ function editNCR(i){
   toggleNcrHoldQty(document.getElementById('ncr-hold-flag').value);
   document.getElementById('capa-rows').innerHTML=''; capaRowCount=0;
   (n.capaRows&&n.capaRows.length?n.capaRows:[{}]).forEach(r=>addCapaRow(r));
+  var __so = n.signoff||{};
+  ['raised','lineleader','prodchief','qfschief','factorydir'].forEach(function(role){
+    var nameEl = document.getElementById('ncr-so-'+role+'-name');
+    var dateEl = document.getElementById('ncr-so-'+role+'-date');
+    if(nameEl) nameEl.value = (__so[role]&&__so[role].name) || '';
+    if(dateEl) dateEl.value = (__so[role]&&__so[role].date) || '';
+  });
   if(typeof setFormPhotos==='function') setFormPhotos('ncr', n.photos||[]);
   if(typeof mountFormPhotoHosts==='function') mountFormPhotoHosts();
   document.getElementById('ncr-modal').classList.add('open');
@@ -11749,7 +12077,9 @@ function openNCRModal(){
   ncrClass=0;
   document.querySelectorAll('[id^="ncr-cls"]').forEach(b=>b.classList.remove('ok','issue','active','on'));
   // clear fields for a fresh NCR (prevents overwrite feel)
-  ['ncr-detected','ncr-prod','ncr-item','ncr-qty','ncr-batch','ncr-desc','ncr-raised','ncr-qty-rel','ncr-qty-rej','ncr-root','ncr-shift'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['ncr-detected','ncr-prod','ncr-item','ncr-mrr','ncr-qty','ncr-batch','ncr-desc','ncr-raised','ncr-qty-rel','ncr-qty-rej','ncr-root','ncr-shift',
+   'ncr-so-raised-name','ncr-so-raised-date','ncr-so-lineleader-name','ncr-so-lineleader-date','ncr-so-prodchief-name','ncr-so-prodchief-date',
+   'ncr-so-qfschief-name','ncr-so-qfschief-date','ncr-so-factorydir-name','ncr-so-factorydir-date'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   ['ncr-pt-rm','ncr-pt-pm','ncr-pt-sf','ncr-pt-fp','ncr-pt-ot','ncr-act-rej','ncr-act-rep','ncr-act-rbl','ncr-act-srt','ncr-act-oth'].forEach(id=>{ const el=document.getElementById(id); if(el) el.checked=false; });
   const locOther=document.getElementById('ncr-location-other'); if(locOther){ locOther.style.display='none'; locOther.value=''; }
   ['ncr-pt-ot-other','ncr-act-oth-other'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.style.display='none'; el.value=''; } });
@@ -11822,6 +12152,7 @@ function reviewNCRSubmit(){
     ['Product Type', ptypes],
     ['Product Name', document.getElementById('ncr-prod').value],
     ['Item #', document.getElementById('ncr-item').value],
+    ['MRR #', document.getElementById('ncr-mrr').value],
     ['Quantity on Hold', document.getElementById('ncr-qty').value],
     ['Batch/Shift Code', document.getElementById('ncr-batch').value],
     ['Description', document.getElementById('ncr-desc').value],
@@ -11861,6 +12192,13 @@ function saveNCR(){
   const prodRequired = document.getElementById('ncr-prod-required').value==='Yes' ? true : document.getElementById('ncr-prod-required').value==='No' ? false : null;
   const holdFlag = document.getElementById('ncr-hold-flag').value==='Yes' ? true : document.getElementById('ncr-hold-flag').value==='No' ? false : null;
   const holdQty = holdFlag ? (parseInt(document.getElementById('ncr-hold-qty').value)||0) : 0;
+  const signoff = {};
+  ['raised','lineleader','prodchief','qfschief','factorydir'].forEach(function(role){
+    signoff[role] = {
+      name: document.getElementById('ncr-so-'+role+'-name')?.value || '',
+      date: document.getElementById('ncr-so-'+role+'-date')?.value || ''
+    };
+  });
   let rec={
     num:document.getElementById('ncr-num').value,
     date:document.getElementById('ncr-date').value,
@@ -11871,6 +12209,7 @@ function saveNCR(){
     ptypes,
     prod:document.getElementById('ncr-prod').value,
     item:document.getElementById('ncr-item').value,
+    mrr:document.getElementById('ncr-mrr').value,
     qty:document.getElementById('ncr-qty').value,
     batch:document.getElementById('ncr-batch').value,
     desc:document.getElementById('ncr-desc').value,
@@ -11886,7 +12225,8 @@ function saveNCR(){
     timestamp: editingNCRIdx!=null ? ncrList[editingNCRIdx].timestamp : new Date().toISOString(),
     prodRequired: prodRequired,
     holdFlag: holdFlag,
-    holdQty: holdQty
+    holdQty: holdQty,
+    signoff: signoff
   };
   var isNewNCR = editingNCRIdx==null;
   if(editingNCRIdx!=null){
@@ -11972,26 +12312,51 @@ function printNCR(i){
   const n=ncrList[i];
   if(!n){ showToast('NCR not found','red'); return; }
   const clsLabels={1:'Class I – Critical',2:'Class II – Important',3:'Class III – Corrective',4:'Class IV – Remedial'};
+  const so = n.signoff || {};
+  const sigCell = (label, role) => {
+    const nm = so[role] && so[role].name;
+    const dt = so[role] && so[role].date;
+    return `<div class="sig">${label}<span>${nm?printEsc(nm):'Name'} / ${dt?printEsc(dt):'Date'} / Sign</span></div>`;
+  };
   const capa = (n.capaRows&&n.capaRows.length)
-    ? `<div class="sec">Part 3 — Corrective / Preventive Actions</div>
-       <table><tr><th>#</th><th>Action</th><th>Due</th><th>Responsible</th></tr>
+    ? `<div class="sec">Part 3 — Corrective / Preventive Actions <span class="chip">To be filled and verified by Line Leader</span></div>
+       <table><tr><th>#</th><th>Corrective / Preventive Action</th><th>Complete Date</th><th>Responsibility</th></tr>
        ${n.capaRows.map((r,ri)=>`<tr><td>${ri+1}</td><td>${printEsc(r.action)}</td><td>${printEsc(r.date)}</td><td>${printEsc(r.resp)}</td></tr>`).join('')}
        </table>`
     : '';
-  const body = printSheetHeader('Quality Incident & NCR — F.QFS.60-04', `Shop Floor Digital Portal · Quality · NCR # ${printEsc(n.num)} · Printed ${new Date().toLocaleString()}`) + `
+  const body = printSheetHeader('Quality Incident "QI" & Non Conformity "NCR" Report', `Form# F.QFS.60-04 · Shop Floor Digital Portal · Quality · Printed ${new Date().toLocaleString()}`) + `
     <table><tbody>
-      <tr><td class="k">NCR #</td><td>${printEsc(n.num)}</td><td class="k">Date / Time</td><td>${printEsc(n.date)} ${printEsc(n.time)}</td></tr>
+      <tr><td class="k">QI / NCR #</td><td>${printEsc(n.num)}</td><td class="k">Date / Time</td><td>${printEsc(n.date)} ${printEsc(n.time)}</td></tr>
+    </tbody></table>
+    <div class="sec">Part 1: QI / NCR Classification</div>
+    <table><tbody>
       <tr><td class="k">Classification</td><td colspan="3"><span class="chip">${printEsc(clsLabels[n.cls]||'—')}</span> · Status: ${printEsc(n.status)}</td></tr>
-      <tr><td class="k">Location</td><td>${printEsc(n.location)}</td><td class="k">Shift</td><td>${printEsc(n.shift)}</td></tr>
-      <tr><td class="k">Product</td><td>${printEsc(n.prod)} ${n.item?('('+printEsc(n.item)+')'):''}</td><td class="k">Qty on Hold</td><td>${printEsc(n.qty)}</td></tr>
+      <tr><td class="k">Location</td><td>${printEsc(n.location)}</td><td class="k">Shift Code</td><td>${printEsc(n.shift)}</td></tr>
+      <tr><td class="k">Product Type</td><td colspan="3">${printEsc((n.ptypes||[]).join(', ')||'—')}</td></tr>
+      <tr><td class="k">Product Name</td><td>${printEsc(n.prod)}</td><td class="k">Item #</td><td>${printEsc(n.item)}</td></tr>
+      <tr><td class="k">MRR #</td><td>${printEsc(n.mrr)}</td><td class="k">Quantity</td><td>${printEsc(n.qty)}</td></tr>
+      <tr><td class="k">Batch #</td><td colspan="3">${printEsc(n.batch)}</td></tr>
       <tr><td class="k">Detected By</td><td>${printEsc(n.detected)}</td><td class="k">Raised By</td><td>${printEsc(n.raised)}</td></tr>
       <tr><td class="k">Description</td><td colspan="3">${printEsc(n.desc)}</td></tr>
     </tbody></table>
+    <div class="sec">Part 2: Corrections / Immediate Actions <span class="chip">To be filled and verified by the person who raised the NCR</span></div>
+    <table><tbody>
+      <tr><td class="k">Closed Action</td><td colspan="3">${printEsc((n.actions||[]).join(', ')||'—')}</td></tr>
+      <tr><td class="k">Qty Released</td><td>${printEsc(n.qtyRel)}</td><td class="k">Qty Rejected</td><td>${printEsc(n.qtyRej)}</td></tr>
+      <tr><td class="k">Root Cause</td><td colspan="3">${printEsc(n.root)}</td></tr>
+    </tbody></table>
     ${capa}
-    <div class="sig-row">
-      <div class="sig">Raised By<span>Name / Date / Sign</span></div>
-      <div class="sig">QA Team Leader<span>Name / Date / Sign</span></div>
-      <div class="sig">Quality Manager<span>Name / Date / Sign</span></div>
+    ${(n.production && n.production.required) ? `<div class="sec">Production Input</div>
+    <table><tbody>
+      <tr><td class="k">Status</td><td>${printEsc(n.production.status)}</td><td class="k">Completed By</td><td>${printEsc(n.production.completedBy)}</td></tr>
+      <tr><td class="k">Notes</td><td colspan="3">${printEsc(n.production.notes)}</td></tr>
+    </tbody></table>` : ''}
+    <div class="sig-row" style="grid-template-columns:repeat(5,1fr)">
+      ${sigCell('Raised By','raised')}
+      ${sigCell('Line Leader','lineleader')}
+      ${sigCell('Production Chief','prodchief')}
+      ${sigCell('Quality &amp; Food Safety Chief / QMS &amp; Quality Control Chief','qfschief')}
+      ${sigCell('Factory Director','factorydir')}
     </div>
   ` + printSheetEnd('Form F.QFS.60-04 · Close within 48 hours · Shop Floor Digital Portal · pladis KSA');
   openPortalPrint('NCR '+ (n.num||''), body);
@@ -12553,7 +12918,7 @@ function __exportExcelSafetyWork(){
     }
     if(safetyData.permits && safetyData.permits.length){
       const nonFmc = safetyData.permits.filter(p=>p.type!=='fmc13');
-      const tLabels={working:'Working',hotwork:'Hot Work',highlevel:'High Level',confined:'Confined Space',heavy:'Heavy Equipment'};
+      const tLabels={working:'Working',hotwork:'Hot Work',highlevel:'High Level',confined:'Confined Space',heavy:'Heavy Equipment',excavation:'Excavation',scaffold:'Scaffold Erection',radiation:'Radiation Usage',emergencyequip:'Emergency Equipment',cutliftlock:'Cut / Lift Lock',photography:'Photography'};
       const rows = nonFmc.map(p=>{
         const c = p.status==='Active'?{bg:'FEF3C7',fg:'D97706'}:{bg:'D1FAE5',fg:'16A34A'};
         return [p.timestamp||today, tLabels[p.type]||p.type, p.start||'', p.end||'', p.place||'', p.desc||'', p.originator||'', cellStatus(p.status||'', c.bg, c.fg)];
@@ -16069,8 +16434,17 @@ function renderNcrProdInbox(){
   const clsLabels={1:'Class I – Critical',2:'Class II – Important',3:'Class III – Corrective',4:'Class IV – Remedial'};
   html += pending.map(function(n){
     const i = ncrList.indexOf(n);
+    // Read-only status — Production has no access to the Hold Pallets module,
+    // so this must never be a clickable nav('holdpallets') link (that throws
+    // "This module belongs to another portal"). Show the facts only.
+    const holdRec = (n.holdFlag===true && (parseInt(n.holdQty)||0)>0)
+      ? (typeof holdPallets!=='undefined' ? holdPallets.find(h=>h.sourceType==='NCR' && h.sourceReference===n.num) : null)
+      : null;
     const holdWarn = (n.holdFlag===true && (parseInt(n.holdQty)||0)>0)
-      ? '<div style="margin-top:8px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;font-size:.78rem;color:#78350f"><b>⚠ Pallets on Hold:</b> '+(n.holdQty)+' pallet'+(n.holdQty===1?'':'s')+' linked to this NCR — <a href="#" onclick="nav(\'holdpallets\');return false" style="color:#92400e;text-decoration:underline">view Hold Pallets</a></div>'
+      ? '<div style="margin-top:8px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;font-size:.78rem;color:#78350f">'
+        +'<b>HOLD STATUS</b>'
+        +'<div style="margin-top:4px">'+(n.holdQty)+' pallet'+(n.holdQty===1?'':'s')+' on Hold'+(holdRec?(' · Reference: '+escHtml(holdRec.pallet||n.num)):'')+(holdRec?(' · Status: '+(holdRec.released?'Released':'On Hold')):'')+'</div>'
+        +'</div>'
       : '';
     const linkedRework = (typeof reworkCases!=='undefined'?reworkCases:[]).filter(rc=>rc.sourceType==='NCR' && rc.sourceReference===n.num);
     const reworkLinks = linkedRework.length
@@ -16088,6 +16462,7 @@ function renderNcrProdInbox(){
       +'<div class="ncr-grid">'
       +'<div><b>Product</b><br>'+escHtml(n.prod||'—')+(n.item?' ('+escHtml(n.item)+')':'')+'</div>'
       +'<div><b>Batch / Lot</b><br>'+escHtml(n.batch||'—')+'</div>'
+      +'<div><b>MRR #</b><br>'+escHtml(n.mrr||'—')+'</div>'
       +'<div><b>Quantity on Hold</b><br>'+escHtml(n.qty||'—')+'</div>'
       +'<div><b>Product Type(s)</b><br>'+((n.ptypes&&n.ptypes.length)?escHtml(n.ptypes.join(', ')):'—')+'</div>'
       +'<div><b>Detected By</b><br>'+escHtml(n.detected||'—')+'</div>'

@@ -1058,6 +1058,7 @@ try{
     <div class="form-2col">
       <div class="form-row"><label>Product Name</label><input type="text" id="ncr-prod" placeholder="e.g. Choco Bites 30g x24"/></div>
       <div class="form-row"><label>Item #</label><input type="text" id="ncr-item" placeholder="e.g. 50301-01"/></div>
+      <div class="form-row"><label>MRR #</label><input type="text" id="ncr-mrr" placeholder="Material Receiving Report #"/></div>
       <div class="form-row"><label>Quantity on Hold</label><input type="text" id="ncr-qty" placeholder="e.g. 25 OC"/></div>
       <div class="form-row"><label>Batch / Shift Code</label><input type="text" id="ncr-batch" placeholder="Batch #"/></div>
     </div>
@@ -1113,6 +1114,27 @@ try{
         <div id="capa-rows"></div>
       </div>
       <button type="button" class="btn-ghost" style="margin-top:6px;font-size:.8rem" onclick="addCapaRow()"> Add Action Row</button>
+    </div>
+
+    <div class="form-row" style="margin-top:14px">
+      <label style="font-weight:800;color:var(--navy)">Approval / Sign-Off <span style="font-weight:400;font-size:.78rem;color:var(--muted)">(Part 3 completion chain — F.QFS.60-04)</span></label>
+      <div id="ncr-signoff-wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:6px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px">
+        <div><label style="font-size:.72rem;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">Raised By</label>
+          <input type="text" id="ncr-so-raised-name" placeholder="Name" style="width:100%;margin-bottom:4px"/>
+          <input type="date" id="ncr-so-raised-date" style="width:100%"/></div>
+        <div><label style="font-size:.72rem;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">Line Leader</label>
+          <input type="text" id="ncr-so-lineleader-name" placeholder="Name" style="width:100%;margin-bottom:4px"/>
+          <input type="date" id="ncr-so-lineleader-date" style="width:100%"/></div>
+        <div><label style="font-size:.72rem;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">Production Chief</label>
+          <input type="text" id="ncr-so-prodchief-name" placeholder="Name" style="width:100%;margin-bottom:4px"/>
+          <input type="date" id="ncr-so-prodchief-date" style="width:100%"/></div>
+        <div><label style="font-size:.72rem;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">Quality &amp; Food Safety Chief / QMS &amp; Quality Control Chief</label>
+          <input type="text" id="ncr-so-qfschief-name" placeholder="Name" style="width:100%;margin-bottom:4px"/>
+          <input type="date" id="ncr-so-qfschief-date" style="width:100%"/></div>
+        <div><label style="font-size:.72rem;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">Factory Director</label>
+          <input type="text" id="ncr-so-factorydir-name" placeholder="Name" style="width:100%;margin-bottom:4px"/>
+          <input type="date" id="ncr-so-factorydir-date" style="width:100%"/></div>
+      </div>
     </div>
 
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
@@ -2269,7 +2291,13 @@ try{
         <option value="hotwork">F.HSE.08 — Hot Work Permit</option>
         <option value="highlevel">F.HSE.07 — High Level Permit (>3m)</option>
         <option value="confined">F.HSE.04 — Confined Space Entrance Permit</option>
+        <option value="excavation">F.HSE.05 — Excavation Permit</option>
         <option value="heavy">F.HSE.06 — Heavy Equipment Permit</option>
+        <option value="scaffold">F.HSE.11 — Scaffold Erection Permit</option>
+        <option value="radiation">F.HSE.10 — Radiation Usage Permit</option>
+        <option value="emergencyequip">F.HSE.14 — Emergency Equipment Using</option>
+        <option value="cutliftlock">F.HSE.15 — Cut / Lift Lock Form</option>
+        <option value="photography">F.HSE.09 — Photography Permit</option>
       </select>
       <button type="button" onclick="document.getElementById('permit-modal').classList.remove('open')" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:.82rem">Cancel</button>
     </div>
