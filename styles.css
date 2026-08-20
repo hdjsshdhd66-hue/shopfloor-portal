@@ -991,7 +991,10 @@ body.theme-switching{animation:themeFlash .45s ease}
 .sc-group-tab.active{border-color:#cc0000;background:#fef2f2;color:#cc0000;box-shadow:0 4px 12px rgba(204,0,0,.12)}
 .sc-group-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:10px 14px;background:#fef2f2;border-radius:10px;border-left:4px solid #cc0000}
 .sc-group-head b{color:#cc0000;font-size:.88rem}
-.sc-group-head span{font-size:.72rem;color:var(--muted);font-weight:700}
+/* Fixed light background regardless of theme — var(--muted) goes too pale
+   against it in the Noir theme. Same root cause as the Re-Work/.ncr-block
+   contrast bug: a themed color paired with a non-themed background. */
+.sc-group-head span{font-size:.72rem;color:#4b5563;font-weight:700}
 .sc-section-title{font-weight:800;color:var(--navy);font-size:.78rem;margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
 .sc-criteria-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
 .sc-crit-card{background:var(--form-surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;transition:box-shadow .15s}
@@ -1764,10 +1767,19 @@ body.admin-active .edit-pencil:hover{opacity:1!important;background:var(--border
 @media(max-width:600px){.ncr-grid{grid-template-columns:1fr}}
 .ncr-grid b{color:#5b21b6;font-weight:750}
 .ncr-block{
+  /* Fixed light background regardless of theme (Light or Violet Noir) —
+     must be paired with a fixed dark text color, never an inherited/themed
+     one, or the text goes near-invisible in the Noir theme where ambient
+     text is light. This was the root cause of the Re-Work case card /
+     NCR Linked Records / CAPA block contrast bug (text only readable when
+     selected). */
   background:#faf8ff;border:1px solid var(--border);border-radius:10px;
   padding:12px 14px;font-size:.82rem;margin-bottom:8px;line-height:1.45;
+  color:#1f2937;
 }
-.ncr-block.ok{background:#f0fdf4;border-color:#bbf7d0}
+.ncr-block b{color:#1f2937}
+.ncr-block.ok{background:#f0fdf4;border-color:#bbf7d0;color:#14532d}
+.ncr-block.ok b{color:#14532d}
 .ncr-empty{
   text-align:center;padding:48px 24px;color:var(--muted);
   background:linear-gradient(180deg,var(--form-surface),var(--surface-2));
@@ -2200,7 +2212,25 @@ body.portal-factory .header-nav{background:linear-gradient(90deg,#2f0b57,#160529
 #account-display:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(76,29,149,.12)}
 #account-avatar{
   background:var(--grad)!important;
-  box-shadow:0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+  box-shadow:0 0 0 2px color-mix(in srgb, var(--primary) 20%, transparent);
+  transition:box-shadow .18s;
+}
+#account-display:hover #account-avatar{box-shadow:0 0 0 3px color-mix(in srgb, var(--primary) 45%, transparent)}
+/* Compact icon-based Sign Out control — replaces the previous large red
+   "Logout" pill button. Logic unchanged: still calls doLogout(). */
+.account-signout-btn{
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  width:30px;height:30px;border-radius:50%;
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);
+  color:#fff;cursor:pointer;padding:0;
+  transition:background .18s,border-color .18s,transform .18s;
+}
+.account-signout-btn:hover{background:var(--red);border-color:var(--red);transform:scale(1.06)}
+.account-signout-btn .account-signout-arrow{transition:transform .18s}
+.account-signout-btn:hover .account-signout-arrow{transform:translateX(1.5px)}
+@media(prefers-reduced-motion:reduce){
+  .account-signout-btn,.account-signout-btn .account-signout-arrow,#account-avatar,#account-display{transition:none!important}
+  .account-signout-btn:hover{transform:none}
 }
 
 /* Theme switcher — lives only on each portal's Home page (not the persistent
@@ -2497,14 +2527,18 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
 #notif-live-banner .nlb-ico{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;animation:notifPulse 2s infinite}
 #notif-live-banner .nlb-title{font-weight:850;font-size:.88rem;letter-spacing:-.01em}
 #notif-live-banner .nlb-from{font-size:.7rem;opacity:.88;margin-top:2px;font-weight:650}
-#notif-live-banner .nlb-body{background:var(--form-surface);padding:12px 14px;color:#1e1b4b;font-size:.78rem;line-height:1.45;max-height:160px;overflow:auto;white-space:pre-wrap}
+/* Same root-cause bug class as .ncr-block: background:var(--form-surface)
+   goes dark in the Noir theme, but the text color here was a fixed dark
+   navy — near-invisible until selected. This shared notification banner is
+   used from every portal, so the fix applies everywhere at once. */
+#notif-live-banner .nlb-body{background:var(--form-surface);padding:12px 14px;color:var(--text);font-size:.78rem;line-height:1.45;max-height:160px;overflow:auto;white-space:pre-wrap}
 #notif-live-banner .nlb-checks{margin:8px 0 0;padding:0;list-style:none}
 #notif-live-banner .nlb-checks li{display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-top:1px solid #f3e8ff;font-size:.74rem;color:var(--primary-light);font-weight:650}
 #notif-live-banner .nlb-checks li::before{content:"✓";color:#7C3AED;font-weight:900}
 #notif-live-banner .nlb-actions{display:flex;gap:8px;padding:10px 14px;background:#faf8ff;border-top:1px solid var(--border)}
 #notif-live-banner .nlb-actions button{flex:1;border:none;border-radius:10px;padding:8px 10px;font-weight:800;font-size:.75rem;cursor:pointer}
 #notif-live-banner .nlb-go{background:linear-gradient(135deg,#7C3AED,#5B21B6);color:#fff}
-#notif-live-banner .nlb-dismiss{background:var(--form-surface);color:#6d28d9;border:1px solid var(--border)!important}
+#notif-live-banner .nlb-dismiss{background:#faf8ff;color:#6d28d9;border:1px solid var(--border)!important}
 #notif-panel{display:none;position:fixed;top:68px;right:14px;width:min(420px,94vw);max-height:82vh;overflow:hidden;background:linear-gradient(180deg,var(--form-surface),var(--surface-2));border-radius:18px;z-index:10040;border:1px solid rgba(124,58,237,.18);box-shadow:0 20px 50px rgba(76,29,149,.2);padding:0;flex-direction:column}
 #notif-panel.open{display:flex!important;animation:notifSlideIn .3s ease}
 .np-head{display:flex;align-items:center;gap:10px;padding:16px 18px;background:linear-gradient(135deg,#4C1D95,#7C3AED);color:#fff}
@@ -2718,6 +2752,58 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
 .logout-spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:logoutSpin .7s linear infinite}
 @keyframes logoutSpin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){ .logout-spinner{animation:none} }
+
+/* ============================================================
+   HOLD PALLETS — animated industrial pallet visual (replaces the old
+   text-only KPI boxes at the top of the On-Hold Pallets Tracker).
+   Deliberately a FIXED dark card with fixed light/yellow accents
+   (not theme variables) so it stays high-contrast in both Light and
+   Violet Noir without depending on which theme is active — same fix
+   philosophy as the .ncr-block / notification-banner contrast fix.
+   ============================================================ */
+.hpv-wrap{margin-bottom:18px;display:flex;gap:14px;flex-wrap:wrap;align-items:stretch}
+.hpv-card{
+  position:relative;overflow:hidden;flex:0 0 auto;
+  width:190px;min-height:172px;border-radius:18px;border:none;cursor:pointer;
+  padding:16px 14px 14px;display:flex;flex-direction:column;align-items:center;
+  background:linear-gradient(160deg,#1f2937,#0f172a);
+  box-shadow:0 10px 30px rgba(0,0,0,.28);
+  animation:hpvEnter .45s cubic-bezier(.22,.9,.3,1) both;
+  transition:transform .18s,box-shadow .18s;
+}
+.hpv-card:hover,.hpv-card:focus-visible{transform:translateY(-2px);box-shadow:0 16px 38px rgba(0,0,0,.34)}
+.hpv-card:focus-visible{outline:2px solid #facc15;outline-offset:2px}
+@keyframes hpvEnter{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.hpv-pallet{width:100%;height:56px;position:relative;margin-bottom:8px}
+.hpv-pallet-svg{width:100%;height:100%;display:block}
+.hpv-slat{fill:#a16207}
+.hpv-block{fill:#78350f}
+.hpv-wrap[data-state="empty"] .hpv-slat{fill:#475569}
+.hpv-wrap[data-state="empty"] .hpv-block{fill:#334155}
+.hpv-scan{stroke:rgba(250,204,21,.85);stroke-width:1.5;transform:translateY(0);animation:hpvScan 2.6s ease-in-out infinite}
+.hpv-wrap[data-state="empty"] .hpv-scan{display:none}
+@keyframes hpvScan{0%{transform:translateY(2px);opacity:.15}50%{transform:translateY(52px);opacity:.85}100%{transform:translateY(2px);opacity:.15}}
+.hpv-label{
+  display:inline-block;background:#facc15;color:#111827;font-weight:900;font-size:.72rem;
+  letter-spacing:.08em;padding:3px 12px;border-radius:99px;text-transform:uppercase;
+}
+.hpv-wrap[data-state="aging"] .hpv-label{background:#f59e0b;color:#111827;animation:hpvPulse 2.2s ease-in-out infinite}
+.hpv-wrap[data-state="empty"] .hpv-label{background:#94a3b8;color:#111827}
+@keyframes hpvPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.45)}50%{box-shadow:0 0 0 7px rgba(245,158,11,0)}}
+.hpv-count{font-size:2.4rem;font-weight:900;color:#fff;line-height:1.1;margin-top:6px}
+.hpv-wrap[data-state="empty"] .hpv-count{color:#cbd5e1}
+.hpv-sub{font-size:.72rem;color:rgba(255,255,255,.68);margin-top:2px;text-align:center;line-height:1.35}
+.hpv-aging-chip{
+  align-self:center;margin-top:8px;font-size:.68rem;font-weight:800;color:#fff;
+  background:rgba(245,158,11,.22);border:1px solid rgba(245,158,11,.55);
+  padding:3px 10px;border-radius:99px;
+}
+@media(max-width:480px){ .hpv-card{width:100%} }
+@media(prefers-reduced-motion:reduce){
+  .hpv-card{animation:none}
+  .hpv-scan{animation:none;opacity:.5}
+  .hpv-wrap[data-state="aging"] .hpv-label{animation:none}
+}
 
 /* ============================================================
    THEME TRANSITION — Light ↔ Violet Noir switches smoothly on the

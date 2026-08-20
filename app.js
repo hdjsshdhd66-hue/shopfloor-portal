@@ -5677,18 +5677,59 @@ function saveFilterInspection(){
 // ============================================================
 // ON-HOLD PALLETS TRACKER
 // ============================================================
+// Animated industrial pallet visual — the number shown is always derived
+// from real active Hold Pallets records (never hardcoded): the leading
+// numeric quantity on each non-released record, summed. Status coloring
+// uses only the existing "aging > 3 days" threshold already defined
+// elsewhere in this view — no new business threshold is invented.
+function holdPalletVisualHtml(active, aging, totalQty){
+  const state = totalQty>0 ? (aging>0 ? 'aging' : 'hold') : 'empty';
+  const sub = totalQty>0
+    ? (active+' active hold record'+(active===1?'':'s')+(aging>0?(' · '+aging+' aging &gt; 3 days'):''))
+    : 'No pallets currently on hold';
+  return `<div class="hpv-wrap" data-state="${state}">
+    <button type="button" class="hpv-card" onclick="nav('holdpallets')" aria-label="Hold Pallets — ${totalQty} pallets currently on hold, opens Hold Pallets list">
+      <div class="hpv-pallet">
+        <svg viewBox="0 0 120 60" class="hpv-pallet-svg" aria-hidden="true">
+          <rect x="14" y="6" width="9" height="46" class="hpv-block"/>
+          <rect x="55.5" y="6" width="9" height="46" class="hpv-block"/>
+          <rect x="97" y="6" width="9" height="46" class="hpv-block"/>
+          <rect x="6" y="42" width="108" height="7" rx="2" class="hpv-slat"/>
+          <rect x="6" y="29" width="108" height="7" rx="2" class="hpv-slat"/>
+          <rect x="6" y="16" width="108" height="7" rx="2" class="hpv-slat"/>
+          <line x1="4" y1="2" x2="116" y2="2" class="hpv-scan"/>
+        </svg>
+      </div>
+      <span class="hpv-label">HOLD</span>
+      <div class="hpv-count" id="hpv-count-val" data-target="${totalQty}">0</div>
+      <div class="hpv-sub">${sub}</div>
+    </button>
+  </div>`;
+}
+function animateHoldPalletCount(){
+  const el = document.getElementById('hpv-count-val');
+  if(!el) return;
+  const target = parseInt(el.getAttribute('data-target'))||0;
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduced || target===0){ el.textContent = target; return; }
+  const dur = 550, start = performance.now();
+  function step(now){
+    const p = Math.min(1, (now-start)/dur);
+    const eased = 1-Math.pow(1-p, 3);
+    el.textContent = Math.round(eased*target);
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
 function renderHoldPallets(){
   const stats = document.getElementById('hold-stats');
   const now = Date.now();
-  const aging = holdPallets.filter(p=>!p.released && (now - new Date(p.date).getTime()) > 3*86400000).length;
-  const active = holdPallets.filter(p=>!p.released).length;
-  stats.innerHTML = `
-    <div style="background:#1e3a5f;color:#fff;border-radius:10px;padding:14px 20px;flex:1;min-width:140px">
-      <div style="font-size:1.6rem;font-weight:800">${active}</div><div style="font-size:.78rem;opacity:.85">Pallets On Hold</div>
-    </div>
-    <div style="background:${aging>0?'#dc2626':'#16a34a'};color:#fff;border-radius:10px;padding:14px 20px;flex:1;min-width:140px">
-      <div style="font-size:1.6rem;font-weight:800">${aging}</div><div style="font-size:.78rem;opacity:.9"> Aging &gt; 3 Days</div>
-    </div>`;
+  const activeRecords = holdPallets.filter(p=>!p.released);
+  const aging = activeRecords.filter(p=>(now - new Date(p.date).getTime()) > 3*86400000).length;
+  const active = activeRecords.length;
+  const totalQty = activeRecords.reduce((s,p)=>s+(parseInt(p.qty)||0),0);
+  stats.innerHTML = holdPalletVisualHtml(active, aging, totalQty);
+  animateHoldPalletCount();
 
   const wrap = document.getElementById('hold-pallets-list');
   if(!holdPallets.length){
@@ -16029,24 +16070,54 @@ function renderNcrProdInbox(){
   html += pending.map(function(n){
     const i = ncrList.indexOf(n);
     const holdWarn = (n.holdFlag===true && (parseInt(n.holdQty)||0)>0)
-      ? '<div style="margin-top:8px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;font-size:.78rem;color:#78350f"><b>⚠ Pallets on Hold:</b> '+(n.holdQty)+' pallet'+(n.holdQty===1?'':'s')+' linked to this NCR (see Hold Pallets)</div>'
+      ? '<div style="margin-top:8px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;font-size:.78rem;color:#78350f"><b>⚠ Pallets on Hold:</b> '+(n.holdQty)+' pallet'+(n.holdQty===1?'':'s')+' linked to this NCR — <a href="#" onclick="nav(\'holdpallets\');return false" style="color:#92400e;text-decoration:underline">view Hold Pallets</a></div>'
       : '';
-    return '<div class="pro-list-card" style="border-left-color:'+(clsColors[n.cls]||'#6b7280')+'">'
-      +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">'
-      +'<b style="color:#1e3a5f">NCR # '+escHtml(n.num)+'</b>'
+    const linkedRework = (typeof reworkCases!=='undefined'?reworkCases:[]).filter(rc=>rc.sourceType==='NCR' && rc.sourceReference===n.num);
+    const reworkLinks = linkedRework.length
+      ? '<div style="margin-top:6px;font-size:.78rem">'+linkedRework.map(rc=>'→ Re-Work Case <b>'+escHtml(rc.num)+'</b> — '+escHtml(rc.status)).join('<br>')+'</div>'
+      : '';
+    // A. NCR HEADER / REFERENCE
+    const headerHtml = '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+      +'<b style="color:#1e3a5f;font-size:.95rem">NCR # '+escHtml(n.num)+'</b>'
       +'<span class="ncr-chip" style="background:'+(clsColors[n.cls]||'#6b7280')+'">'+(clsLabels[n.cls]||'—')+'</span>'
       +'</div>'
-      +'<div style="font-size:.78rem;color:#6b7280;margin-top:2px">'+escHtml(n.date||'')+' '+escHtml(n.time||'')+' · '+escHtml(n.location||'—')+' · Shift '+escHtml(n.shift||'—')+'</div>'
-      +'<div style="font-size:.82rem;margin-top:8px"><b>Product:</b> '+escHtml(n.prod||'—')+(n.batch?(' · <b>Batch:</b> '+escHtml(n.batch)):'')+'</div>'
-      +'<div style="font-size:.82rem;margin-top:4px;color:#374151"><b>Quality Issue:</b> '+escHtml(n.desc||'—')+'</div>'
-      +holdWarn
-      +'<div style="margin-top:10px">'
-      +'<label style="font-size:.75rem;font-weight:700;color:#374151;display:block;margin-bottom:4px">Production Notes / Action Taken</label>'
-      +'<textarea id="ncr-prod-note-'+i+'" class="fi" rows="2" placeholder="Describe the Production action taken for this NCR..." style="width:100%"></textarea>'
+      +'<div style="font-size:.78rem;color:#6b7280;margin-top:2px">'+escHtml(n.date||'')+' '+escHtml(n.time||'')+' · '+escHtml(n.location||'—')+' · Shift '+escHtml(n.shift||'—')+'</div>';
+    // B. QUALITY SUBMISSION — READ ONLY (everything Quality entered, unchanged/uneditable here)
+    const qualityHtml = '<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">'
+      +'<div style="font-size:.72rem;font-weight:800;letter-spacing:.03em;color:#6b7280;text-transform:uppercase;margin-bottom:6px">Quality Submission — Read Only</div>'
+      +'<div class="ncr-grid">'
+      +'<div><b>Product</b><br>'+escHtml(n.prod||'—')+(n.item?' ('+escHtml(n.item)+')':'')+'</div>'
+      +'<div><b>Batch / Lot</b><br>'+escHtml(n.batch||'—')+'</div>'
+      +'<div><b>Quantity on Hold</b><br>'+escHtml(n.qty||'—')+'</div>'
+      +'<div><b>Product Type(s)</b><br>'+((n.ptypes&&n.ptypes.length)?escHtml(n.ptypes.join(', ')):'—')+'</div>'
+      +'<div><b>Detected By</b><br>'+escHtml(n.detected||'—')+'</div>'
+      +'<div><b>Raised By</b><br>'+escHtml(n.raised||'—')+'</div>'
+      +'<div><b>Qty Released</b><br>'+escHtml(n.qtyRel||'—')+'</div>'
+      +'<div><b>Qty Rejected</b><br>'+escHtml(n.qtyRej||'—')+'</div>'
       +'</div>'
-      +'<div style="margin-top:10px">'
+      +'<div class="ncr-block"><b>Non-Conformance Description</b><br>'+escHtml(n.desc||'—')+'</div>'
+      +((n.actions&&n.actions.length)?'<div class="ncr-block"><b>Immediate Action(s)</b><br>'+escHtml(n.actions.join(', '))+'</div>':'')
+      +(n.root?'<div class="ncr-block"><b>Quality Root Cause Findings</b><br>'+escHtml(n.root)+'</div>':'')
+      +(typeof photosHTML==='function'?photosHTML(n.photos):'')
+      +((n.capaRows&&n.capaRows.length)?'<div class="ncr-block ok"><b>Part 3 — Corrective / Preventive Actions</b>'
+        +n.capaRows.map((r,ri)=>'<div style="margin-top:6px">'+(ri+1)+'. '+escHtml(r.action||'—')+(r.date?' <span style="opacity:.75">(Due: '+escHtml(r.date)+')</span>':'')+(r.resp?' — '+escHtml(r.resp):'')+'</div>').join('')
+        +'</div>':'')
+      +'</div>';
+    // C. HOLD / LINKED RECORDS — READ ONLY / LINKED
+    const linkedHtml = (holdWarn || reworkLinks) ? '<div class="ncr-block" style="background:#f8fafc;border:1px dashed #cbd5e1;margin-top:8px">'
+      +'<b>Hold / Linked Records</b>'+holdWarn+reworkLinks+'</div>' : '';
+    // D. PRODUCTION INPUT — EDITABLE (the only Production-owned field on this record)
+    const productionHtml = '<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">'
+      +'<div style="font-size:.72rem;font-weight:800;letter-spacing:.03em;color:#92400e;text-transform:uppercase;margin-bottom:6px">Production Input</div>'
+      +'<label style="font-size:.75rem;font-weight:700;color:#374151;display:block;margin-bottom:4px">Production Notes / Action Taken <span style="color:#dc2626">*</span></label>'
+      +'<textarea id="ncr-prod-note-'+i+'" class="fi" rows="3" placeholder="Describe the Production investigation / action taken for this NCR..." style="width:100%"></textarea>'
+      +'</div>';
+    // E. WORKFLOW ACTIONS
+    const actionsHtml = '<div style="margin-top:10px">'
       +'<button type="button" class="btn-primary" onclick="ncrProdComplete('+i+')">Mark Production Complete — Return to Quality</button>'
-      +'</div>'
+      +'</div>';
+    return '<div class="pro-list-card" style="border-left-color:'+(clsColors[n.cls]||'#6b7280')+'">'
+      +headerHtml+qualityHtml+linkedHtml+productionHtml+actionsHtml
       +'</div>';
   }).join('');
   wrap.innerHTML=html;
@@ -16056,6 +16127,7 @@ function ncrProdComplete(i){
   if(!n || !n.production){ return; }
   const noteEl = document.getElementById('ncr-prod-note-'+i);
   const note = noteEl ? noteEl.value.trim() : '';
+  if(!note){ showToast('Enter Production Notes / Action Taken before submitting','red'); return; }
   var __old = JSON.parse(JSON.stringify(n));
   n.production.status = 'Returned to Quality';
   n.production.completedBy = (currentUser&&currentUser.name)||'user';
