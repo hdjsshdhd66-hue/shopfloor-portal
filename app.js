@@ -13988,10 +13988,39 @@ function setWOStatus(i,val){maintData.workOrders[i].status=val;saveMaintData();r
 // ── Breakdown Report — ownership/triage workflow ──
 // Lifecycle: Triage Required -> Assigned -> In Progress -> Awaiting
 // Production Verification -> Closed. Shared by Maintenance AND Production
-// (same maintData.breakdowns array, same record — never duplicated per
-// portal). "Suspected Ownership" captured at report time is never treated
-// as final; only Maintenance's own Accept/Reassign action sets currentOwner.
-var BD_STATUSES = ['Triage Required','Assigned','In Progress','Awaiting Production Verification','Closed'];
+// ONLY — same maintData.breakdowns array, same record, never duplicated.
+// Quality is explicitly NOT a participant in this workflow: no ownership,
+// no editing, no Root Cause writing, no approval, no closing. Quality only
+// ever receives a read-only, non-actionable informational notification
+// (see bdSyncQualityInfoNotif() / invalidateBreakdownInfoNotifs()).
+var BD_STATUSES = ['Triage Required','Assigned','In Progress','Awaiting Verification','Closed'];
+// Structured cause classification -> Root Cause ownership. This is a fixed
+// lookup, never inferred from free text ("Do NOT automatically assign Root
+// Cause based on free text. Use structured ownership/triage selection.").
+var BD_CAUSE_CATEGORIES = {
+  'Machine Failure':        'Maintenance',
+  'Mechanical Fault':       'Maintenance',
+  'Electrical Fault':       'Maintenance',
+  'Equipment Condition':    'Maintenance',
+  'Instrumentation Issue':  'Maintenance',
+  'Technical Failure':      'Maintenance',
+  'Incorrect Operation':    'Production',
+  'Setup Error':            'Production',
+  'Operating Method':       'Production',
+  'Production Handling':    'Production',
+  'Process Execution Issue':'Production',
+  'Production Misuse':      'Production'
+};
+function bdRootCauseOwnerFor(category){ return BD_CAUSE_CATEGORIES[category] || null; }
+// The portal that must verify a fix is always the OTHER of the two
+// participating portals relative to whoever owned the Root Cause
+// investigation — never Quality.
+function bdVerifyingPortalFor(ownerDept){
+  var o = (ownerDept||'').toLowerCase();
+  if(o==='maintenance') return 'production';
+  if(o==='production') return 'maintenance';
+  return null;
+}
 function bdAgeDays(b){
   return Math.floor((Date.now() - new Date(b.timestamp||b.date).getTime())/86400000);
 }
@@ -14004,25 +14033,26 @@ function bdStatusChipHtml(status){
     'Triage Required': '#dc2626',
     'Assigned': '#d97706',
     'In Progress': '#2563eb',
-    'Awaiting Production Verification': '#7c3aed',
+    'Awaiting Verification': '#7c3aed',
     'Closed': '#16a34a'
   };
   return '<span style="background:'+(map[status]||'#6b7280')+';color:#fff;padding:3px 10px;border-radius:99px;font-size:.72rem;font-weight:700">'+escHtml(status||'—')+'</span>';
 }
 function bdNextActionBy(b){
   if(b.status==='Triage Required') return 'Maintenance (triage)';
-  if(b.status==='Assigned') return (b.currentOwner||'Maintenance')+' (start work)';
-  if(b.status==='In Progress') return (b.currentOwner||'Maintenance')+' (complete repair)';
-  if(b.status==='Awaiting Production Verification') return 'Production (verify & close)';
+  if(b.status==='Assigned') return (b.currentOwner||'—')+' (start work)';
+  if(b.status==='In Progress') return (b.currentOwner||'—')+' (confirm root cause)';
+  if(b.status==='Awaiting Verification') return capFirst(b.verifyingPortal)+' (verify & close)';
   if(b.status==='Closed') return '—';
   return '—';
 }
+function capFirst(s){ s=String(s||''); return s ? (s[0].toUpperCase()+s.slice(1)) : '—'; }
 function bdKpiHtml(){
   var list = maintData.breakdowns||[];
   var open = list.filter(b=>b.status!=='Closed').length;
   var awaitingOwnership = list.filter(b=>b.status==='Triage Required').length;
   var inProgress = list.filter(b=>b.status==='In Progress').length;
-  var awaitingVerify = list.filter(b=>b.status==='Awaiting Production Verification').length;
+  var awaitingVerify = list.filter(b=>b.status==='Awaiting Verification').length;
   var now = new Date();
   var closedThisMonth = list.filter(b=>b.status==='Closed' && b.closedAt && new Date(b.closedAt).getMonth()===now.getMonth() && new Date(b.closedAt).getFullYear()===now.getFullYear()).length;
   var durations = list.filter(b=>b.status==='Closed' && b.closedAt && b.timestamp).map(b=>(new Date(b.closedAt)-new Date(b.timestamp))/3600000);
@@ -14030,12 +14060,52 @@ function bdKpiHtml(){
   var kpis = [
     {l:'Open Breakdowns', v:open, c:'#dc2626'},
     {l:'Awaiting Ownership', v:awaitingOwnership, c:'#d97706'},
-    {l:'Maintenance In Progress', v:inProgress, c:'#2563eb'},
-    {l:'Awaiting Production Verification', v:awaitingVerify, c:'#7c3aed'},
+    {l:'In Progress', v:inProgress, c:'#2563eb'},
+    {l:'Awaiting Verification', v:awaitingVerify, c:'#7c3aed'},
     {l:'Closed This Month', v:closedThisMonth, c:'#16a34a'},
   ];
   if(avgDur!=null) kpis.push({l:'Avg Breakdown Duration', v:avgDur.toFixed(1)+'h', c:'#64748b'});
   return dashKpiCards(kpis);
+}
+// ── Quality's informational-only notification (no ownership, no action) ──
+// One notification entry per breakdown, kept in sync (message/details
+// updated in place, never duplicated) as the record's status changes.
+// Deliberately has NO actionView — Quality has no nav access to 'breakdown'
+// at all (not in QUALITY_VIEWS), so even if actionView were set it would
+// hit the hard portal boundary; omitting it entirely keeps the card
+// visibly non-clickable, matching "awareness-only, no action button".
+function bdSyncQualityInfoNotif(b){
+  if(!b || !b.id || typeof portalNotifications==='undefined') return;
+  loadNotifications();
+  var msg = 'Breakdown — '+(b.line||'—')+(b.equipment?(' — '+b.equipment):'')+' — '+(b.status||'');
+  var details = 'Current Owner: '+(b.currentOwner||'Unassigned')+(b.causeCategory?(' · Cause: '+b.causeCategory):'')+' · Reported '+(b.date||'')+' '+(b.time||'');
+  var idx = portalNotifications.findIndex(function(n){ return n.bdRef===b.id; });
+  if(idx>=0){
+    portalNotifications[idx].message = msg;
+    portalNotifications[idx].details = details;
+    portalNotifications[idx].timestamp = new Date().toISOString();
+    portalNotifications[idx].read = false;
+  } else {
+    portalNotifications.push({
+      target:'quality', bdRef:b.id, type:'breakdown-info', from:'Breakdown Report',
+      message:msg, details:details, timestamp:new Date().toISOString(), read:false, id:Date.now()
+      // no actionView by design
+    });
+  }
+  try{ safeSetItem('pqs_notifications', JSON.stringify(portalNotifications)); }catch(e){}
+  if(typeof updateNotifBadge==='function') updateNotifBadge();
+}
+function invalidateBreakdownInfoNotifs(bdId){
+  if(!bdId || typeof portalNotifications==='undefined') return;
+  try{
+    loadNotifications();
+    var before = portalNotifications.length;
+    portalNotifications = portalNotifications.filter(function(n){ return n.bdRef!==bdId; });
+    if(portalNotifications.length !== before){
+      safeSetItem('pqs_notifications', JSON.stringify(portalNotifications));
+      if(typeof updateNotifBadge==='function') updateNotifBadge();
+    }
+  }catch(e){}
 }
 function bdHistoryHtml(b, i){
   var h = b.history||[];
@@ -14052,14 +14122,17 @@ function renderBreakdown(){
   if(!wrap) return;
   var html='';
   html+='<div class="view-head-bar"><div class="page-title">Equipment Breakdown Reports</div><button type="button" class="btn-primary" style="margin-left:auto" onclick="openBDModal()">+ New Breakdown</button></div>';
-  html+='<div class="page-sub" style="margin-bottom:14px">Shared Production ↔ Maintenance workflow — one record per breakdown, with clear ownership, next action, and status at every stage.</div>';
+  html+='<div class="page-sub" style="margin-bottom:14px">Shared Production ↔ Maintenance workflow only — one record per breakdown, with clear ownership, next action, and status at every stage. Quality receives an informational notification only and has no access to this workflow.</div>';
   html+=bdKpiHtml();
   if(!maintData.breakdowns.length){
     html+='<div class="pro-empty">No breakdown reports yet</div>';
   } else {
     maintData.breakdowns.forEach(function(b,i){
       if(!b.status) b.status='Triage Required'; // backward-compat for records created before this workflow existed
+      if(b.status==='Awaiting Production Verification'){ b.status='Awaiting Verification'; b.verifyingPortal=b.verifyingPortal||'production'; } // backward-compat rename
       var age = bdAgeDays(b);
+      var isOwnerPortal = currentPortal && b.currentOwner && currentPortal===b.currentOwner.toLowerCase();
+      var isVerifyingPortal = currentPortal && b.verifyingPortal && currentPortal===b.verifyingPortal;
       html+='<div class="pro-list-card danger">';
       html+='<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><b style="color:#dc2626">BD-'+String(i+1).padStart(3,'0')+' · '+escHtml(b.line||'')+'</b><span style="color:#6b7280;font-size:.75rem">'+escHtml(b.date||'')+' '+escHtml(b.time||'')+'</span></div>';
       html+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center">'
@@ -14073,21 +14146,25 @@ function renderBreakdown(){
       if(b.desc) html+='<div style="font-size:.82rem;margin-top:4px;color:#1e293b"><b>Initial Description:</b> '+escHtml(b.desc)+'</div>';
       html+='<div style="font-size:.82rem;margin-top:4px;color:#1e293b"><b>Suspected Cause:</b> '+escHtml(b.cause||'—')+'</div>';
       html+='<div style="font-size:.82rem;margin-top:4px;color:#1e293b"><b>Immediate Action Taken:</b> '+escHtml(b.action||'—')+'</div>';
-      if(b.rootCause) html+='<div class="ncr-block ok" style="margin-top:6px"><b>Confirmed Root Cause</b><br>'+escHtml(b.rootCause)+(b.correctiveAction?('<br><b>Corrective Action:</b> '+escHtml(b.correctiveAction)):'')+'</div>';
+      if(b.causeCategory) html+='<div style="font-size:.82rem;margin-top:4px;color:#1e293b"><b>Cause Category:</b> '+escHtml(b.causeCategory)+' <span style="color:var(--muted)">(Root Cause Owner: '+escHtml(b.currentOwner||'—')+')</span></div>';
+      if(b.rootCause) html+='<div class="ncr-block ok" style="margin-top:6px"><b>Confirmed Root Cause</b> <span style="font-weight:400;color:var(--muted)">(by '+escHtml(b.currentOwner||'—')+')</span><br>'+escHtml(b.rootCause)+(b.correctiveAction?('<br><b>Corrective Action:</b> '+escHtml(b.correctiveAction)):'')+'</div>';
       if(typeof photosHTML==='function') html+=photosHTML(b.photos);
-      // ── Ownership / lifecycle actions — portal-scoped ──
+      // ── Ownership / lifecycle actions — Production/Maintenance ONLY.
+      // Quality never sees action buttons here (Quality has no nav access to
+      // this view at all — 'breakdown' is not in QUALITY_VIEWS — but the
+      // portal check below is kept explicit as defense in depth).
       var actions = '';
       if(b.status==='Triage Required' && currentPortal==='maintenance'){
-        actions += '<button type="button" class="btn-primary" style="font-size:.72rem;padding:5px 10px" onclick="bdAcceptOwnership('+i+')">Accept Ownership</button>'
-                 + '<button type="button" class="btn-ghost" style="font-size:.72rem;padding:5px 10px" onclick="bdReassign('+i+')">Reassign / Request Review</button>';
+        actions += '<button type="button" class="btn-primary" style="font-size:.72rem;padding:5px 10px" onclick="openBDTriageModal('+i+')">Classify &amp; Assign Ownership</button>'
+                 + '<button type="button" class="btn-ghost" style="font-size:.72rem;padding:5px 10px" onclick="bdReassign('+i+')">Send to Production for Review</button>';
       }
-      if(b.status==='Assigned' && currentPortal==='maintenance'){
+      if(b.status==='Assigned' && isOwnerPortal){
         actions += '<button type="button" class="btn-primary" style="font-size:.72rem;padding:5px 10px" onclick="bdStartWork('+i+')">Start Work</button>';
       }
-      if(b.status==='In Progress' && currentPortal==='maintenance'){
+      if(b.status==='In Progress' && isOwnerPortal){
         actions += '<button type="button" class="btn-primary" style="font-size:.72rem;padding:5px 10px" onclick="openBDVerifyModal('+i+')">Confirm Root Cause &amp; Request Verification</button>';
       }
-      if(b.status==='Awaiting Production Verification' && currentPortal==='production'){
+      if(b.status==='Awaiting Verification' && isVerifyingPortal){
         actions += '<button type="button" class="btn-primary" style="font-size:.72rem;padding:5px 10px" onclick="bdVerifyClose('+i+')">Verify &amp; Close</button>'
                  + '<button type="button" class="btn-ghost" style="font-size:.72rem;padding:5px 10px;color:#dc2626" onclick="bdRejectVerification('+i+')">Not Fixed — Send Back</button>';
       }
@@ -14121,6 +14198,8 @@ let editingBDIdx = null;
 function deleteBD(i){
   if(!requireAdmin('Delete')) return;
   if(!confirm('Delete this breakdown report permanently?')) return;
+  var b = maintData.breakdowns[i];
+  if(b && b.id && typeof invalidateBreakdownInfoNotifs==='function') invalidateBreakdownInfoNotifs(b.id);
   maintData.breakdowns.splice(i,1);
   saveMaintData();
   renderBreakdown();
@@ -14166,6 +14245,7 @@ function saveBD(){
   const isEdit = editingBDIdx!=null;
   const prior = isEdit ? maintData.breakdowns[editingBDIdx] : null;
   const entry={
+    id: prior ? prior.id : ('BD-'+Date.now()+'-'+Math.random().toString(36).slice(2,7)),
     line:getFieldVal('bd-line','bd-line-other'),
     equipment:document.getElementById('bd-equip').value,
     date:document.getElementById('bd-date').value,
@@ -14177,13 +14257,19 @@ function saveBD(){
     reportedBy:document.getElementById('bd-reportedby').value,
     reportedByDept:document.getElementById('bd-dept').value,
     lineStopped:document.getElementById('bd-linestopped').value,
+    // Restricted to Maintenance / Production / Unknown — the workflow stays
+    // strictly between these two portals, never Quality/Utilities/Other.
     suspectedOwnership:document.getElementById('bd-ownership').value,
-    // Confirmed-root-cause fields are only ever set by bdSubmitVerification()
-    // (after investigation) — never invented or copied from the suspected cause.
+    // Structured cause classification and confirmed-root-cause fields are
+    // only ever set by bdSubmitTriage() / bdSubmitVerification() (after
+    // triage / after investigation) — never invented or copied from the
+    // suspected cause at report time.
+    causeCategory: prior ? prior.causeCategory : null,
     rootCause: prior ? prior.rootCause : '',
     correctiveAction: prior ? prior.correctiveAction : '',
     status: prior ? prior.status : 'Triage Required',
     currentOwner: prior ? prior.currentOwner : null,
+    verifyingPortal: prior ? prior.verifyingPortal : null,
     closedAt: prior ? prior.closedAt : null,
     history: prior ? (prior.history||[]) : [],
     photos: (typeof getFormPhotos==='function'?getFormPhotos('bd'):[]).slice(),
@@ -14194,12 +14280,16 @@ function saveBD(){
   else {
     bdPushHistory(entry, 'Reported', entry.suspectedOwnership?('Suspected ownership: '+entry.suspectedOwnership):'');
     maintData.breakdowns.unshift(entry);
+    // Maintenance receives the actionable triage task.
     if(typeof notifyPortal==='function') notifyPortal('maintenance', {
       type:'breakdown-triage', from:'Breakdown Report',
       message:'New breakdown needs triage — '+(entry.line||''),
       details:(entry.equipment?('Equipment: '+entry.equipment+'. '):'')+(entry.desc||entry.cause||''),
       actionView:'breakdown'
     });
+    // Quality receives an awareness-only notification — no action button,
+    // no workflow access. Never routed as an actionable task.
+    if(typeof bdSyncQualityInfoNotif==='function') bdSyncQualityInfoNotif(entry);
   }
   editingBDIdx = null;
   saveMaintData();
@@ -14207,31 +14297,62 @@ function saveBD(){
   renderBreakdown();
   showToast('Breakdown report saved','red');
 }
-// ── Ownership / lifecycle transitions ──
-function bdAcceptOwnership(i){
+// ── Ownership / lifecycle transitions — Production and Maintenance only ──
+function openBDTriageModal(i){
   var b = maintData.breakdowns[i];
   if(!b) return;
-  b.currentOwner = 'Maintenance';
-  b.status = 'Assigned';
-  bdPushHistory(b, 'Accepted Ownership');
-  saveMaintData();
-  renderBreakdown();
-  showToast('Ownership accepted — BD-'+String(i+1).padStart(3,'0'),'green');
+  document.getElementById('bdt-index').value = i;
+  document.getElementById('bdt-category').value = b.causeCategory||'';
+  document.getElementById('bd-triage-modal').classList.add('open');
 }
+function bdSubmitTriage(){
+  var i = parseInt(document.getElementById('bdt-index').value);
+  var b = maintData.breakdowns[i];
+  if(!b) return;
+  var category = document.getElementById('bdt-category').value;
+  if(!category){ showToast('Select a Cause Category — never assigned automatically from free text','red'); return; }
+  var owner = bdRootCauseOwnerFor(category); // fixed lookup table, never inferred from text
+  if(!owner){ showToast('Unrecognized cause category','red'); return; }
+  b.causeCategory = category;
+  b.currentOwner = owner; // 'Maintenance' or 'Production' — the two participating portals only
+  b.status = 'Assigned';
+  bdPushHistory(b, 'Classified & Assigned', 'Cause category: '+category+' -> Root Cause Owner: '+owner);
+  saveMaintData();
+  document.getElementById('bd-triage-modal').classList.remove('open');
+  renderBreakdown();
+  if(typeof bdSyncQualityInfoNotif==='function') bdSyncQualityInfoNotif(b);
+  if(owner==='Production' && typeof notifyPortal==='function'){
+    notifyPortal('production', {
+      type:'breakdown-assigned', from:'Maintenance Portal',
+      message:'Breakdown assigned to Production — '+(b.line||''),
+      details:'Cause category: '+category+'. Production is the Root Cause owner for this breakdown (operational cause, not equipment).',
+      actionView:'breakdown'
+    });
+  }
+  showToast('Classified as '+category+' — '+owner+' is the Root Cause owner','green');
+}
+// Maintenance is unsure this is theirs at all (before classifying) and
+// wants Production to take a first look — the only other portal in this
+// workflow, so no free-text "which department" prompt is needed.
 function bdReassign(i){
   var b = maintData.breakdowns[i];
   if(!b) return;
-  var target = prompt('Reassign / request review to which department? (e.g. Production, Quality, Utilities / Engineering, Other)', b.suspectedOwnership||'');
-  if(target==null || !target.trim()) return;
-  var reason = prompt('Reason for reassigning / requesting review (required):','');
-  if(!reason || !reason.trim()){ showToast('A reason is required to reassign','red'); return; }
-  b.suspectedOwnership = target.trim();
-  // Stays in Triage Required — the newly-named department still needs to
-  // accept ownership; a suspected-ownership guess is never treated as final.
-  bdPushHistory(b, 'Reassigned / Review Requested', 'To: '+target.trim()+' — Reason: '+reason.trim());
+  var reason = prompt('Reason for sending to Production for review (required):','');
+  if(!reason || !reason.trim()){ showToast('A reason is required','red'); return; }
+  b.suspectedOwnership = 'Production';
+  // Stays in Triage Required until classified — a review request is never
+  // itself a final ownership assignment.
+  bdPushHistory(b, 'Sent to Production for Review', reason.trim());
   saveMaintData();
   renderBreakdown();
-  showToast('Reassigned for review — BD-'+String(i+1).padStart(3,'0'),'amber');
+  if(typeof bdSyncQualityInfoNotif==='function') bdSyncQualityInfoNotif(b);
+  if(typeof notifyPortal==='function') notifyPortal('production', {
+    type:'breakdown-review', from:'Maintenance Portal',
+    message:'Breakdown needs your review — '+(b.line||''),
+    details:reason.trim(),
+    actionView:'breakdown'
+  });
+  showToast('Sent to Production for review — BD-'+String(i+1).padStart(3,'0'),'amber');
 }
 function bdStartWork(i){
   var b = maintData.breakdowns[i];
@@ -14240,6 +14361,7 @@ function bdStartWork(i){
   bdPushHistory(b, 'Work Started');
   saveMaintData();
   renderBreakdown();
+  if(typeof bdSyncQualityInfoNotif==='function') bdSyncQualityInfoNotif(b);
   showToast('Work started — BD-'+String(i+1).padStart(3,'0'),'green');
 }
 function openBDVerifyModal(i){
@@ -14248,6 +14370,8 @@ function openBDVerifyModal(i){
   document.getElementById('bdv-index').value = i;
   document.getElementById('bdv-rootcause').value = b.rootCause||'';
   document.getElementById('bdv-corrective').value = b.correctiveAction||'';
+  var titleEl = document.getElementById('bdv-owner-label');
+  if(titleEl) titleEl.textContent = b.currentOwner || '';
   document.getElementById('bd-verify-modal').classList.add('open');
 }
 function bdSubmitVerification(){
@@ -14259,18 +14383,22 @@ function bdSubmitVerification(){
   if(!rootCause){ showToast('Confirmed Root Cause is required','red'); return; }
   b.rootCause = rootCause;
   b.correctiveAction = corrective;
-  b.status = 'Awaiting Production Verification';
-  bdPushHistory(b, 'Production Verification Requested', 'Root cause: '+rootCause.slice(0,120));
+  b.status = 'Awaiting Verification';
+  // Verification always goes to the OTHER of the two participating portals
+  // — never Quality.
+  b.verifyingPortal = bdVerifyingPortalFor(b.currentOwner);
+  bdPushHistory(b, 'Verification Requested', 'Root cause ('+(b.currentOwner||'')+'): '+rootCause.slice(0,120));
   saveMaintData();
   document.getElementById('bd-verify-modal').classList.remove('open');
   renderBreakdown();
-  if(typeof notifyPortal==='function') notifyPortal('production', {
-    type:'breakdown-verify', from:'Maintenance Portal',
+  if(typeof bdSyncQualityInfoNotif==='function') bdSyncQualityInfoNotif(b);
+  if(b.verifyingPortal && typeof notifyPortal==='function') notifyPortal(b.verifyingPortal, {
+    type:'breakdown-verify', from: capFirst(b.currentOwner)+' Portal',
     message:'Breakdown fixed — verification needed ('+(b.line||'')+')',
     details:'Root cause: '+rootCause+(corrective?('. Corrective action: '+corrective):''),
     actionView:'breakdown'
   });
-  showToast('Sent to Production for verification','green');
+  showToast('Sent to '+capFirst(b.verifyingPortal)+' for verification','green');
 }
 function bdVerifyClose(i){
   var b = maintData.breakdowns[i];
@@ -14278,27 +14406,31 @@ function bdVerifyClose(i){
   if(!confirm('Confirm the line is running correctly and close this breakdown?')) return;
   b.status = 'Closed';
   b.closedAt = new Date().toISOString();
-  bdPushHistory(b, 'Production Verified — Closed');
+  bdPushHistory(b, 'Verified — Closed');
   saveMaintData();
   renderBreakdown();
+  // Quality's informational alert clears on closure (never left stale).
+  if(b.id && typeof invalidateBreakdownInfoNotifs==='function') invalidateBreakdownInfoNotifs(b.id);
   showToast('Breakdown closed — BD-'+String(i+1).padStart(3,'0'),'green');
 }
 function bdRejectVerification(i){
   var b = maintData.breakdowns[i];
   if(!b) return;
-  var note = prompt('What is still wrong? (sent back to Maintenance, required)','');
+  var note = prompt('What is still wrong? (sent back to '+(b.currentOwner||'the owning portal')+', required)','');
   if(!note || !note.trim()){ showToast('Please describe what is still wrong','red'); return; }
   b.status = 'In Progress';
-  bdPushHistory(b, 'Verification Rejected — Returned to Maintenance', note.trim());
+  bdPushHistory(b, 'Verification Rejected — Returned to '+(b.currentOwner||''), note.trim());
   saveMaintData();
   renderBreakdown();
-  if(typeof notifyPortal==='function') notifyPortal('maintenance', {
-    type:'breakdown-rejected', from:'Production Portal',
+  if(typeof bdSyncQualityInfoNotif==='function') bdSyncQualityInfoNotif(b);
+  var ownerPortal = (b.currentOwner||'').toLowerCase();
+  if(ownerPortal && typeof notifyPortal==='function') notifyPortal(ownerPortal, {
+    type:'breakdown-rejected', from: capFirst(b.verifyingPortal)+' Portal',
     message:'Breakdown verification rejected — '+(b.line||''),
     details:note.trim(),
     actionView:'breakdown'
   });
-  showToast('Sent back to Maintenance','amber');
+  showToast('Sent back to '+(b.currentOwner||''),'amber');
 }
 
 // ── Spare Parts ──
@@ -20618,10 +20750,11 @@ function printBreakdown(i){
     + '<tr><td class="k">Reporting Department</td><td>'+printEsc(b.reportedByDept||'')+'</td><td class="k">Line Stopped</td><td>'+printEsc(b.lineStopped||'')+'</td></tr>'
     + '<tr><td class="k">Status</td><td>'+printEsc(b.status||'')+'</td><td class="k">Current Owner</td><td>'+printEsc(b.currentOwner||'Unassigned')+'</td></tr>'
     + '<tr><td class="k">Suspected Ownership (initial)</td><td colspan="3">'+printEsc(b.suspectedOwnership||'')+'</td></tr>'
+    + (b.causeCategory ? '<tr><td class="k">Cause Category</td><td colspan="3">'+printEsc(b.causeCategory)+' (Root Cause Owner: '+printEsc(b.currentOwner||'')+')</td></tr>' : '')
     + '<tr><td class="k">Initial Description</td><td colspan="3">'+printEsc(b.desc||'')+'</td></tr>'
     + '<tr><td class="k">Suspected Cause</td><td colspan="3">'+printEsc(b.cause||'')+'</td></tr>'
     + '<tr><td class="k">Immediate Action Taken</td><td colspan="3">'+printEsc(b.action||'')+'</td></tr>'
-    + (b.rootCause ? '<tr><td class="k">Confirmed Root Cause</td><td colspan="3">'+printEsc(b.rootCause)+'</td></tr>' : '')
+    + (b.rootCause ? '<tr><td class="k">Confirmed Root Cause (by '+printEsc(b.currentOwner||'')+')</td><td colspan="3">'+printEsc(b.rootCause)+'</td></tr>' : '')
     + (b.correctiveAction ? '<tr><td class="k">Corrective Action</td><td colspan="3">'+printEsc(b.correctiveAction)+'</td></tr>' : '')
     + '<tr><td class="k">Reported By</td><td colspan="3">'+printEsc(b.reportedBy||'')+'</td></tr>'
     + '</tbody></table>'
