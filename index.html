@@ -590,6 +590,7 @@ try{
  <button type="button" class="nav-btn prod-nav-btn" data-view="prodlog" onclick="nav('prodlog')" style="background:#fffbeb;color:#92400e;font-weight:700"> Production Log</button>
  <button type="button" class="nav-btn prod-nav-btn" data-view="clearancereq" onclick="nav('clearancereq')" style="background:#fffbeb;color:#92400e;font-weight:700"> Clearance Request</button>
  <button type="button" class="nav-btn prod-nav-btn" data-view="downtime" onclick="nav('downtime')" style="background:#fffbeb;color:#92400e;font-weight:700">⏱ Downtime</button>
+ <button type="button" class="nav-btn prod-nav-btn" data-view="breakdown" onclick="nav('breakdown')" style="background:#fffbeb;color:#92400e;font-weight:700"> Breakdowns</button>
  <button type="button" class="nav-btn prod-nav-btn" data-view="prodvalue" onclick="nav('prodvalue')" style="background:#fffbeb;color:#92400e;font-weight:700"> Production Value</button>
  <button type="button" class="nav-btn prod-nav-btn" data-view="prodscrap" onclick="nav('prodscrap')" style="background:#fffbeb;color:#92400e;font-weight:700"> Scrap / Waste</button>
  <button type="button" class="nav-btn prod-nav-btn" data-view="ncrprodinbox" onclick="nav('ncrprodinbox')" style="background:#fffbeb;color:#92400e;font-weight:700"> NCR Inbox</button>
@@ -998,7 +999,7 @@ try{
     </div>
     <button type="button" class="btn-ghost" onclick="showPreviousNCR()">Previous Records</button>
     <button type="button" class="btn-primary" onclick="openNCRModal()">+ New NCR / QI</button>
-    <button type="button" class="btn-ghost" onclick="window.print()">Print</button>
+    <button type="button" class="btn-ghost" onclick="printNCRList()">Print</button>
   </div>
 
   <div id="ncr-summary" class="ncr-summary"></div>
@@ -2660,6 +2661,7 @@ try{
       <div class="form-row"><label>Product Name</label><input type="text" id="hp-prod" placeholder="Product"/></div>
       <div class="form-row"><label>Quantity</label><input type="text" id="hp-qty" placeholder="e.g. 40 cartons"/></div>
       <div class="form-row"><label>Location</label><input type="text" id="hp-loc" placeholder="Warehouse location"/></div>
+      <div class="form-row"><label>Raised By</label><input type="text" id="hp-raisedby" placeholder="Name"/></div>
       <div class="form-row"><label>Linked NCR # (optional)</label><input type="text" id="hp-ncr" placeholder="NCR number"/><div id="fp-host-hold" class="fp-host" data-photo-id="hold"></div>
 </div>
     </div>
@@ -2667,6 +2669,17 @@ try{
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
       <button type="button" class="btn-ghost" onclick="closeHoldModal()">Cancel</button>
       <button type="button" class="btn-primary" onclick="saveHoldPallet()"> Add to Hold List</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hold Details Modal — opened from a Digital Pallet Status card -->
+<div class="modal-overlay" id="hold-detail-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title">Hold Details</div>
+    <div id="hold-detail-body"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button type="button" class="btn-ghost" onclick="closeHoldDetailModal()">Close</button>
     </div>
   </div>
 </div>
@@ -3158,7 +3171,7 @@ try{
 
 <!-- Breakdown Modal -->
 <div class="modal-overlay" id="bd-modal">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:560px">
     <div class="modal-title">Equipment Breakdown Report</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="fg"><label class="fl">Production Line</label><select id="bd-line" class="fi" onchange="handleOther(this,'bd-line-other')"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Utilities</option><option>Boiler Room</option><option>Compressor Room</option><option>Other</option></select><input type="text" id="bd-line-other" class="fi" placeholder="Specify line/area..." style="display:none;margin-top:6px"/></div>
@@ -3167,13 +3180,105 @@ try{
       <div class="fg"><label class="fl">Time</label><input type="time" id="bd-time" class="fi"/></div>
       <div class="fg"><label class="fl">Downtime (minutes)</label><input type="number" id="bd-downtime" class="fi" placeholder="0"/></div>
       <div class="fg"><label class="fl">Reported By</label><input id="bd-reportedby" class="fi" placeholder="Your name"/></div>
-      <div class="fg" style="grid-column:1/-1"><label class="fl">Cause of Breakdown</label><textarea id="bd-cause" class="fi" rows="2" placeholder="Describe what happened..." style="resize:vertical"></textarea></div>
-      <div class="fg" style="grid-column:1/-1"><label class="fl">Action Taken</label><textarea id="bd-action" class="fi" rows="2" placeholder="What was done to fix it..." style="resize:vertical"></textarea><div id="fp-host-bd" class="fp-host" data-photo-id="bd"></div>
+      <div class="fg"><label class="fl">Reporting Department</label><select id="bd-dept" class="fi"><option value="">Select...</option><option>Production</option><option>Maintenance</option><option>Quality</option><option>Safety</option><option>Utilities / Engineering</option><option>Other</option></select></div>
+      <div class="fg"><label class="fl">Production Impact — Line Stopped?</label><select id="bd-linestopped" class="fi"><option value="">Select...</option><option>Yes</option><option>Partial</option><option>No</option></select></div>
+      <div class="fg" style="grid-column:1/-1"><label class="fl">Initial Breakdown Description</label><textarea id="bd-desc" class="fi" rows="2" placeholder="What happened, as first reported..." style="resize:vertical"></textarea></div>
+      <div class="fg" style="grid-column:1/-1"><label class="fl">Suspected Cause <span style="font-weight:400;color:var(--muted)">(initial guess — not final root cause)</span></label><textarea id="bd-cause" class="fi" rows="2" placeholder="Best guess at cause at time of report..." style="resize:vertical"></textarea></div>
+      <div class="fg"><label class="fl">Suspected Ownership <span style="font-weight:400;color:var(--muted)">(not final — Maintenance will triage; this workflow stays between Production and Maintenance only)</span></label><select id="bd-ownership" class="fi"><option value="">Select...</option><option>Maintenance</option><option>Production</option><option>Unknown / Needs Triage</option></select></div>
+      <div class="fg" style="grid-column:1/-1"><label class="fl">Immediate Action Taken</label><textarea id="bd-action" class="fi" rows="2" placeholder="What was done right away to stabilize/fix it..." style="resize:vertical"></textarea><div id="fp-host-bd" class="fp-host" data-photo-id="bd"></div>
 </div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button type="button" onclick="document.getElementById('bd-modal').classList.remove('open')" class="btn-ghost">Cancel</button>
       <button type="button" onclick="reviewBDSubmit()" class="btn-primary">Save Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- Breakdown Triage Modal — Maintenance classifies the breakdown using a
+     STRUCTURED cause category (never inferred from free text). The category
+     is looked up against a fixed table to determine the Root Cause owner —
+     Maintenance for technical/equipment causes, Production for operational/
+     setup causes. This workflow stays strictly between Production and
+     Maintenance; Quality is never an assignable owner. -->
+<div class="modal-overlay" id="bd-triage-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">Classify Breakdown &amp; Assign Root Cause Ownership</div>
+    <input type="hidden" id="bdt-index"/>
+    <div class="fg">
+      <label class="fl">Cause Category <span style="font-weight:400;color:var(--muted)">(structured — determines Root Cause owner, never free text)</span></label>
+      <select id="bdt-category" class="fi">
+        <option value="">Select...</option>
+        <optgroup label="Technical — Root Cause Owner: Maintenance">
+          <option>Machine Failure</option>
+          <option>Mechanical Fault</option>
+          <option>Electrical Fault</option>
+          <option>Equipment Condition</option>
+          <option>Instrumentation Issue</option>
+          <option>Technical Failure</option>
+        </optgroup>
+        <optgroup label="Operational — Root Cause Owner: Production">
+          <option>Incorrect Operation</option>
+          <option>Setup Error</option>
+          <option>Operating Method</option>
+          <option>Production Handling</option>
+          <option>Process Execution Issue</option>
+          <option>Production Misuse</option>
+        </optgroup>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
+      <button type="button" onclick="document.getElementById('bd-triage-modal').classList.remove('open')" class="btn-ghost">Cancel</button>
+      <button type="button" onclick="bdSubmitTriage()" class="btn-primary">Classify &amp; Assign</button>
+    </div>
+  </div>
+</div>
+
+<!-- Breakdown Verification Modal — whichever portal is the Root Cause owner
+     (Maintenance for technical causes, Production for operational causes)
+     confirms Root Cause + Corrective Action (only known after investigation,
+     stored separately from the initial description/suspected cause) and
+     requests verification from the OTHER of the two participating portals.
+     Quality is never the owner and never the verifier. -->
+<div class="modal-overlay" id="bd-verify-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">Confirm Root Cause &amp; Request Verification <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(Root Cause Owner: <span id="bdv-owner-label"></span>)</span></div>
+    <input type="hidden" id="bdv-index"/>
+    <div class="fg"><label class="fl">Confirmed Root Cause</label><textarea id="bdv-rootcause" class="fi" rows="2" placeholder="Root cause confirmed after investigation..." style="resize:vertical"></textarea></div>
+    <div class="fg"><label class="fl">Corrective Action</label><textarea id="bdv-corrective" class="fi" rows="2" placeholder="Action taken to address the root cause..." style="resize:vertical"></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
+      <button type="button" onclick="document.getElementById('bd-verify-modal').classList.remove('open')" class="btn-ghost">Cancel</button>
+      <button type="button" onclick="bdSubmitVerification()" class="btn-primary">Send for Verification</button>
+    </div>
+  </div>
+</div>
+
+<!-- Breakdown Reassignment Reason Modal — replaces window.prompt(). Same
+     business logic as before (mandatory reason, stays in Triage Required,
+     notifies Production), just an in-system modal. -->
+<div class="modal-overlay" id="bd-reassign-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">Send to Production for Review</div>
+    <input type="hidden" id="bdr-index"/>
+    <div class="fg"><label class="fl">Reason <span style="font-weight:400;color:var(--muted)">(required)</span></label><textarea id="bdr-reason" class="fi" rows="3" placeholder="Why should Production review this breakdown?" style="resize:vertical"></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
+      <button type="button" onclick="closeBDReassignModal()" class="btn-ghost">Cancel</button>
+      <button type="button" onclick="bdSubmitReassign()" class="btn-primary">Send for Review</button>
+    </div>
+  </div>
+</div>
+
+<!-- Breakdown Verification-Rejection Reason Modal — replaces window.prompt().
+     Same business logic as before (mandatory note, returns to In Progress,
+     notifies the Root Cause owner), just an in-system modal. -->
+<div class="modal-overlay" id="bd-reject-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">Not Fixed — Send Back <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(to <span id="bdj-owner-label"></span>)</span></div>
+    <input type="hidden" id="bdj-index"/>
+    <div class="fg"><label class="fl">What is still wrong? <span style="font-weight:400;color:var(--muted)">(required)</span></label><textarea id="bdj-note" class="fi" rows="3" placeholder="Describe what still needs to be fixed..." style="resize:vertical"></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
+      <button type="button" onclick="closeBDRejectModal()" class="btn-ghost">Cancel</button>
+      <button type="button" onclick="bdSubmitReject()" class="btn-primary">Send Back</button>
     </div>
   </div>
 </div>

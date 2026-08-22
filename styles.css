@@ -176,10 +176,25 @@ body.theme-switching{ animation:themeFlash .4s ease }
   body.theme-noir [style*="color:#6b7280"],
   body.theme-noir [style*="color:#9ca3af"],
   body.theme-noir [style*="color:#64748b"],
-  body.theme-noir [style*="color:#94a3b8"]{ color:var(--muted) !important; }
+  body.theme-noir [style*="color:#94a3b8"],
+  body.theme-noir [style*="color:#475569"]{ color:var(--muted) !important; }
+
+  /* Dark amber/brown notice text (paired with #fef3c7/#fffbeb/#fff7ed-style
+     warning boxes above) — same root-cause class as the Linked Records bug:
+     the box's #fef3c7 background gets safety-netted dark, but these text
+     tones were never in this remap list, so they stayed dark-on-dark. */
+  body.theme-noir [style*="color:#92400e"],
+  body.theme-noir [style*="color:#78350f"],
+  body.theme-noir [style*="color:#d97706"],
+  body.theme-noir [style*="color:#b45309"]{ color:var(--amber) !important; }
 
   /* Production BI's pladis-brand navy/red palette (inline KPI values) */
   body.theme-noir [style*="color:#c8102e"]{ color:var(--red) !important; }
+
+  /* sfChartBars() value text (e.g. "NCRs by Line/Area", "Re-Work by Day") —
+     the teal accent used for Maintenance-flavored charts, same mapping
+     already established for .pbi-live-tag's identical color. */
+  body.theme-noir [style*="color:#0f766e"]{ color:var(--green) !important; }
 
   body.theme-noir [style*="color:#4C1D95"],
   body.theme-noir [style*="color:#4c1d95"],
@@ -1504,6 +1519,15 @@ th{
   border-bottom:1.5px solid var(--border)!important;
   white-space:nowrap;
 }
+/* This blanket th{} rule's !important wins over EVERY per-table th color
+   (including tables that set an inline background like .pbi-table/
+   .pbih-table's th cells — .theme-quality .pbih-table th{background:#4c1d95}
+   and friends never actually apply; this rule always did). --primary-dark
+   (#5B21B6) reads fine against --surface-2 in the light theme (contrast is
+   high there), but in Noir both tokens are mid/dark tones — measured
+   1.97-2.62:1, failing WCAG AA — affecting every plain <th> app-wide.
+   --primary-light gives 6.5:1 against --surface-2 in Noir. */
+body.theme-noir th{ color:var(--primary-light)!important; }
 td{
   padding:10px 12px!important;
   border-bottom:1px solid var(--border)!important;
@@ -1741,6 +1765,10 @@ body.admin-active .edit-pencil:hover{opacity:1!important;background:var(--border
 .db-stat:hover,.ncr-kpi:hover{transform:translateY(-2px);box-shadow:var(--form-shadow-lg)}
 .db-stat-num,.ncr-kpi-num{font-size:1.65rem;font-weight:850;letter-spacing:-.03em;line-height:1.1;margin-bottom:4px}
 .db-stat-lbl,.ncr-kpi-lbl{font-size:.72rem;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:.05em}
+/* KPI tile labels (Total NCRs, Open, Closed, ...) — CSS-class color, same
+   inline-only-safety-net blind spot; the tile's own background correctly
+   darkens in Noir already (measured 2.62:1, failing). */
+body.theme-noir .db-stat-lbl,body.theme-noir .ncr-kpi-lbl{color:var(--primary-light)}
 .ncr-card{
   background:var(--form-surface);
   border:1px solid var(--form-border);
@@ -1766,6 +1794,11 @@ body.admin-active .edit-pencil:hover{opacity:1!important;background:var(--border
 .ncr-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;font-size:.82rem;margin-bottom:12px}
 @media(max-width:600px){.ncr-grid{grid-template-columns:1fr}}
 .ncr-grid b{color:#5b21b6;font-weight:750}
+/* Field labels (Product, MRR #, Batch/Lot, Raised By, ...) on NCR cards and
+   the Hold Details modal — CSS-class color, never touched by the inline-
+   only safety net, while its container's background does correctly darken
+   in Noir (measured 2.07:1, failing). */
+body.theme-noir .ncr-grid b{color:var(--primary-light)}
 .ncr-block{
   /* Fixed light background regardless of theme (Light or Violet Noir) —
      must be paired with a fixed dark text color, never an inherited/themed
@@ -1777,9 +1810,34 @@ body.admin-active .edit-pencil:hover{opacity:1!important;background:var(--border
   padding:12px 14px;font-size:.82rem;margin-bottom:8px;line-height:1.45;
   color:#1f2937;
 }
-.ncr-block b{color:#1f2937}
+/* Direct-child only (not a plain descendant selector) — a nested sub-box
+   further inside (e.g. the amber HOLD STATUS notice inside the Linked
+   Records block) carries its own explicit color paired with its own
+   background, and must not be pulled back to this block's own dark-on-light
+   pairing by a blanket "any <b> anywhere inside" rule. */
+.ncr-block > b{color:#1f2937}
 .ncr-block.ok{background:#f0fdf4;border-color:#bbf7d0;color:#14532d}
-.ncr-block.ok b{color:#14532d}
+.ncr-block.ok > b{color:#14532d}
+/* Linked Records / Hold-Linked block — was previously set via an INLINE
+   style="background:#f8fafc;..." attribute, which the theme-noir safety
+   net below (its own [style*="background:#f8fafc"] rule) intercepts and
+   redarkens the BACKGROUND only, since that net only remaps colors that
+   are themselves written inline — the paired text color here came from
+   this class (not inline), so it never got remapped, leaving dark
+   #1f2937 text on a safety-net-darkened dark surface in Noir (invisible
+   until selected). Defining the pairing as a class instead of inline
+   style makes it invisible to the substring-matching safety net, so
+   background and text color always stay paired correctly in both themes. */
+.ncr-block.linked{background:#f8fafc;border:1px dashed #cbd5e1;color:#1f2937}
+/* Same root cause reproduced inside .ncr-block.linked itself: its "view
+   Hold Pallets" / "view" links use inline style="color:#2563eb", which the
+   safety net DOES catch (color:#2563eb is in its general remap list,
+   correctly, for links elsewhere that sit on now-dark backgrounds) — but
+   this card's own background is the deliberately theme-independent light
+   one above, so remapping only the link text creates the exact same
+   mismatch a second time. Pin it back to the original blue, scoped to
+   inside this always-light card only. */
+body.theme-noir .ncr-block.linked a{color:#2563eb!important}
 .ncr-empty{
   text-align:center;padding:48px 24px;color:var(--muted);
   background:linear-gradient(180deg,var(--form-surface),var(--surface-2));
@@ -2555,6 +2613,12 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
 .np-card-title{font-weight:800;color:#1e1b4b;font-size:.86rem}
 .np-card-meta{font-size:.7rem;color:#7c3aed;font-weight:700;margin:3px 0 6px}
 .np-card-details{font-size:.76rem;color:var(--muted);white-space:pre-wrap;line-height:1.4}
+/* .np-card's background is var(--form-surface) (theme-aware, near-black in
+   Noir) but the title/meta text colors above are hardcoded CSS-class values
+   never covered by the global inline-style safety net — same recurring
+   safety-net-blind-spot bug class as .ncr-grid b / .db-stat-lbl. */
+body.theme-noir .np-card-title{color:var(--primary-light)}
+body.theme-noir .np-card-meta{color:var(--primary-light)}
 .np-checks{margin-top:8px;padding:8px 10px;background:#f5f3ff;border-radius:10px;border:1px solid var(--border)}
 .np-checks div{font-size:.72rem;color:#5b21b6;font-weight:650;padding:3px 0}
 .np-checks div::before{content:"☐ ";color:#7C3AED}
@@ -2776,7 +2840,7 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
   content:"";position:absolute;top:0;left:0;right:0;height:3px;
   background:linear-gradient(90deg,transparent,#facc15,transparent);opacity:.55;
 }
-.hpv-wrap[data-state="empty"] .hpv-card::before{background:linear-gradient(90deg,transparent,#64748b,transparent)}
+.hpv-card[data-state="empty"]::before{background:linear-gradient(90deg,transparent,#64748b,transparent)}
 .hpv-card:hover,.hpv-card:focus-visible{transform:translateY(-2px);box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 18px 40px rgba(0,0,0,.4)}
 .hpv-card:focus-visible{outline:2px solid #facc15;outline-offset:2px}
 @keyframes hpvEnter{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
@@ -2784,8 +2848,8 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
   position:absolute;top:10px;right:10px;width:8px;height:8px;border-radius:50%;
   background:#94a3b8;box-shadow:0 0 0 3px rgba(148,163,184,.18);
 }
-.hpv-wrap[data-state="hold"] .hpv-status-dot{background:#facc15;box-shadow:0 0 0 3px rgba(250,204,21,.22)}
-.hpv-wrap[data-state="aging"] .hpv-status-dot{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.25);animation:hpvDotPulse 2.2s ease-in-out infinite}
+.hpv-card[data-state="hold"] .hpv-status-dot{background:#facc15;box-shadow:0 0 0 3px rgba(250,204,21,.22)}
+.hpv-card[data-state="aging"] .hpv-status-dot{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.25);animation:hpvDotPulse 2.2s ease-in-out infinite}
 @keyframes hpvDotPulse{0%,100%{box-shadow:0 0 0 3px rgba(245,158,11,.25)}50%{box-shadow:0 0 0 6px rgba(245,158,11,0)}}
 .hpv-pallet{width:100%;height:64px;position:relative;margin-bottom:10px;filter:drop-shadow(0 6px 6px rgba(0,0,0,.28))}
 .hpv-pallet-svg{width:100%;height:100%;display:block}
@@ -2793,11 +2857,11 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
 .hpv-load-edge{fill:none;stroke:rgba(255,255,255,.08);stroke-width:1}
 .hpv-slat{fill:#a16207}
 .hpv-block{fill:#78350f}
-.hpv-wrap[data-state="empty"] .hpv-load{fill:rgba(100,116,139,.12);stroke:rgba(100,116,139,.3)}
-.hpv-wrap[data-state="empty"] .hpv-slat{fill:#475569}
-.hpv-wrap[data-state="empty"] .hpv-block{fill:#334155}
+.hpv-card[data-state="empty"] .hpv-load{fill:rgba(100,116,139,.12);stroke:rgba(100,116,139,.3)}
+.hpv-card[data-state="empty"] .hpv-slat{fill:#475569}
+.hpv-card[data-state="empty"] .hpv-block{fill:#334155}
 .hpv-scan{stroke:rgba(250,204,21,.85);stroke-width:1.5;transform:translateY(0);animation:hpvScan 2.6s ease-in-out infinite}
-.hpv-wrap[data-state="empty"] .hpv-scan{display:none}
+.hpv-card[data-state="empty"] .hpv-scan{display:none}
 @keyframes hpvScan{0%{transform:translateY(2px);opacity:.15}50%{transform:translateY(60px);opacity:.85}100%{transform:translateY(2px);opacity:.15}}
 .hpv-label{
   display:inline-block;background:#facc15;color:#111827;font-weight:900;font-size:.72rem;
@@ -2805,11 +2869,11 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
   position:relative;box-shadow:0 2px 6px rgba(0,0,0,.25);
   clip-path:polygon(6% 0,94% 0,100% 100%,0 100%);
 }
-.hpv-wrap[data-state="aging"] .hpv-label{background:#f59e0b;color:#111827;animation:hpvPulse 2.2s ease-in-out infinite}
-.hpv-wrap[data-state="empty"] .hpv-label{background:#94a3b8;color:#111827}
+.hpv-card[data-state="aging"] .hpv-label{background:#f59e0b;color:#111827;animation:hpvPulse 2.2s ease-in-out infinite}
+.hpv-card[data-state="empty"] .hpv-label{background:#94a3b8;color:#111827}
 @keyframes hpvPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.45)}50%{box-shadow:0 0 0 7px rgba(245,158,11,0)}}
 .hpv-count{font-size:2.6rem;font-weight:900;color:#fff;line-height:1.05;margin-top:8px;letter-spacing:-.02em}
-.hpv-wrap[data-state="empty"] .hpv-count{color:#cbd5e1}
+.hpv-card[data-state="empty"] .hpv-count{color:#cbd5e1}
 .hpv-caption{font-size:.66rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-top:2px}
 .hpv-sub{font-size:.72rem;color:rgba(255,255,255,.68);margin-top:6px;text-align:center;line-height:1.35}
 .hpv-aging-chip{
@@ -2821,8 +2885,8 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
 @media(prefers-reduced-motion:reduce){
   .hpv-card{animation:none}
   .hpv-scan{animation:none;opacity:.5}
-  .hpv-wrap[data-state="aging"] .hpv-label{animation:none}
-  .hpv-wrap[data-state="aging"] .hpv-status-dot{animation:none}
+  .hpv-card[data-state="aging"] .hpv-label{animation:none}
+  .hpv-card[data-state="aging"] .hpv-status-dot{animation:none}
 }
 
 /* ============================================================
@@ -3081,8 +3145,19 @@ body.theme-noir .pbi-shell{background:linear-gradient(145deg,var(--form-surface)
 .pbi-topbar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .pbi-brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .pbi-logo{font-weight:900;color:#c8102e;font-size:1.35rem;letter-spacing:-.5px}
-.pbi-title{background:linear-gradient(90deg,#dbeafe,#eff6ff);color:var(--navy);font-weight:900;font-size:1.05rem;padding:10px 18px;border-radius:12px;border:1px solid #bfdbfe}
-body.theme-noir .pbi-title{background:linear-gradient(90deg,color-mix(in srgb, var(--primary) 22%, var(--form-surface)),var(--form-surface));border-color:var(--border)}
+.pbi-title{font-weight:900;font-size:1.05rem;padding:10px 18px;border-radius:12px;border:1px solid #bfdbfe}
+/* Per-theme background+color+border pairings — kept together in ONE rule per
+   theme (light and Noir alike) so the pairing can never drift apart the way
+   it did when this was an inline style split from the safety net's remap
+   (see portalBiShell() comment). */
+.pbi-title-quality{background:linear-gradient(90deg,#dbeafe,#eff6ff);color:#1e3a5f;border-color:#bfdbfe}
+.pbi-title-safety{background:linear-gradient(90deg,#fee2e2,#fff1f2);color:#7f1d1d;border-color:#fecaca}
+.pbi-title-maint{background:linear-gradient(90deg,#ccfbf1,#ecfeff);color:#115e59;border-color:#99f6e4}
+.pbi-title-prod{background:linear-gradient(90deg,#fef3c7,#fffbeb);color:#78350f;border-color:#fde68a}
+body.theme-noir .pbi-title-quality{background:linear-gradient(90deg,color-mix(in srgb, var(--accent-2) 22%, var(--form-surface)),var(--form-surface));color:var(--text);border-color:var(--border)}
+body.theme-noir .pbi-title-safety{background:linear-gradient(90deg,color-mix(in srgb, var(--red) 22%, var(--form-surface)),var(--form-surface));color:var(--text);border-color:var(--border)}
+body.theme-noir .pbi-title-maint{background:linear-gradient(90deg,color-mix(in srgb, #0f766e 22%, var(--form-surface)),var(--form-surface));color:var(--text);border-color:var(--border)}
+body.theme-noir .pbi-title-prod{background:linear-gradient(90deg,color-mix(in srgb, var(--amber) 22%, var(--form-surface)),var(--form-surface));color:var(--text);border-color:var(--border)}
 .pbi-tabs{display:flex;gap:8px;flex-wrap:wrap}
 .pbi-tab{border:1px solid #cbd5e1;background:var(--form-surface);color:var(--text);border-radius:999px;padding:8px 14px;font-weight:800;font-size:.78rem;cursor:pointer;font-family:inherit}
 .pbi-tab.active{background:#1e3a5f;color:#fff;border-color:var(--navy)}
@@ -3127,6 +3202,31 @@ body.theme-noir .pbi-live-tag{color:var(--green)}
 .chart-anim .chart-area{opacity:0;animation:chartFade .8s ease .2s forwards}
 @keyframes chartDraw{to{stroke-dashoffset:0}}
 @keyframes chartFade{to{opacity:1}}
+
+/* buildDonutChart()'s center "TOTAL" number/label sit on a deliberately
+   theme-independent WHITE circle (the ring's "hole", by design — same fixed-
+   light-card idea as .ncr-block). The generic THEME-NOIR SAFETY NET's SVG
+   fill=/color: remaps (further up this file) don't know that — they lighten
+   fill="#1e1b4b"/"#94a3b8" for readability against DARK surfaces elsewhere,
+   which instead makes this text nearly invisible against its own still-white
+   circle in Noir. Pin these two text elements to their own class so a
+   higher-specificity override can keep them dark-on-white in both themes,
+   matching the circle they actually sit on.
+   Contrast: #1e1b4b vs #fff = 16:1. #475569 vs #fff = 7.6:1 (both far above
+   the 4.5:1 AA minimum; #475569 replaces the original #94a3b8, which only
+   reached 2.6:1 on white). */
+body.theme-noir svg.chart-anim .donut-total-num{ fill:#1e1b4b !important; }
+body.theme-noir svg.chart-anim .donut-total-lbl{ fill:#475569 !important; }
+
+/* buildBarChart()'s row labels (Near Miss Categories, Work Orders by
+   Status, Visitors by Department, Downtime by Line, ...) sit on the
+   .pbi-card / dashPanel's own background, which DOES correctly go dark in
+   Noir via its CSS class. Their label text used the same #475569 hex as the
+   donut's (correctly, unrelatedly, theme-independent) TOTAL label, but here
+   the pairing is the opposite: this text needs to go LIGHT to match its
+   now-dark card, not stay fixed. Contrast was 2.45:1 (fail) — var(--muted)
+   restores a proper muted-but-legible label in both themes. */
+body.theme-noir svg .chart-bar-label{ fill:var(--muted) !important; }
 
 /* ============================================================
    MOBILE APP SHELL v81 — clear phone / PWA experience

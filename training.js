@@ -269,7 +269,10 @@ function renderTraining(){
   wrap.innerHTML =
     '<div class="trn-tabs" id="trn-tabs">' +
       tabs.map(function(t){
-        return '<button type="button" class="nav-btn trn-tab-btn'+(t===_trnTab?' active':'')+'" onclick="trnSetTab(\''+t+'\')" style="background:#fef2f2;color:#dc2626;font-weight:700">'+TRN_TAB_LABELS[t]+'</button>';
+        // #dc2626 on #fef2f2 only reached 4.41:1 (fails 4.5:1 AA) — #b91c1c
+        // is the same red family, darker, 5.91:1. Still covered by the
+        // Noir color-remap list, so dark-theme rendering is unaffected.
+        return '<button type="button" class="nav-btn trn-tab-btn'+(t===_trnTab?' active':'')+'" onclick="trnSetTab(\''+t+'\')" style="background:#fef2f2;color:#b91c1c;font-weight:700">'+TRN_TAB_LABELS[t]+'</button>';
       }).join('') +
     '</div>' +
     '<div id="trn-pane" class="trn-pane"></div>';
@@ -355,11 +358,21 @@ function trnBuildDashboard(){
   var due = rows.filter(function(r){return r.status.code==='due';}).length;
   var overdue = rows.filter(function(r){return r.status.code==='overdue';}).length;
   var notdone = rows.filter(function(r){return r.status.code==='notdone';}).length;
-  var compliancePct = total ? Math.round(valid/total*100) : 100;
+  // Training Completion % — matches the source workbook's own "Matrix
+  // Completion Rate" definition: Actual (ever attended) / Required. An
+  // employee who attended a course that has since lapsed (due/overdue)
+  // still counts as having COMPLETED that requirement at least once — the
+  // workbook's R/E/A/NX legend treats E ("attended, now expired") and NX
+  // ("attended, expiring soon") as attended, only R ("not attended yet")
+  // is incomplete. Currency (still valid vs overdue) is a separate signal,
+  // shown in its own "Overdue / Expired" / "Due Soon" KPI tiles below —
+  // this headline number is NOT "currently in-date," it is "on file."
+  var attempted = valid + due + overdue;
+  var compliancePct = total ? Math.round(attempted/total*100) : 100;
   var activeEmp = trnEmployees().filter(function(e){return e.active!==false;}).length;
 
   var kpis = [
-    {l:'Overall Compliance', v:compliancePct+'%', s:valid+' / '+total+' required items', c: compliancePct>=90?'#16a34a':compliancePct>=75?'#d97706':'#dc2626'},
+    {l:'Training Completion', v:compliancePct+'%', s:attempted+' / '+total+' required items on file', c: compliancePct>=90?'#16a34a':compliancePct>=75?'#d97706':'#dc2626'},
     {l:'Active Employees', v:activeEmp, s:trnEmployees().length+' total on file', c:'#1e3a5f'},
     {l:'Overdue / Expired', v:overdue, s:'Need immediate action', c:overdue>0?'#dc2626':'#64748b'},
     {l:'Due Soon (≤180d)', v:due, s:'Plan ahead', c:due>0?'#d97706':'#64748b'},
@@ -371,7 +384,7 @@ function trnBuildDashboard(){
   var deptStats = trnDeptStats(false);
   var deptCompliance = Object.keys(deptStats).map(function(d){
     var s = deptStats[d];
-    var pct = s.total ? Math.round(s.valid/s.total*100) : null;
+    var pct = s.total ? Math.round((s.valid+s.due+s.overdue)/s.total*100) : null;
     return {d:d, pct:pct, s:s};
   }).filter(function(x){return x.pct!==null;}).sort(function(a,b){return a.pct-b.pct;});
   var compBars = deptCompliance.map(function(x){ return [x.d, x.pct]; });
@@ -383,7 +396,7 @@ function trnBuildDashboard(){
   var courseStats = trnCourseStats(false);
   var courseBars = Object.keys(courseStats).map(function(k){
     var s = courseStats[k];
-    var pct = s.total ? Math.round(s.valid/s.total*100) : null;
+    var pct = s.total ? Math.round((s.valid+s.due+s.overdue)/s.total*100) : null;
     return {k:k, name:s.name, pct:pct};
   }).filter(function(x){return x.pct!==null;}).sort(function(a,b){return a.pct-b.pct;}).slice(0,10);
   var courseBarEntries = courseBars.map(function(x){ return [x.name.length>22?x.name.slice(0,20)+'…':x.name, x.pct]; });
