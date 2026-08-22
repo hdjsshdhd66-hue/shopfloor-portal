@@ -214,7 +214,8 @@ body.theme-switching{ animation:themeFlash .4s ease }
   body.theme-noir [style*="color:#d97706"],
   body.theme-noir [style*="color:#b45309"]{ color:var(--amber) !important; }
   body.theme-noir [style*="color:#2563eb"],
-  body.theme-noir [style*="color:#1d4ed8"]{ color:var(--accent-2) !important; }
+  body.theme-noir [style*="color:#1d4ed8"],
+  body.theme-noir [style*="color:#0e7490"]{ color:var(--accent-2) !important; }
 
   /* Chart/dashboard SVGs set text color via the "fill" presentation
      attribute rather than style="color:...", so the color-remap rules
@@ -1971,7 +1972,57 @@ body.theme-noir .choice-chip:has(input:checked){background:color-mix(in srgb, va
 .pmt-check-yes,.pmt-check-no{text-align:center;border-left:1px solid var(--border);padding:6px 4px}
 .pmt-sig-row{display:grid;grid-template-columns:1fr 1fr 1fr;border-top:2px solid var(--navy)}
 .pmt-day-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;padding:8px;border-bottom:1px solid var(--border)}
-.pmt-day-cell{padding:8px;font-size:.72rem;text-align:center;color:var(--muted);background:#faf8ff;border:1px solid var(--border);border-radius:8px;min-width:0}
+/* .pmt-day-cell's own background is a fixed light lavender (never darkens
+   in Noir — it's a plain CSS-class background, not an inline style, so
+   the safety net's [style*="background:..."] matching never reaches it).
+   Pairing it with var(--muted) (which DOES flip light in Noir) produced
+   near-invisible light-on-light text. Pin the text fixed too, to match
+   its permanently-light container. */
+.pmt-day-cell{padding:8px;font-size:.72rem;text-align:center;color:#6b7280;background:#faf8ff;border:1px solid var(--border);border-radius:8px;min-width:0}
+/* Item description text (.pmt-check-label) is a CSS-class color, the same
+   safety-net blind spot found repeatedly elsewhere (inline-only matching):
+   #111827 on the modal's own dark Noir background reads at ~1:1. */
+body.theme-noir .pmt-check-label{color:var(--text)!important}
+/* The "Item" COLUMN HEADER cell (pCheckHeader()) reuses the same class but
+   sits inside .pmt-check-head, whose own background is a fixed light
+   lavender gradient (inline, but a gradient — the substring
+   "background:#f5f3ff" never literally appears, so the background safety
+   net doesn't touch it either). Its own #4C1D95 already reads perfectly
+   there in both themes; the general Noir remap above (meant for the dark
+   modal surface) would otherwise repaint it var(--primary-light), which
+   mismatches this permanently-light header. Scoped tighter than the rule
+   above so it wins regardless of source order. */
+body.theme-noir .pmt-check-head .pmt-check-label{color:#4C1D95!important}
+/* Same story for the header's YES/NO labels — pCheckHeader() already uses
+   #15803d/#b91c1c (dark enough for the pinned-light header in Light
+   theme); pin them back from the general green/red Noir remap for the
+   same reason as .pmt-check-head .pmt-check-label above. */
+body.theme-noir .pmt-check-head .pmt-check-yes{color:#15803d!important}
+body.theme-noir .pmt-check-head .pmt-check-no{color:#b91c1c!important}
+/* fmc13's Energy Isolation confirmation box (<div class="pmt-iso-note"
+   style="background:#e0f2fe">) is a permanently light-blue inline
+   background (not in the background safety net), but its own text and
+   its fi2() field labels (color:#6b7280, itself remapped to var(--muted)
+   in Noir) are not — producing near-white-on-light-blue in Noir and a
+   narrow, already-marginal gray-on-light-blue failure in Light. Pin both
+   to a fixed dark navy that reads correctly against this fixed light box
+   in every theme. */
+.pmt-iso-note{color:#0c4a6e}
+.pmt-iso-note label{color:#0c4a6e!important}
+/* fi2()'s label carries its own inline color:#6b7280, which the Noir
+   safety net remaps to var(--muted) at (0,2,1) specificity — higher than
+   the plain ".pmt-iso-note label" rule above (0,1,1), so it was still
+   winning. Match/beat it explicitly. */
+body.theme-noir .pmt-iso-note label{color:#0c4a6e!important}
+/* fi2()'s label color (#6b7280) is designed for the many light/white
+   field boxes it's normally used inside. The two Permit Serial No./WO
+   Notification # fields are the one place fi2() is reused inside the
+   permanently-dark navy document header (background:#1e3a5f, inline
+   solid — also outside the background safety net's literal-match list) —
+   in Light theme #6b7280 stays unmapped there (2.38:1); Noir already
+   remaps it to var(--muted), which happens to read fine against that same
+   dark header, so only Light theme needs the fix. */
+body.theme-pladis .pmt-header-field label{color:rgba(255,255,255,.82)!important}
 @media(max-width:900px){
   .cls-pick{grid-template-columns:1fr!important}
   .choice-chip-grid{grid-template-columns:1fr!important}

@@ -3171,8 +3171,9 @@ try{
 
 <!-- Breakdown Modal -->
 <div class="modal-overlay" id="bd-modal">
-  <div class="modal" style="max-width:560px">
+  <div class="modal nm-responsive-modal" style="max-width:560px">
     <div class="modal-title">Equipment Breakdown Report</div>
+    <div class="nm-form-scroll">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="fg"><label class="fl">Production Line</label><select id="bd-line" class="fi" onchange="handleOther(this,'bd-line-other')"><option value="">Select...</option><option>Molding Line</option><option>Conbar Line</option><option>Biscuit Line 1 (Sandwich)</option><option>Biscuit Line 2 (Sesame)</option><option>Biscuit Line 3 (Biskrem)</option><option>Tea Biscuit Line</option><option>Wafer Line</option><option>Rulokat Line</option><option>Utilities</option><option>Boiler Room</option><option>Compressor Room</option><option>Other</option></select><input type="text" id="bd-line-other" class="fi" placeholder="Specify line/area..." style="display:none;margin-top:6px"/></div>
       <div class="fg"><label class="fl">Equipment</label><input id="bd-equip" class="fi" placeholder="Equipment name"/></div>
@@ -3188,7 +3189,8 @@ try{
       <div class="fg" style="grid-column:1/-1"><label class="fl">Immediate Action Taken</label><textarea id="bd-action" class="fi" rows="2" placeholder="What was done right away to stabilize/fix it..." style="resize:vertical"></textarea><div id="fp-host-bd" class="fp-host" data-photo-id="bd"></div>
 </div>
     </div>
-    <div style="display:flex;gap:10px;justify-content:flex-end">
+    </div>
+    <div class="nm-form-actions">
       <button type="button" onclick="document.getElementById('bd-modal').classList.remove('open')" class="btn-ghost">Cancel</button>
       <button type="button" onclick="reviewBDSubmit()" class="btn-primary">Save Report</button>
     </div>
