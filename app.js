@@ -795,9 +795,11 @@ function wfTransition(kind, index, newState, note){
       rec.status = (newState==='Closed') ? 'Closed' : (newState==='Under Review'?'In Progress':'Open');
     }
     saveState();
+    if(kind==='ncr' && newState==='Closed' && typeof invalidateEscalationNotifs==='function') invalidateEscalationNotifs(rec.num);
     if(kind==='ncr') renderNCRList();
     if(kind==='capa'){ renderCAPAList(currentCAPASheet); if(typeof renderCAPADash==='function') renderCAPADash(); }
     if(kind==='breakdown' && typeof renderBreakdown==='function') renderBreakdown();
+    if(typeof refreshLiveEscalationBanners==='function') refreshLiveEscalationBanners();
     showToast('Workflow → '+newState,'green');
     if(typeof auditLogEvent==='function') auditLogEvent('workflow.transition', { kind:kind, index:index, state:newState });
     if(typeof runEscalationScan==='function') runEscalationScan(true);
@@ -835,7 +837,7 @@ function collectEscalations(){
       var ts = Date.parse(n.timestamp||n.date||'')||0;
       var hours = ts ? (now-ts)/3600000 : 999;
       if(hours >= 48){
-        list.push({sev:'critical', portal:'quality', title:'Class I NCR open '+Math.floor(hours)+'h', detail:(n.num||'')+' · '+(n.prod||'')+' · '+(n.desc||'').slice(0,70), go:'ncr', key:'esc-ncr1-'+i});
+        list.push({sev:'critical', portal:'quality', title:'Class I NCR open '+Math.floor(hours)+'h', detail:(n.num||'')+' · '+(n.prod||'')+' · '+(n.desc||'').slice(0,70), go:'ncr', key:'esc-ncr1-'+i, ref:n.num});
       }
     }
     // Any NCR past 48h policy
@@ -843,7 +845,7 @@ function collectEscalations(){
       var ts2 = Date.parse(n.timestamp||n.date||'')||0;
       var h2 = ts2 ? (now-ts2)/3600000 : 0;
       if(h2 >= 48 && n.cls!==1){
-        list.push({sev:'warn', portal:'quality', title:'NCR past 48h closure policy', detail:(n.num||'')+' · Class '+(n.cls||'?')+' · '+(n.prod||''), go:'ncr', key:'esc-ncr48-'+i});
+        list.push({sev:'warn', portal:'quality', title:'NCR past 48h closure policy', detail:(n.num||'')+' · Class '+(n.cls||'?')+' · '+(n.prod||''), go:'ncr', key:'esc-ncr48-'+i, ref:n.num});
       }
     }
   });
@@ -890,14 +892,17 @@ function runEscalationScan(silent){
   var fresh=[];
   list.forEach(function(e){
     if(notified.indexOf(e.key)!==-1) return;
-    var msg = { message: e.title, details: e.detail, type: e.sev==='critical'?'warning':'info', priority: e.sev==='critical'?'critical':'normal', actionView: e.go };
+    // esc:true + ref (the source record's number/id) let a later status
+    // change (e.g. closing the NCR) find and remove this exact notification
+    // instead of leaving a stale "Class I NCR open Xh" entry behind forever —
+    // see invalidateEscalationNotifs().
+    var msg = { message: e.title, details: e.detail, type: e.sev==='critical'?'warning':'info', priority: e.sev==='critical'?'critical':'normal', actionView: e.go, esc:true, ref: e.ref||null };
     if(typeof notifyPortal==='function'){
+      // Each escalation belongs to exactly ONE owning portal (e.portal, set in
+      // collectEscalations) — no implicit cross-portal notification. A Quality
+      // NCR escalation must never surface inside Safety/Production/Maintenance,
+      // and vice versa; nothing here is marked GLOBAL.
       notifyPortal(e.portal, msg);
-      // Cross-notify as info only (no actionView) so Open won't jump to another portal's module
-      var infoOnly = Object.assign({}, msg, { actionView:'' });
-      if(e.go==='breakdown'){ notifyPortal('production', infoOnly); notifyPortal('quality', infoOnly); }
-      if(e.go==='ncr' && e.sev==='critical'){ notifyPortal('safety', infoOnly); }
-      if(e.go==='nearmiss'){ notifyPortal('quality', infoOnly); }
     }
     fresh.push(e.key);
   });
@@ -908,18 +913,29 @@ function runEscalationScan(silent){
   }
   return list;
 }
+// Remove any persisted escalation notification(s) referencing a specific
+// source record (e.g. an NCR number) once that record no longer qualifies
+// as open — otherwise a stale "Class I NCR open Xh" notification keeps
+// showing in the bell/panel indefinitely even after the NCR is closed.
+function invalidateEscalationNotifs(ref){
+  if(!ref) return;
+  try{
+    loadNotifications();
+    var before = portalNotifications.length;
+    portalNotifications = portalNotifications.filter(function(n){ return !(n.esc && n.ref===ref); });
+    if(portalNotifications.length !== before){
+      safeSetItem('pqs_notifications', JSON.stringify(portalNotifications));
+      if(typeof updateNotifBadge==='function') updateNotifBadge();
+    }
+  }catch(e){}
+}
 function renderEscalationBanner(hostId){
   var host = document.getElementById(hostId);
   if(!host) return;
+  // Strict portal ownership — an escalation renders ONLY in its owning portal
+  // (e.portal, set in collectEscalations). Nothing here is treated as global.
   var list = collectEscalations().filter(function(e){
-    if(!currentPortal) return true;
-    if(e.portal===currentPortal) return true;
-    // Only show escalations that open modules belonging to THIS portal
-    if(currentPortal==='quality' && e.go==='ncr') return true;
-    if(currentPortal==='safety' && (e.go==='capa'||e.go==='nearmiss')) return true;
-    if(currentPortal==='maintenance' && (e.go==='breakdown'||e.go==='pmschedule'||e.go==='workorder')) return true;
-    if(currentPortal==='production' && (e.go==='clearancereq'||e.go==='downtime'||e.go==='clearance')) return true;
-    return false;
+    return !currentPortal || e.portal===currentPortal;
   });
   if(!list.length){ host.innerHTML=''; return; }
   var html = '<div class="esc-banner"><h3>Escalations — '+list.length+' active</h3>';
@@ -1519,8 +1535,13 @@ document.addEventListener('click', function(e){
 function remapViewForPortal(v, portal){
   // Soft remap for cross-portal links that mean the same workflow
   var maps = {
-    quality: { clearancereq: 'clearance' },
-    production: { breakdown: 'downtime' }
+    quality: { clearancereq: 'clearance' }
+    // NOTE: production.breakdown used to remap to 'downtime' here (Production
+    // had no real Breakdown view of its own). Production now has direct
+    // access to the SAME shared Breakdown Report module used by Maintenance
+    // (see PRODUCTION_VIEWS) so this record can no longer be remapped away —
+    // that link is exactly the required Production<->Maintenance cross-portal
+    // visibility for the breakdown ownership workflow.
   };
   var m = maps[portal||''];
   if(m && m[v]) return m[v];
@@ -3235,7 +3256,7 @@ function startAutoExportTimer(){
 const SAFETY_VIEWS = ['safetyhome','portallanding','dailyhub','safetydash','nearmiss','incidentinvest','capa','dailyinspection','fireext','permits','fullptw','firepump','lpgcooling','noiselevel','lightlevel','training','ppe','riskassess','hsecalendar','weeklyreport','qrstation'];
 const QUALITY_VIEWS = ['home','portallanding','dailyhub','lines','checklist','handover','cw','md','db-issues','db-cw','ncr','clearance','history','complaints','foodsafety','holdpallets','teamdash','manager','rework','reworkcases','shiftcompare','weeklyreport','qrstation'];
 const MAINTENANCE_VIEWS = ['mainthome','portallanding','dailyhub','maintdash','pmschedule','workorder','breakdown','spareparts','maintcalibration','weeklyreport'];
-const PRODUCTION_VIEWS = ['prodhome','portallanding','dailyhub','proddash','linecleaning','prodlog','clearancereq','downtime','prodvalue','prodscrap','riskassess','weeklyreport','ncrprodinbox','prodrework'];
+const PRODUCTION_VIEWS = ['prodhome','portallanding','dailyhub','proddash','linecleaning','prodlog','clearancereq','downtime','prodvalue','prodscrap','riskassess','weeklyreport','ncrprodinbox','prodrework','breakdown'];
 
 const ROLE_ACCESS = {
   'Quality Manager':          [...QUALITY_VIEWS,'scoring'],
@@ -3256,7 +3277,7 @@ const ROLE_ACCESS = {
   'Production Manager':       [...PRODUCTION_VIEWS,'clearance'],
   'Production Chief':         [...PRODUCTION_VIEWS,'clearance'],
   'Line Leader':              [...PRODUCTION_VIEWS,'clearance'],
-  'Operator':                 ['portallanding','dailyhub','linecleaning','prodlog','clearancereq','downtime','clearance'],
+  'Operator':                 ['portallanding','dailyhub','linecleaning','prodlog','clearancereq','downtime','clearance','breakdown'],
   // Auditor is read-across by design
   'Auditor':                  ['portallanding','dailyhub','home','safetyhome','ncr','capa','nearmiss','permits','clearance','breakdown','weeklyreport','history','teamdash','manager','safetydash','maintdash','proddash','training','ppe'],
   'Permit Issuance Officer':  ['factoryaccess','portallanding','dailyhub'],
@@ -4863,8 +4884,8 @@ function buildDonutChart(data, total){
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#f1f5f9" stroke-width="${sw}"/>
       ${arcs}
       <circle cx="${cx}" cy="${cy}" r="${r-sw/2-8}" fill="#fff"/>
-      <text x="${cx}" y="${cy-2}" text-anchor="middle" font-size="26" font-weight="900" fill="#1e1b4b" font-family="inherit">${total}</text>
-      <text x="${cx}" y="${cy+18}" text-anchor="middle" font-size="11" font-weight="700" fill="#94a3b8" font-family="inherit">TOTAL</text>
+      <text class="donut-total-num" x="${cx}" y="${cy-2}" text-anchor="middle" font-size="26" font-weight="900" fill="#1e1b4b" font-family="inherit">${total}</text>
+      <text class="donut-total-lbl" x="${cx}" y="${cy+18}" text-anchor="middle" font-size="11" font-weight="700" fill="#475569" font-family="inherit">TOTAL</text>
     </svg>
     <div style="flex:1;min-width:130px">${legend}</div>
   </div>`;
@@ -4882,7 +4903,7 @@ function buildBarChart(entries, colors, horizontal){
     const y = i*(barH+gap);
     const w = max ? (val/max*maxBarW) : 0;
     const color = (colors && colors[i]) || ['#7C3AED','#2563EB','#06b6d4','#16a34a','#d97706','#dc2626'][i%6];
-    bars += `<text x="${marginL-8}" y="${y+barH/2+4}" text-anchor="end" font-size="11" font-weight="700" fill="#475569" font-family="inherit">${label}</text>
+    bars += `<text class="chart-bar-label" x="${marginL-8}" y="${y+barH/2+4}" text-anchor="end" font-size="11" font-weight="700" fill="#475569" font-family="inherit">${label}</text>
       <rect x="${marginL}" y="${y}" width="${maxBarW}" height="${barH}" rx="9" fill="#f1f5f9"/>
       <rect x="${marginL}" y="${y}" width="${Math.max(w, w>0?8:0)}" height="${barH}" rx="9" fill="url(#barGrad${i})" style="filter:drop-shadow(0 2px 6px ${color}33)"/>
       <text x="${marginL+Math.max(w,0)+8}" y="${y+barH/2+4}" font-size="11" font-weight="900" fill="#1e1b4b" font-family="inherit">${val}</text>`;
@@ -5677,62 +5698,121 @@ function saveFilterInspection(){
 // ============================================================
 // ON-HOLD PALLETS TRACKER
 // ============================================================
-// Animated industrial pallet visual — the number shown is always derived
-// from real active Hold Pallets records (never hardcoded): the leading
-// numeric quantity on each non-released record, summed. Status coloring
-// uses only the existing "aging > 3 days" threshold already defined
-// elsewhere in this view — no new business threshold is invented.
-function holdPalletVisualHtml(active, aging, totalQty){
-  const state = totalQty>0 ? (aging>0 ? 'aging' : 'hold') : 'empty';
-  const sub = totalQty>0
-    ? (active+' active hold record'+(active===1?'':'s')+(aging>0?(' · '+aging+' aging &gt; 3 days'):''))
-    : 'No pallets currently on hold';
-  return `<div class="hpv-wrap" data-state="${state}">
-    <button type="button" class="hpv-card" onclick="nav('holdpallets')" aria-label="Hold Pallets — ${totalQty} pallets currently on hold, opens Hold Pallets list">
-      <span class="hpv-status-dot" aria-hidden="true"></span>
-      <div class="hpv-pallet">
-        <svg viewBox="0 0 120 68" class="hpv-pallet-svg" aria-hidden="true">
-          <rect x="18" y="4" width="84" height="20" rx="1.5" class="hpv-load"/>
-          <rect x="18" y="4" width="84" height="20" rx="1.5" class="hpv-load-edge"/>
-          <rect x="14" y="26" width="9" height="34" class="hpv-block"/>
-          <rect x="55.5" y="26" width="9" height="34" class="hpv-block"/>
-          <rect x="97" y="26" width="9" height="34" class="hpv-block"/>
-          <rect x="6" y="53" width="108" height="7" rx="2" class="hpv-slat"/>
-          <rect x="6" y="40" width="108" height="7" rx="2" class="hpv-slat"/>
-          <rect x="6" y="27" width="108" height="7" rx="2" class="hpv-slat"/>
-          <line x1="4" y1="2" x2="116" y2="2" class="hpv-scan"/>
-        </svg>
+// Animated industrial pallet visual — ONE "Digital Pallet Status" card PER
+// active Hold record (never aggregated: a Product A=5 hold and a Product B=3
+// hold render as two separate cards, not one combined "8"). The number shown
+// on each card is that record's own real quantity (never hardcoded). Status
+// coloring uses only the existing "aging > 3 days" threshold already defined
+// elsewhere in this view — no new business threshold is invented. Each card
+// is clickable and opens the full Hold Details modal for that one record.
+function holdPalletSvg(){
+  return `<svg viewBox="0 0 120 68" class="hpv-pallet-svg" aria-hidden="true">
+    <rect x="18" y="4" width="84" height="20" rx="1.5" class="hpv-load"/>
+    <rect x="18" y="4" width="84" height="20" rx="1.5" class="hpv-load-edge"/>
+    <rect x="14" y="26" width="9" height="34" class="hpv-block"/>
+    <rect x="55.5" y="26" width="9" height="34" class="hpv-block"/>
+    <rect x="97" y="26" width="9" height="34" class="hpv-block"/>
+    <rect x="6" y="53" width="108" height="7" rx="2" class="hpv-slat"/>
+    <rect x="6" y="40" width="108" height="7" rx="2" class="hpv-slat"/>
+    <rect x="6" y="27" width="108" height="7" rx="2" class="hpv-slat"/>
+    <line x1="4" y1="2" x2="116" y2="2" class="hpv-scan"/>
+  </svg>`;
+}
+// Never invent a hold reason — display exactly what was recorded (from the
+// originating NCR / Quality Issue / manual entry), or say plainly that no
+// reason was recorded, rather than a fabricated placeholder.
+function holdReasonDisplay(p){
+  const r = (p && p.reason || '').trim();
+  return r ? escHtml(r) : 'Reason not recorded';
+}
+function holdPalletVisualHtml(activeItems){
+  if(!activeItems || !activeItems.length){
+    return `<div class="hpv-wrap">
+      <div class="hpv-card" data-state="empty" style="cursor:default" aria-label="No pallets currently on hold">
+        <span class="hpv-status-dot" aria-hidden="true"></span>
+        <div class="hpv-pallet">${holdPalletSvg()}</div>
+        <span class="hpv-label">HOLD</span>
+        <div class="hpv-count">0</div>
+        <div class="hpv-caption">Pallets on Hold</div>
+        <div class="hpv-sub">No pallets currently on hold</div>
       </div>
+    </div>`;
+  }
+  const now = Date.now();
+  const cards = activeItems.map(function(x){
+    const p = x.p, i = x.i;
+    const days = Math.floor((now - new Date(p.date).getTime())/86400000);
+    const isAging = days > 3;
+    const state = isAging ? 'aging' : 'hold';
+    const qtyNum = parseInt(p.qty)||0;
+    const label = p.prod || p.pallet || ('Hold Record #'+(i+1));
+    const shortLabel = label.length>18 ? label.slice(0,17)+'…' : label;
+    const sub = (p.pallet ? ('Batch '+p.pallet) : '—') + (isAging ? (' · aging '+days+'d') : '');
+    return `<button type="button" class="hpv-card" data-state="${state}" onclick="openHoldDetailModal(${i})" aria-label="${escHtml(label)} — ${escHtml(String(p.qty||qtyNum))} pallets on hold, opens hold details">
+      <span class="hpv-status-dot" aria-hidden="true"></span>
+      <div class="hpv-pallet">${holdPalletSvg()}</div>
       <span class="hpv-label">HOLD</span>
-      <div class="hpv-count" id="hpv-count-val" data-target="${totalQty}">0</div>
-      <div class="hpv-caption">Pallets on Hold</div>
-      <div class="hpv-sub">${sub}</div>
-    </button>
-  </div>`;
+      <div class="hpv-count" data-target="${qtyNum}">0</div>
+      <div class="hpv-caption" title="${escHtml(label)}">${escHtml(shortLabel)}</div>
+      <div class="hpv-sub">${escHtml(sub)}</div>
+    </button>`;
+  }).join('');
+  return '<div class="hpv-wrap">'+cards+'</div>';
 }
 function animateHoldPalletCount(){
-  const el = document.getElementById('hpv-count-val');
-  if(!el) return;
-  const target = parseInt(el.getAttribute('data-target'))||0;
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(reduced || target===0){ el.textContent = target; return; }
-  const dur = 550, start = performance.now();
-  function step(now){
-    const p = Math.min(1, (now-start)/dur);
-    const eased = 1-Math.pow(1-p, 3);
-    el.textContent = Math.round(eased*target);
-    if(p<1) requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
+  document.querySelectorAll('.hpv-count[data-target]').forEach(function(el){
+    const target = parseInt(el.getAttribute('data-target'))||0;
+    if(reduced || target===0){ el.textContent = target; return; }
+    const dur = 550, start = performance.now();
+    function step(now){
+      const p = Math.min(1, (now-start)/dur);
+      const eased = 1-Math.pow(1-p, 3);
+      el.textContent = Math.round(eased*target);
+      if(p<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
 }
+// Hold Details modal — the full record (Product / Batch-Lot / Quantity /
+// Hold Reason / Hold Date-Time / Source Type / Source Reference / Raised By
+// / Aging / Current Status), opened by clicking a Digital Pallet Status card.
+function openHoldDetailModal(i){
+  const p = holdPallets[i];
+  if(!p) return;
+  const days = Math.floor((Date.now() - new Date(p.date).getTime())/86400000);
+  const isAging = !p.released && days > 3;
+  const statusHtml = p.released
+    ? '<span style="background:#d1fae5;color:#16a34a;padding:3px 10px;border-radius:99px;font-size:.78rem;font-weight:700"> Released</span>'
+    : isAging ? '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:99px;font-size:.78rem;font-weight:700"> Aging</span>'
+    : '<span style="background:#fef3c7;color:#b45309;padding:3px 10px;border-radius:99px;font-size:.78rem;font-weight:700">⏳ On Hold</span>';
+  const rows = [
+    ['Product', p.prod || '—'],
+    ['Batch / Lot', p.pallet || '—'],
+    ['Number of Pallets / Quantity', p.qty || '—'],
+    ['Hold Date / Time', (p.date||'—') + (p.timestamp ? (' · '+new Date(p.timestamp).toLocaleTimeString()) : '')],
+    ['Source Type', p.sourceType || 'Manual'],
+    ['Source Reference', p.sourceReference || p.ncr || '—'],
+    ['Raised By', p.raisedBy || '—'],
+    ['Aging', p.released ? 'Released — no longer aging' : (days+' day'+(days===1?'':'s')+(isAging?' (aging > 3 days)':''))],
+  ];
+  const body = document.getElementById('hold-detail-body');
+  body.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <b style="font-size:1rem;color:var(--navy)">${escHtml(p.prod || p.pallet || 'Hold Record')}</b>${statusHtml}
+    </div>
+    <div class="ncr-grid">
+      ${rows.map(([l,v])=>`<div><b>${escHtml(l)}</b><br>${escHtml(String(v))}</div>`).join('')}
+    </div>
+    <div class="ncr-block" style="margin-top:10px"><b>Hold Reason</b><br>${holdReasonDisplay(p)}</div>
+    ${!p.released?`<div style="margin-top:14px;display:flex;gap:8px"><button type="button" class="btn-primary" onclick="releasePallet(${i});closeHoldDetailModal()">Mark as Released</button></div>`:''}`;
+  document.getElementById('hold-detail-modal').classList.add('open');
+}
+function closeHoldDetailModal(){ document.getElementById('hold-detail-modal').classList.remove('open'); }
 function renderHoldPallets(){
   const stats = document.getElementById('hold-stats');
   const now = Date.now();
-  const activeRecords = holdPallets.filter(p=>!p.released);
-  const aging = activeRecords.filter(p=>(now - new Date(p.date).getTime()) > 3*86400000).length;
-  const active = activeRecords.length;
-  const totalQty = activeRecords.reduce((s,p)=>s+(parseInt(p.qty)||0),0);
-  stats.innerHTML = holdPalletVisualHtml(active, aging, totalQty);
+  const activeItems = holdPallets.map((p,i)=>({p,i})).filter(x=>!x.p.released);
+  stats.innerHTML = holdPalletVisualHtml(activeItems);
   animateHoldPalletCount();
 
   const wrap = document.getElementById('hold-pallets-list');
@@ -5759,7 +5839,7 @@ function renderHoldPallets(){
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div>
           <b style="color:var(--navy)">${p.pallet||'—'}</b> — ${p.prod||'—'}
-          <div style="font-size:.75rem;color:var(--muted)">Held: ${p.date} (${days} day${days===1?'':'s'} ago) | Qty: ${p.qty||'—'} | Loc: ${p.loc||'—'} ${p.ncr?'| '+(p.sourceType==='Quality Issue'?'Issue Ref# ':'NCR# ')+p.ncr:''}</div>
+          <div style="font-size:.75rem;color:var(--muted)">Held: ${p.date} (${days} day${days===1?'':'s'} ago) | Qty: ${p.qty||'—'} | Loc: ${p.loc||'—'} ${p.raisedBy?'| Raised by '+escHtml(p.raisedBy):''} ${p.ncr?'| '+(p.sourceType==='Quality Issue'?'Issue Ref# ':'NCR# ')+p.ncr:''}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${p.released?'<span style="background:#d1fae5;color:#16a34a;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:700"> Released</span>'
@@ -5770,7 +5850,7 @@ function renderHoldPallets(){
             : `<span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:99px;font-size:.7rem;font-weight:700">Source: Manual</span>`}
         </div>
       </div>
-      <div style="font-size:.83rem;color:#374151;margin-top:6px">${p.reason||'—'}</div>
+      <div style="font-size:.83rem;color:#374151;margin-top:6px">${holdReasonDisplay(p)}</div>
       ${p.sourceType==='NCR' && p.sourceReference ? `<div style="margin-top:6px"><a href="#" onclick="nav('ncr');return false" style="font-size:.78rem;color:#2563eb">→ View linked NCR ${escHtml(p.sourceReference)}</a></div>` : ''}
       ${p.sourceType==='Quality Issue' && p.sourceReference ? `<div style="margin-top:6px"><a href="#" onclick="nav('db-issues');return false" style="font-size:.78rem;color:#2563eb">→ View linked Quality Issue</a></div>` : ''}
       ${!p.released?`<button type="button" onclick="releasePallet(${i})" class="btn-ghost" style="margin-top:10px;font-size:.78rem"> Mark as Released</button>`:''}
@@ -5789,6 +5869,8 @@ function deleteHoldPallet(i){
 function openHoldModal(){
   document.getElementById('hp-date').value = new Date().toISOString().split('T')[0];
   ['hp-pallet','hp-prod','hp-qty','hp-loc','hp-ncr','hp-reason'].forEach(id=>{ document.getElementById(id).value=''; });
+  var rb = document.getElementById('hp-raisedby');
+  if(rb) rb.value = (currentUser&&currentUser.name) || '';
   if(typeof clearFormPhotos==='function') clearFormPhotos('hold');
   if(typeof mountFormPhotoHosts==='function') mountFormPhotoHosts();
   document.getElementById('hold-modal').classList.add('open');
@@ -5803,6 +5885,7 @@ function saveHoldPallet(){
     loc: document.getElementById('hp-loc').value,
     ncr: document.getElementById('hp-ncr').value,
     reason: document.getElementById('hp-reason').value,
+    raisedBy: document.getElementById('hp-raisedby')?.value || (currentUser&&currentUser.name) || '',
     photos: (typeof getFormPhotos==='function'?getFormPhotos('hold'):[]).slice(),
     released: false,
     timestamp: new Date().toISOString(),
@@ -5835,7 +5918,12 @@ function ncrSyncHoldPallet(ncrRec){
     h.prod = ncrRec.prod || h.prod;
     h.pallet = ncrRec.batch || h.pallet;
     h.qty = qtyLabel;
-    h.reason = ncrRec.desc || h.reason;
+    // Real NCR description only — never a fabricated placeholder. If Quality
+    // has not entered a description, leave the reason empty so the Hold
+    // Details view honestly shows "Reason not recorded" rather than inventing
+    // text.
+    h.reason = ncrRec.desc || h.reason || '';
+    h.raisedBy = ncrRec.raised || h.raisedBy || '';
     h.ncr = ncrRec.num;
   } else {
     holdPallets.unshift({
@@ -5845,7 +5933,8 @@ function ncrSyncHoldPallet(ncrRec){
       qty: qtyLabel,
       loc: '',
       ncr: ncrRec.num,
-      reason: ncrRec.desc || ('Linked to NCR '+ncrRec.num),
+      reason: ncrRec.desc || '',
+      raisedBy: ncrRec.raised || '',
       photos: [],
       released: false,
       timestamp: new Date().toISOString(),
@@ -5870,7 +5959,9 @@ function issueSyncHoldPallet(issRec){
     h.prod = issRec.prod || h.prod;
     h.pallet = issRec.batch || h.pallet;
     h.qty = qtyLabel;
-    h.reason = issRec.param || h.reason;
+    // Real Quality Issue parameter/description only — never invented text.
+    h.reason = issRec.param || h.reason || '';
+    h.raisedBy = issRec.reporter || h.raisedBy || '';
     h.ncr = issRec.id;
   } else {
     holdPallets.unshift({
@@ -5880,7 +5971,8 @@ function issueSyncHoldPallet(issRec){
       qty: qtyLabel,
       loc: '',
       ncr: issRec.id,
-      reason: issRec.param || ('Linked to Quality Issue'),
+      reason: issRec.param || '',
+      raisedBy: issRec.reporter || '',
       photos: [],
       released: false,
       timestamp: new Date().toISOString(),
@@ -10007,14 +10099,21 @@ function portalBiShell(opts){
   opts = opts || {};
   var theme = opts.theme || 'quality';
   var accent = theme==='safety' ? '#c8102e' : theme==='maint' ? '#0f766e' : theme==='prod' ? '#92400e' : '#4c1d95';
-  var titleBg = theme==='safety' ? 'linear-gradient(90deg,#fee2e2,#fff1f2)' : theme==='maint' ? 'linear-gradient(90deg,#ccfbf1,#ecfeff)' : theme==='prod' ? 'linear-gradient(90deg,#fef3c7,#fffbeb)' : 'linear-gradient(90deg,#dbeafe,#eff6ff)';
-  var titleColor = theme==='safety' ? '#7f1d1d' : theme==='maint' ? '#115e59' : theme==='prod' ? '#78350f' : '#1e3a5f';
-  var titleBorder = theme==='safety' ? '#fecaca' : theme==='maint' ? '#99f6e4' : theme==='prod' ? '#fde68a' : '#bfdbfe';
-
+  // Title pill color/background used to be set as an inline style="" here,
+  // computed per theme. That inline style ALWAYS wins over the matching
+  // ".pbi-title" / "body.theme-noir .pbi-title" stylesheet rules (inline
+  // beats class specificity), so in Noir the THEME-NOIR SAFETY NET's
+  // color:#1e3a5f-family remap (meant for dark text on light surfaces
+  // elsewhere) fired on this inline color while the inline gradient
+  // background was left untouched (gradients aren't matched by the safety
+  // net) — light text on a still-light pill, unreadable. Fixed by moving
+  // this pairing into theme-specific CSS classes (below) that the safety
+  // net's inline-only selectors can never reach, and giving Noir its own
+  // background+color pairing in the same rule so they can't drift apart.
   return '<div class="pbi-shell theme-'+theme+'" style="'+(opts.shellStyle||'')+'">'
     +'<div class="pbi-topbar">'
     +'<div class="pbi-brand"><span class="pbi-logo" style="color:'+accent+'">pladis</span>'
-    +'<div class="pbi-title" style="background:'+titleBg+';color:'+titleColor+';border-color:'+titleBorder+'">'+portalBiEsc(opts.title||'Portal Hub')+'</div></div>'
+    +'<div class="pbi-title pbi-title-'+theme+'">'+portalBiEsc(opts.title||'Portal Hub')+'</div></div>'
     +'<div class="pbi-tabs">'+(opts.tabsHtml||'')+'</div>'
     +'</div>'
     +(opts.body||'')
@@ -11954,7 +12053,7 @@ function renderNCRList(){
         const hasProd = n.production && n.production.required;
         const hasHold = n.holdFlag===true && (parseInt(n.holdQty)||0)>0;
         if(!hasProd && !hasHold && !linkedRework.length) return '';
-        var h = '<div class="ncr-block" style="background:#f8fafc;border:1px dashed #cbd5e1"><b>Linked Records</b>';
+        var h = '<div class="ncr-block linked"><b>Linked Records</b>';
         if(hasProd) h += `<div style="margin-top:4px;font-size:.8rem">→ Production routing: <b>${escHtml(n.production.status||'—')}</b>${n.production.completedBy?(' · completed by '+escHtml(n.production.completedBy)):''}${n.production.notes?(`<div style="color:#64748b;margin-top:2px">Production notes: ${escHtml(n.production.notes)}</div>`):''}</div>`;
         if(hasHold) h += `<div style="margin-top:4px;font-size:.8rem">→ Hold Pallets: <b>${escHtml(String(n.holdQty))} pallet${n.holdQty===1?'':'s'}</b> linked to this NCR — <a href="#" onclick="nav('holdpallets');return false" style="color:#2563eb">view Hold Pallets</a></div>`;
         linkedRework.forEach(function(rc){
@@ -12290,7 +12389,9 @@ function toggleNCRStatus(i){
     ncrList[i].workflow.history.push({state:st, by:(currentUser&&currentUser.name)||'user', at:new Date().toISOString(), note:'Toggled from status button'});
   }
   saveState();
+  if(ncrList[i].status==='closed' && typeof invalidateEscalationNotifs==='function') invalidateEscalationNotifs(ncrList[i].num);
   renderNCRList();
+  refreshLiveEscalationBanners();
 }
 function updateNCRStatusDrop(i, val){
   if(!val) return;
@@ -12304,13 +12405,26 @@ function updateNCRStatusDrop(i, val){
   }
   ncrList[i]=recordAudit(__oldS, ncrList[i], 'edit');
   saveState();
+  if(val==='closed' && typeof invalidateEscalationNotifs==='function') invalidateEscalationNotifs(ncrList[i].num);
   renderNCRList();
+  refreshLiveEscalationBanners();
   showToast(val==='closed'?' NCR Closed':'NCR status updated','green');
 }
+// Re-render whichever escalation banner host is currently on screen (Daily
+// Hub strip and/or full page) so closing an NCR reflects immediately without
+// requiring navigation away and back.
+function refreshLiveEscalationBanners(){
+  try{
+    if(document.getElementById('esc-banner-host')) renderEscalationBanner('esc-banner-host');
+    if(document.getElementById('esc-banner-host-page')) renderEscalationBanner('esc-banner-host-page');
+  }catch(e){}
+}
 
-function printNCR(i){
-  const n=ncrList[i];
-  if(!n){ showToast('NCR not found','red'); return; }
+// Builds the F.QFS.60-04 document body for ONE NCR record (no sheet
+// header/footer — used both by the single-NCR print and the batch/list
+// print, so there is exactly one place that defines what an NCR document
+// looks like on paper).
+function ncrPrintDocBody(n){
   const clsLabels={1:'Class I – Critical',2:'Class II – Important',3:'Class III – Corrective',4:'Class IV – Remedial'};
   const so = n.signoff || {};
   const sigCell = (label, role) => {
@@ -12324,7 +12438,7 @@ function printNCR(i){
        ${n.capaRows.map((r,ri)=>`<tr><td>${ri+1}</td><td>${printEsc(r.action)}</td><td>${printEsc(r.date)}</td><td>${printEsc(r.resp)}</td></tr>`).join('')}
        </table>`
     : '';
-  const body = printSheetHeader('Quality Incident "QI" & Non Conformity "NCR" Report', `Form# F.QFS.60-04 · Shop Floor Digital Portal · Quality · Printed ${new Date().toLocaleString()}`) + `
+  return `
     <table><tbody>
       <tr><td class="k">QI / NCR #</td><td>${printEsc(n.num)}</td><td class="k">Date / Time</td><td>${printEsc(n.date)} ${printEsc(n.time)}</td></tr>
     </tbody></table>
@@ -12357,9 +12471,40 @@ function printNCR(i){
       ${sigCell('Production Chief','prodchief')}
       ${sigCell('Quality &amp; Food Safety Chief / QMS &amp; Quality Control Chief','qfschief')}
       ${sigCell('Factory Director','factorydir')}
-    </div>
-  ` + printSheetEnd('Form F.QFS.60-04 · Close within 48 hours · Shop Floor Digital Portal · pladis KSA');
+    </div>`;
+}
+function printNCR(i){
+  const n=ncrList[i];
+  if(!n){ showToast('NCR not found','red'); return; }
+  const body = printSheetHeader('Quality Incident "QI" & Non Conformity "NCR" Report', `Form# F.QFS.60-04 · Shop Floor Digital Portal · Quality · Printed ${new Date().toLocaleString()}`)
+    + ncrPrintDocBody(n)
+    + printSheetEnd('Form F.QFS.60-04 · Close within 48 hours · Shop Floor Digital Portal · pladis KSA');
   openPortalPrint('NCR '+ (n.num||''), body);
+}
+// The top-of-page NCR "Print" toolbar button — this used to call raw
+// window.print() directly on the portal screen, which printed the sidebar/
+// navigation/notifications instead of an NCR document. It now goes through
+// the SAME standardized print-preview path as every per-record "View &
+// Print" button, printing every NCR currently shown on the page (the
+// active month/year/status filter) as one multi-record document — never
+// the portal UI itself.
+function printNCRList(){
+  const m=document.getElementById('ncr-month-sel')?.value;
+  const y=document.getElementById('ncr-year-sel')?.value;
+  const prodStatusFilter=document.getElementById('ncr-prod-status-filter')?.value||'';
+  let filtered = (typeof ncrList!=='undefined'?ncrList:[]).filter(function(n){
+    return (typeof isActiveRec!=='function' || isActiveRec(n)) && n.date && (!m || !y || n.date.startsWith(y+'-'+m));
+  });
+  if(prodStatusFilter==='Closed'){ filtered = filtered.filter(function(n){ return n.status==='closed'; }); }
+  else if(prodStatusFilter){ filtered = filtered.filter(function(n){ return n.production && n.production.status===prodStatusFilter; }); }
+  if(!filtered.length){ showToast('No NCRs to print for the current filter','red'); return; }
+  const body = printSheetHeader('Quality Incident "QI" & Non Conformity "NCR" Report — '+(filtered.length)+' record'+(filtered.length===1?'':'s'),
+      `Form# F.QFS.60-04 · Shop Floor Digital Portal · Quality · Printed ${new Date().toLocaleString()}`)
+    + filtered.map(function(n, idx){
+        return (idx>0 ? '<div style="page-break-before:always"></div>' : '') + ncrPrintDocBody(n);
+      }).join('')
+    + printSheetEnd('Form F.QFS.60-04 · Close within 48 hours · Shop Floor Digital Portal · pladis KSA');
+  openPortalPrint('NCR Records', body);
 }
 
 // ============================================================
@@ -13840,23 +13985,115 @@ function saveWO(){
 
 function setWOStatus(i,val){maintData.workOrders[i].status=val;saveMaintData();renderWorkOrders();}
 
-// ── Breakdown Report ──
+// ── Breakdown Report — ownership/triage workflow ──
+// Lifecycle: Triage Required -> Assigned -> In Progress -> Awaiting
+// Production Verification -> Closed. Shared by Maintenance AND Production
+// (same maintData.breakdowns array, same record — never duplicated per
+// portal). "Suspected Ownership" captured at report time is never treated
+// as final; only Maintenance's own Accept/Reassign action sets currentOwner.
+var BD_STATUSES = ['Triage Required','Assigned','In Progress','Awaiting Production Verification','Closed'];
+function bdAgeDays(b){
+  return Math.floor((Date.now() - new Date(b.timestamp||b.date).getTime())/86400000);
+}
+function bdPushHistory(b, action, note){
+  if(!Array.isArray(b.history)) b.history=[];
+  b.history.push({ at:new Date().toISOString(), by:(currentUser&&currentUser.name)||'user', portal: currentPortal||'', action: action, note: note||'' });
+}
+function bdStatusChipHtml(status){
+  var map = {
+    'Triage Required': '#dc2626',
+    'Assigned': '#d97706',
+    'In Progress': '#2563eb',
+    'Awaiting Production Verification': '#7c3aed',
+    'Closed': '#16a34a'
+  };
+  return '<span style="background:'+(map[status]||'#6b7280')+';color:#fff;padding:3px 10px;border-radius:99px;font-size:.72rem;font-weight:700">'+escHtml(status||'—')+'</span>';
+}
+function bdNextActionBy(b){
+  if(b.status==='Triage Required') return 'Maintenance (triage)';
+  if(b.status==='Assigned') return (b.currentOwner||'Maintenance')+' (start work)';
+  if(b.status==='In Progress') return (b.currentOwner||'Maintenance')+' (complete repair)';
+  if(b.status==='Awaiting Production Verification') return 'Production (verify & close)';
+  if(b.status==='Closed') return '—';
+  return '—';
+}
+function bdKpiHtml(){
+  var list = maintData.breakdowns||[];
+  var open = list.filter(b=>b.status!=='Closed').length;
+  var awaitingOwnership = list.filter(b=>b.status==='Triage Required').length;
+  var inProgress = list.filter(b=>b.status==='In Progress').length;
+  var awaitingVerify = list.filter(b=>b.status==='Awaiting Production Verification').length;
+  var now = new Date();
+  var closedThisMonth = list.filter(b=>b.status==='Closed' && b.closedAt && new Date(b.closedAt).getMonth()===now.getMonth() && new Date(b.closedAt).getFullYear()===now.getFullYear()).length;
+  var durations = list.filter(b=>b.status==='Closed' && b.closedAt && b.timestamp).map(b=>(new Date(b.closedAt)-new Date(b.timestamp))/3600000);
+  var avgDur = durations.length ? (durations.reduce((a,c)=>a+c,0)/durations.length) : null;
+  var kpis = [
+    {l:'Open Breakdowns', v:open, c:'#dc2626'},
+    {l:'Awaiting Ownership', v:awaitingOwnership, c:'#d97706'},
+    {l:'Maintenance In Progress', v:inProgress, c:'#2563eb'},
+    {l:'Awaiting Production Verification', v:awaitingVerify, c:'#7c3aed'},
+    {l:'Closed This Month', v:closedThisMonth, c:'#16a34a'},
+  ];
+  if(avgDur!=null) kpis.push({l:'Avg Breakdown Duration', v:avgDur.toFixed(1)+'h', c:'#64748b'});
+  return dashKpiCards(kpis);
+}
+function bdHistoryHtml(b, i){
+  var h = b.history||[];
+  if(!h.length) return '';
+  var rows = h.map(function(e){
+    return '<div style="font-size:.72rem;color:var(--muted);padding:3px 0;border-bottom:1px dashed var(--border)">'
+      +escHtml((e.at||'').replace('T',' ').slice(0,16))+' — <b>'+escHtml(e.action||'')+'</b> by '+escHtml(e.by||'')+(e.portal?(' ('+escHtml(e.portal)+')'):'')+(e.note?(': '+escHtml(e.note)):'')
+      +'</div>';
+  }).join('');
+  return '<details style="margin-top:8px"><summary style="font-size:.75rem;font-weight:700;color:var(--muted);cursor:pointer">Workflow History ('+h.length+')</summary><div style="margin-top:4px">'+rows+'</div></details>';
+}
 function renderBreakdown(){
   const wrap=document.getElementById('breakdown-body');
   if(!wrap) return;
   var html='';
   html+='<div class="view-head-bar"><div class="page-title">Equipment Breakdown Reports</div><button type="button" class="btn-primary" style="margin-left:auto" onclick="openBDModal()">+ New Breakdown</button></div>';
+  html+='<div class="page-sub" style="margin-bottom:14px">Shared Production ↔ Maintenance workflow — one record per breakdown, with clear ownership, next action, and status at every stage.</div>';
+  html+=bdKpiHtml();
   if(!maintData.breakdowns.length){
     html+='<div class="pro-empty">No breakdown reports yet</div>';
   } else {
     maintData.breakdowns.forEach(function(b,i){
+      if(!b.status) b.status='Triage Required'; // backward-compat for records created before this workflow existed
+      var age = bdAgeDays(b);
       html+='<div class="pro-list-card danger">';
-      html+='<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><b style="color:#dc2626">BD-'+String(i+1).padStart(3,'0')+' · '+b.line+'</b><span style="color:#6b7280;font-size:.75rem">'+b.date+' '+b.time+'</span></div>';
-      html+='<div style="font-size:.82rem;margin-top:6px;color:#1e293b"><b>Equipment:</b> '+b.equipment+' | <b>Downtime:</b> '+b.downtime+' mins</div>';
-      html+='<div style="font-size:.82rem;margin-top:4px;color:#1e293b"><b>Cause:</b> '+b.cause+'</div>';
-      html+='<div style="font-size:.82rem;margin-top:4px;color:#1e293b"><b>Action Taken:</b> '+b.action+'</div>';
+      html+='<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><b style="color:#dc2626">BD-'+String(i+1).padStart(3,'0')+' · '+escHtml(b.line||'')+'</b><span style="color:#6b7280;font-size:.75rem">'+escHtml(b.date||'')+' '+escHtml(b.time||'')+'</span></div>';
+      html+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center">'
+        +bdStatusChipHtml(b.status)
+        +'<span style="font-size:.72rem;color:var(--muted)">Owner: <b style="color:var(--text)">'+escHtml(b.currentOwner||'Unassigned')+'</b></span>'
+        +'<span style="font-size:.72rem;color:var(--muted)">Next: <b style="color:var(--text)">'+escHtml(bdNextActionBy(b))+'</b></span>'
+        +'<span style="font-size:.72rem;color:var(--muted)">Age: <b style="color:var(--text)">'+age+'d</b></span>'
+        +'</div>';
+      html+='<div style="font-size:.82rem;margin-top:6px;color:#1e293b"><b>Equipment:</b> '+escHtml(b.equipment||'')+' | <b>Downtime:</b> '+escHtml(b.downtime||'')+' mins | <b>Line Stopped:</b> '+escHtml(b.lineStopped||'—')+'</div>';
+      html+='<div style="font-size:.78rem;margin-top:4px;color:#1e293b"><b>Reported By:</b> '+escHtml(b.reportedBy||'')+' ('+escHtml(b.reportedByDept||'—')+') · <b>Suspected Ownership (initial):</b> '+escHtml(b.suspectedOwnership||'—')+'</div>';
+      if(b.desc) html+='<div style="font-size:.82rem;margin-top:4px;color:#1e293b"><b>Initial Description:</b> '+escHtml(b.desc)+'</div>';
+      html+='<div style="font-size:.82rem;margin-top:4px;color:#1e293b"><b>Suspected Cause:</b> '+escHtml(b.cause||'—')+'</div>';
+      html+='<div style="font-size:.82rem;margin-top:4px;color:#1e293b"><b>Immediate Action Taken:</b> '+escHtml(b.action||'—')+'</div>';
+      if(b.rootCause) html+='<div class="ncr-block ok" style="margin-top:6px"><b>Confirmed Root Cause</b><br>'+escHtml(b.rootCause)+(b.correctiveAction?('<br><b>Corrective Action:</b> '+escHtml(b.correctiveAction)):'')+'</div>';
       if(typeof photosHTML==='function') html+=photosHTML(b.photos);
-      html+='<div style="font-size:.78rem;color:#6b7280;margin-top:4px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">Reported by: '+b.reportedBy+'<span><button type="button" onclick="printBreakdown('+i+')" class="btn-ghost" style="font-size:.7rem;padding:3px 8px">Print</button><button type="button" onclick="editBD('+i+')" class="btn-ghost" style="font-size:.7rem;padding:3px 8px;color:#2563eb">Edit</button>'+admDelBtn('deleteBD('+i+')')+'</span></div></div>';
+      // ── Ownership / lifecycle actions — portal-scoped ──
+      var actions = '';
+      if(b.status==='Triage Required' && currentPortal==='maintenance'){
+        actions += '<button type="button" class="btn-primary" style="font-size:.72rem;padding:5px 10px" onclick="bdAcceptOwnership('+i+')">Accept Ownership</button>'
+                 + '<button type="button" class="btn-ghost" style="font-size:.72rem;padding:5px 10px" onclick="bdReassign('+i+')">Reassign / Request Review</button>';
+      }
+      if(b.status==='Assigned' && currentPortal==='maintenance'){
+        actions += '<button type="button" class="btn-primary" style="font-size:.72rem;padding:5px 10px" onclick="bdStartWork('+i+')">Start Work</button>';
+      }
+      if(b.status==='In Progress' && currentPortal==='maintenance'){
+        actions += '<button type="button" class="btn-primary" style="font-size:.72rem;padding:5px 10px" onclick="openBDVerifyModal('+i+')">Confirm Root Cause &amp; Request Verification</button>';
+      }
+      if(b.status==='Awaiting Production Verification' && currentPortal==='production'){
+        actions += '<button type="button" class="btn-primary" style="font-size:.72rem;padding:5px 10px" onclick="bdVerifyClose('+i+')">Verify &amp; Close</button>'
+                 + '<button type="button" class="btn-ghost" style="font-size:.72rem;padding:5px 10px;color:#dc2626" onclick="bdRejectVerification('+i+')">Not Fixed — Send Back</button>';
+      }
+      html += '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+actions+'</div>';
+      html+=bdHistoryHtml(b, i);
+      html+='<div style="font-size:.78rem;color:#6b7280;margin-top:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px"><span></span><span><button type="button" onclick="printBreakdown('+i+')" class="btn-ghost" style="font-size:.7rem;padding:3px 8px">Print</button><button type="button" onclick="editBD('+i+')" class="btn-ghost" style="font-size:.7rem;padding:3px 8px;color:#2563eb">Edit</button>'+admDelBtn('deleteBD('+i+')')+'</span></div></div>';
     });
   }
   wrap.innerHTML=html;
@@ -13867,12 +14104,18 @@ function openBDModal(){
   if(typeof clearFormPhotos==='function') clearFormPhotos('bd');
   if(typeof mountFormPhotoHosts==='function') mountFormPhotoHosts();
   document.getElementById('bd-modal').classList.add('open');
-  ['bd-line','bd-equip','bd-cause','bd-action'].forEach(function(id){document.getElementById(id).value='';});
+  ['bd-line','bd-equip','bd-cause','bd-action','bd-desc'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('bd-line-other').style.display='none'; document.getElementById('bd-line-other').value='';
   document.getElementById('bd-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('bd-time').value=new Date().toTimeString().slice(0,5);
   document.getElementById('bd-downtime').value='';
   document.getElementById('bd-reportedby').value=currentUser?.name||'';
+  // Default the reporting department to whichever portal the reporter is
+  // actually standing in — never guessed beyond that.
+  var deptDefault = currentPortal==='production' ? 'Production' : currentPortal==='maintenance' ? 'Maintenance' : currentPortal==='quality' ? 'Quality' : currentPortal==='safety' ? 'Safety' : '';
+  document.getElementById('bd-dept').value = deptDefault;
+  document.getElementById('bd-linestopped').value='';
+  document.getElementById('bd-ownership').value='';
 }
 let editingBDIdx = null;
 function deleteBD(i){
@@ -13891,12 +14134,16 @@ function editBD(i){
   document.getElementById('bd-modal').classList.add('open');
   setSelOrOtherVal('bd-line','bd-line-other', b.line||'');
   document.getElementById('bd-equip').value=b.equipment||'';
+  document.getElementById('bd-desc').value=b.desc||'';
   document.getElementById('bd-cause').value=b.cause||'';
   document.getElementById('bd-action').value=b.action||'';
   document.getElementById('bd-date').value=b.date||'';
   document.getElementById('bd-time').value=b.time||'';
   document.getElementById('bd-downtime').value=b.downtime||'';
   document.getElementById('bd-reportedby').value=b.reportedBy||'';
+  document.getElementById('bd-dept').value=b.reportedByDept||'';
+  document.getElementById('bd-linestopped').value=b.lineStopped||'';
+  document.getElementById('bd-ownership').value=b.suspectedOwnership||'';
 }
 function reviewBDSubmit(){
   openReviewModal('Breakdown Report', [
@@ -13905,32 +14152,153 @@ function reviewBDSubmit(){
     ['Date', document.getElementById('bd-date').value],
     ['Time', document.getElementById('bd-time').value],
     ['Downtime (mins)', document.getElementById('bd-downtime').value],
-    ['Cause', document.getElementById('bd-cause').value],
+    ['Reporting Department', document.getElementById('bd-dept').value],
+    ['Line Stopped', document.getElementById('bd-linestopped').value],
+    ['Initial Description', document.getElementById('bd-desc').value],
+    ['Suspected Cause', document.getElementById('bd-cause').value],
+    ['Suspected Ownership', document.getElementById('bd-ownership').value],
     ['Action Taken', document.getElementById('bd-action').value],
     ['Reported By', document.getElementById('bd-reportedby').value],
   ], saveBD);
 }
 
 function saveBD(){
+  const isEdit = editingBDIdx!=null;
+  const prior = isEdit ? maintData.breakdowns[editingBDIdx] : null;
   const entry={
     line:getFieldVal('bd-line','bd-line-other'),
     equipment:document.getElementById('bd-equip').value,
     date:document.getElementById('bd-date').value,
     time:document.getElementById('bd-time').value,
     downtime:document.getElementById('bd-downtime').value,
+    desc:document.getElementById('bd-desc').value,
     cause:document.getElementById('bd-cause').value,
     action:document.getElementById('bd-action').value,
     reportedBy:document.getElementById('bd-reportedby').value,
+    reportedByDept:document.getElementById('bd-dept').value,
+    lineStopped:document.getElementById('bd-linestopped').value,
+    suspectedOwnership:document.getElementById('bd-ownership').value,
+    // Confirmed-root-cause fields are only ever set by bdSubmitVerification()
+    // (after investigation) — never invented or copied from the suspected cause.
+    rootCause: prior ? prior.rootCause : '',
+    correctiveAction: prior ? prior.correctiveAction : '',
+    status: prior ? prior.status : 'Triage Required',
+    currentOwner: prior ? prior.currentOwner : null,
+    closedAt: prior ? prior.closedAt : null,
+    history: prior ? (prior.history||[]) : [],
     photos: (typeof getFormPhotos==='function'?getFormPhotos('bd'):[]).slice(),
-    timestamp: editingBDIdx!=null ? maintData.breakdowns[editingBDIdx].timestamp : new Date().toISOString()
+    timestamp: isEdit ? prior.timestamp : new Date().toISOString()
   };
   if(!entry.line||!entry.cause){showToast('Please fill Line and Cause','red');return;}
-  if(editingBDIdx!=null){ maintData.breakdowns[editingBDIdx]=entry; } else { maintData.breakdowns.unshift(entry); }
+  if(isEdit){ maintData.breakdowns[editingBDIdx]=entry; }
+  else {
+    bdPushHistory(entry, 'Reported', entry.suspectedOwnership?('Suspected ownership: '+entry.suspectedOwnership):'');
+    maintData.breakdowns.unshift(entry);
+    if(typeof notifyPortal==='function') notifyPortal('maintenance', {
+      type:'breakdown-triage', from:'Breakdown Report',
+      message:'New breakdown needs triage — '+(entry.line||''),
+      details:(entry.equipment?('Equipment: '+entry.equipment+'. '):'')+(entry.desc||entry.cause||''),
+      actionView:'breakdown'
+    });
+  }
   editingBDIdx = null;
   saveMaintData();
   document.getElementById('bd-modal').classList.remove('open');
   renderBreakdown();
   showToast('Breakdown report saved','red');
+}
+// ── Ownership / lifecycle transitions ──
+function bdAcceptOwnership(i){
+  var b = maintData.breakdowns[i];
+  if(!b) return;
+  b.currentOwner = 'Maintenance';
+  b.status = 'Assigned';
+  bdPushHistory(b, 'Accepted Ownership');
+  saveMaintData();
+  renderBreakdown();
+  showToast('Ownership accepted — BD-'+String(i+1).padStart(3,'0'),'green');
+}
+function bdReassign(i){
+  var b = maintData.breakdowns[i];
+  if(!b) return;
+  var target = prompt('Reassign / request review to which department? (e.g. Production, Quality, Utilities / Engineering, Other)', b.suspectedOwnership||'');
+  if(target==null || !target.trim()) return;
+  var reason = prompt('Reason for reassigning / requesting review (required):','');
+  if(!reason || !reason.trim()){ showToast('A reason is required to reassign','red'); return; }
+  b.suspectedOwnership = target.trim();
+  // Stays in Triage Required — the newly-named department still needs to
+  // accept ownership; a suspected-ownership guess is never treated as final.
+  bdPushHistory(b, 'Reassigned / Review Requested', 'To: '+target.trim()+' — Reason: '+reason.trim());
+  saveMaintData();
+  renderBreakdown();
+  showToast('Reassigned for review — BD-'+String(i+1).padStart(3,'0'),'amber');
+}
+function bdStartWork(i){
+  var b = maintData.breakdowns[i];
+  if(!b) return;
+  b.status = 'In Progress';
+  bdPushHistory(b, 'Work Started');
+  saveMaintData();
+  renderBreakdown();
+  showToast('Work started — BD-'+String(i+1).padStart(3,'0'),'green');
+}
+function openBDVerifyModal(i){
+  var b = maintData.breakdowns[i];
+  if(!b) return;
+  document.getElementById('bdv-index').value = i;
+  document.getElementById('bdv-rootcause').value = b.rootCause||'';
+  document.getElementById('bdv-corrective').value = b.correctiveAction||'';
+  document.getElementById('bd-verify-modal').classList.add('open');
+}
+function bdSubmitVerification(){
+  var i = parseInt(document.getElementById('bdv-index').value);
+  var b = maintData.breakdowns[i];
+  if(!b) return;
+  var rootCause = document.getElementById('bdv-rootcause').value.trim();
+  var corrective = document.getElementById('bdv-corrective').value.trim();
+  if(!rootCause){ showToast('Confirmed Root Cause is required','red'); return; }
+  b.rootCause = rootCause;
+  b.correctiveAction = corrective;
+  b.status = 'Awaiting Production Verification';
+  bdPushHistory(b, 'Production Verification Requested', 'Root cause: '+rootCause.slice(0,120));
+  saveMaintData();
+  document.getElementById('bd-verify-modal').classList.remove('open');
+  renderBreakdown();
+  if(typeof notifyPortal==='function') notifyPortal('production', {
+    type:'breakdown-verify', from:'Maintenance Portal',
+    message:'Breakdown fixed — verification needed ('+(b.line||'')+')',
+    details:'Root cause: '+rootCause+(corrective?('. Corrective action: '+corrective):''),
+    actionView:'breakdown'
+  });
+  showToast('Sent to Production for verification','green');
+}
+function bdVerifyClose(i){
+  var b = maintData.breakdowns[i];
+  if(!b) return;
+  if(!confirm('Confirm the line is running correctly and close this breakdown?')) return;
+  b.status = 'Closed';
+  b.closedAt = new Date().toISOString();
+  bdPushHistory(b, 'Production Verified — Closed');
+  saveMaintData();
+  renderBreakdown();
+  showToast('Breakdown closed — BD-'+String(i+1).padStart(3,'0'),'green');
+}
+function bdRejectVerification(i){
+  var b = maintData.breakdowns[i];
+  if(!b) return;
+  var note = prompt('What is still wrong? (sent back to Maintenance, required)','');
+  if(!note || !note.trim()){ showToast('Please describe what is still wrong','red'); return; }
+  b.status = 'In Progress';
+  bdPushHistory(b, 'Verification Rejected — Returned to Maintenance', note.trim());
+  saveMaintData();
+  renderBreakdown();
+  if(typeof notifyPortal==='function') notifyPortal('maintenance', {
+    type:'breakdown-rejected', from:'Production Portal',
+    message:'Breakdown verification rejected — '+(b.line||''),
+    details:note.trim(),
+    actionView:'breakdown'
+  });
+  showToast('Sent back to Maintenance','amber');
 }
 
 // ── Spare Parts ──
@@ -16474,18 +16842,41 @@ function renderNcrProdInbox(){
       +((n.actions&&n.actions.length)?'<div class="ncr-block"><b>Immediate Action(s)</b><br>'+escHtml(n.actions.join(', '))+'</div>':'')
       +(n.root?'<div class="ncr-block"><b>Quality Root Cause Findings</b><br>'+escHtml(n.root)+'</div>':'')
       +(typeof photosHTML==='function'?photosHTML(n.photos):'')
-      +((n.capaRows&&n.capaRows.length)?'<div class="ncr-block ok"><b>Part 3 — Corrective / Preventive Actions</b>'
-        +n.capaRows.map((r,ri)=>'<div style="margin-top:6px">'+(ri+1)+'. '+escHtml(r.action||'—')+(r.date?' <span style="opacity:.75">(Due: '+escHtml(r.date)+')</span>':'')+(r.resp?' — '+escHtml(r.resp):'')+'</div>').join('')
-        +'</div>':'')
       +'</div>';
     // C. HOLD / LINKED RECORDS — READ ONLY / LINKED
-    const linkedHtml = (holdWarn || reworkLinks) ? '<div class="ncr-block" style="background:#f8fafc;border:1px dashed #cbd5e1;margin-top:8px">'
+    const linkedHtml = (holdWarn || reworkLinks) ? '<div class="ncr-block linked" style="margin-top:8px">'
       +'<b>Hold / Linked Records</b>'+holdWarn+reworkLinks+'</div>' : '';
-    // D. PRODUCTION INPUT — EDITABLE (the only Production-owned field on this record)
+    // D. PRODUCTION INPUT — EDITABLE. Per the official F.QFS.60-04 form, Part 3
+    // "Corrective / Preventive Actions" is explicitly labeled "to be filled and
+    // verified by Line Leader" — a Production-side role — and the Part 3
+    // sign-off row includes Line Leader and Production Chief. This is the
+    // actual official form field Production owns, not an invented free-text
+    // box. (Quality's own Raised By / Quality & Food Safety Chief / Factory
+    // Director sign-off fields stay Quality-owned and are not shown here.)
+    _prodCapaRowCount[i] = 0;
+    const capaRowsHtml = (n.capaRows&&n.capaRows.length ? n.capaRows : [{}]).map(function(r){ return prodCapaRowHtml(i, r); }).join('');
+    const so = n.signoff || {};
     const productionHtml = '<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">'
-      +'<div style="font-size:.72rem;font-weight:800;letter-spacing:.03em;color:#92400e;text-transform:uppercase;margin-bottom:6px">Production Input</div>'
-      +'<label style="font-size:.75rem;font-weight:700;color:#374151;display:block;margin-bottom:4px">Production Notes / Action Taken <span style="color:#dc2626">*</span></label>'
-      +'<textarea id="ncr-prod-note-'+i+'" class="fi" rows="3" placeholder="Describe the Production investigation / action taken for this NCR..." style="width:100%"></textarea>'
+      +'<div style="font-size:.72rem;font-weight:800;letter-spacing:.03em;color:#92400e;text-transform:uppercase;margin-bottom:6px">Production Input — Part 3: Corrective / Preventive Actions</div>'
+      +'<div id="prod-capa-rows-wrap-'+i+'" style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:6px">'
+        +'<div class="capa-head" style="background:#f8fafc;font-size:.72rem;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)">'
+          +'<div>No.</div><div>Corrective / Preventive Action</div><div>Complete Date</div><div>Responsibility</div><div></div>'
+        +'</div>'
+        +'<div id="prod-capa-rows-'+i+'">'+capaRowsHtml+'</div>'
+      +'</div>'
+      +'<button type="button" class="btn-ghost" style="font-size:.75rem;margin-bottom:12px" onclick="addProdCapaRow('+i+')"> Add Action Row</button>'
+      +'<div class="form-2col">'
+        +'<div><label style="font-size:.72rem;font-weight:700;color:#374151;display:block;margin-bottom:3px">Line Leader — Name</label>'
+          +'<input type="text" id="ncr-prod-so-lineleader-name-'+i+'" class="fi" value="'+escHtml((so.lineleader&&so.lineleader.name)||'')+'" style="width:100%;margin-bottom:6px"/>'
+          +'<label style="font-size:.72rem;font-weight:700;color:#374151;display:block;margin-bottom:3px">Date</label>'
+          +'<input type="date" id="ncr-prod-so-lineleader-date-'+i+'" class="fi" value="'+escHtml((so.lineleader&&so.lineleader.date)||'')+'" style="width:100%"/></div>'
+        +'<div><label style="font-size:.72rem;font-weight:700;color:#374151;display:block;margin-bottom:3px">Production Chief — Name</label>'
+          +'<input type="text" id="ncr-prod-so-prodchief-name-'+i+'" class="fi" value="'+escHtml((so.prodchief&&so.prodchief.name)||'')+'" style="width:100%;margin-bottom:6px"/>'
+          +'<label style="font-size:.72rem;font-weight:700;color:#374151;display:block;margin-bottom:3px">Date</label>'
+          +'<input type="date" id="ncr-prod-so-prodchief-date-'+i+'" class="fi" value="'+escHtml((so.prodchief&&so.prodchief.date)||'')+'" style="width:100%"/></div>'
+      +'</div>'
+      +'<label style="font-size:.75rem;font-weight:700;color:#374151;display:block;margin:10px 0 4px">Additional Notes (optional)</label>'
+      +'<textarea id="ncr-prod-note-'+i+'" class="fi" rows="2" placeholder="Any additional context for Quality..." style="width:100%">'+escHtml((n.production&&n.production.notes)||'')+'</textarea>'
       +'</div>';
     // E. WORKFLOW ACTIONS
     const actionsHtml = '<div style="margin-top:10px">'
@@ -16497,19 +16888,62 @@ function renderNcrProdInbox(){
   }).join('');
   wrap.innerHTML=html;
 }
+// Per-card (per-NCR-index) CAPA row editor for the Production Inbox — the
+// Quality modal's addCapaRow()/collectCapaRows() use single global element
+// IDs (capa-rows, capa-action-N, ...) meant for ONE modal at a time, which
+// would collide if reused across multiple NCR cards rendered on the same
+// page here. These are namespaced by NCR index instead.
+let _prodCapaRowCount = {};
+function prodCapaRowHtml(i, prefill){
+  _prodCapaRowCount[i] = (_prodCapaRowCount[i]||0) + 1;
+  const n = _prodCapaRowCount[i];
+  const esc = typeof escHtml==='function' ? escHtml : function(s){return s;};
+  return '<div id="prod-capa-row-'+i+'-'+n+'" class="capa-row">'
+    +'<div style="font-size:.8rem;color:var(--muted);text-align:center">'+n+'</div>'
+    +'<input type="text" id="prod-capa-action-'+i+'-'+n+'" placeholder="Action description" style="border:1px solid var(--border);border-radius:5px;padding:8px 9px;font-size:.78rem" value="'+esc(prefill&&prefill.action||'')+'"/>'
+    +'<input type="date" id="prod-capa-date-'+i+'-'+n+'" style="border:1px solid var(--border);border-radius:5px;padding:8px 9px;font-size:.78rem" value="'+esc(prefill&&prefill.date||'')+'"/>'
+    +'<input type="text" id="prod-capa-resp-'+i+'-'+n+'" placeholder="Responsibility" style="border:1px solid var(--border);border-radius:5px;padding:8px 9px;font-size:.78rem" value="'+esc(prefill&&prefill.resp||'')+'"/>'
+    +'<button type="button" onclick="document.getElementById(\'prod-capa-row-'+i+'-'+n+'\').remove()" style="border:none;background:none;color:#dc2626;cursor:pointer;font-size:1rem;text-align:center" title="Remove"></button>'
+    +'</div>';
+}
+function addProdCapaRow(i){
+  const wrap = document.getElementById('prod-capa-rows-'+i);
+  if(!wrap) return;
+  wrap.insertAdjacentHTML('beforeend', prodCapaRowHtml(i));
+}
+function collectProdCapaRows(i){
+  const rows = [];
+  document.querySelectorAll('#prod-capa-rows-'+i+' > div').forEach(function(div){
+    const id = div.id.replace('prod-capa-row-'+i+'-','');
+    const action = document.getElementById('prod-capa-action-'+i+'-'+id)?.value || '';
+    const date = document.getElementById('prod-capa-date-'+i+'-'+id)?.value || '';
+    const resp = document.getElementById('prod-capa-resp-'+i+'-'+id)?.value || '';
+    if(action || date || resp) rows.push({action:action, date:date, resp:resp});
+  });
+  return rows;
+}
 function ncrProdComplete(i){
   const n = ncrList[i];
   if(!n || !n.production){ return; }
   const noteEl = document.getElementById('ncr-prod-note-'+i);
   const note = noteEl ? noteEl.value.trim() : '';
-  if(!note){ showToast('Enter Production Notes / Action Taken before submitting','red'); return; }
   var __old = JSON.parse(JSON.stringify(n));
+  n.capaRows = collectProdCapaRows(i);
+  n.signoff = n.signoff || {};
+  n.signoff.lineleader = {
+    name: document.getElementById('ncr-prod-so-lineleader-name-'+i)?.value || '',
+    date: document.getElementById('ncr-prod-so-lineleader-date-'+i)?.value || ''
+  };
+  n.signoff.prodchief = {
+    name: document.getElementById('ncr-prod-so-prodchief-name-'+i)?.value || '',
+    date: document.getElementById('ncr-prod-so-prodchief-date-'+i)?.value || ''
+  };
   n.production.status = 'Returned to Quality';
   n.production.completedBy = (currentUser&&currentUser.name)||'user';
   n.production.completedAt = new Date().toISOString();
   n.production.notes = note;
   if(!Array.isArray(n.production.history)) n.production.history = [];
-  n.production.history.push({ status:'Returned to Quality', by:(currentUser&&currentUser.name)||'user', at:new Date().toISOString(), note: note || 'Production input completed' });
+  n.production.history.push({ status:'Returned to Quality', by:(currentUser&&currentUser.name)||'user', at:new Date().toISOString(), note: note || 'Production completed Part 3 and sign-off' });
   ncrList[i] = recordAudit(__old, n, 'edit');
   saveState();
   renderNcrProdInbox();
@@ -20181,10 +20615,20 @@ function printBreakdown(i){
     + '<table><tbody>'
     + '<tr><td class="k">Line</td><td>'+printEsc(b.line||'')+'</td><td class="k">Date/Time</td><td>'+printEsc(b.date||'')+' '+printEsc(b.time||'')+'</td></tr>'
     + '<tr><td class="k">Equipment</td><td>'+printEsc(b.equipment||'')+'</td><td class="k">Downtime (min)</td><td>'+printEsc(b.downtime||'')+'</td></tr>'
-    + '<tr><td class="k">Cause</td><td colspan="3">'+printEsc(b.cause||'')+'</td></tr>'
-    + '<tr><td class="k">Action</td><td colspan="3">'+printEsc(b.action||'')+'</td></tr>'
+    + '<tr><td class="k">Reporting Department</td><td>'+printEsc(b.reportedByDept||'')+'</td><td class="k">Line Stopped</td><td>'+printEsc(b.lineStopped||'')+'</td></tr>'
+    + '<tr><td class="k">Status</td><td>'+printEsc(b.status||'')+'</td><td class="k">Current Owner</td><td>'+printEsc(b.currentOwner||'Unassigned')+'</td></tr>'
+    + '<tr><td class="k">Suspected Ownership (initial)</td><td colspan="3">'+printEsc(b.suspectedOwnership||'')+'</td></tr>'
+    + '<tr><td class="k">Initial Description</td><td colspan="3">'+printEsc(b.desc||'')+'</td></tr>'
+    + '<tr><td class="k">Suspected Cause</td><td colspan="3">'+printEsc(b.cause||'')+'</td></tr>'
+    + '<tr><td class="k">Immediate Action Taken</td><td colspan="3">'+printEsc(b.action||'')+'</td></tr>'
+    + (b.rootCause ? '<tr><td class="k">Confirmed Root Cause</td><td colspan="3">'+printEsc(b.rootCause)+'</td></tr>' : '')
+    + (b.correctiveAction ? '<tr><td class="k">Corrective Action</td><td colspan="3">'+printEsc(b.correctiveAction)+'</td></tr>' : '')
     + '<tr><td class="k">Reported By</td><td colspan="3">'+printEsc(b.reportedBy||'')+'</td></tr>'
-    + '</tbody></table>' + printSheetEnd('Breakdown · Maintenance');
+    + '</tbody></table>'
+    + (b.history&&b.history.length ? '<div class="part">Workflow History</div><table><thead><tr><th>When</th><th>Action</th><th>By</th><th>Note</th></tr></thead><tbody>'
+      + b.history.map(function(e){ return '<tr><td>'+printEsc((e.at||'').replace('T',' ').slice(0,16))+'</td><td>'+printEsc(e.action||'')+'</td><td>'+printEsc(e.by||'')+'</td><td>'+printEsc(e.note||'')+'</td></tr>'; }).join('')
+      + '</tbody></table>' : '')
+    + printSheetEnd('Breakdown · Maintenance ↔ Production');
   openPortalPrint('Breakdown Report', body);
 }
 function reviewPermitSubmit(type){
