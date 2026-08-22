@@ -3253,6 +3253,36 @@ try{
   </div>
 </div>
 
+<!-- Breakdown Reassignment Reason Modal — replaces window.prompt(). Same
+     business logic as before (mandatory reason, stays in Triage Required,
+     notifies Production), just an in-system modal. -->
+<div class="modal-overlay" id="bd-reassign-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">Send to Production for Review</div>
+    <input type="hidden" id="bdr-index"/>
+    <div class="fg"><label class="fl">Reason <span style="font-weight:400;color:var(--muted)">(required)</span></label><textarea id="bdr-reason" class="fi" rows="3" placeholder="Why should Production review this breakdown?" style="resize:vertical"></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
+      <button type="button" onclick="closeBDReassignModal()" class="btn-ghost">Cancel</button>
+      <button type="button" onclick="bdSubmitReassign()" class="btn-primary">Send for Review</button>
+    </div>
+  </div>
+</div>
+
+<!-- Breakdown Verification-Rejection Reason Modal — replaces window.prompt().
+     Same business logic as before (mandatory note, returns to In Progress,
+     notifies the Root Cause owner), just an in-system modal. -->
+<div class="modal-overlay" id="bd-reject-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">Not Fixed — Send Back <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(to <span id="bdj-owner-label"></span>)</span></div>
+    <input type="hidden" id="bdj-index"/>
+    <div class="fg"><label class="fl">What is still wrong? <span style="font-weight:400;color:var(--muted)">(required)</span></label><textarea id="bdj-note" class="fi" rows="3" placeholder="Describe what still needs to be fixed..." style="resize:vertical"></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
+      <button type="button" onclick="closeBDRejectModal()" class="btn-ghost">Cancel</button>
+      <button type="button" onclick="bdSubmitReject()" class="btn-primary">Send Back</button>
+    </div>
+  </div>
+</div>
+
 <!-- Spare Parts Modal -->
 <div class="modal-overlay" id="sp-modal">
   <div class="modal" style="max-width:480px">

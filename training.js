@@ -269,7 +269,10 @@ function renderTraining(){
   wrap.innerHTML =
     '<div class="trn-tabs" id="trn-tabs">' +
       tabs.map(function(t){
-        return '<button type="button" class="nav-btn trn-tab-btn'+(t===_trnTab?' active':'')+'" onclick="trnSetTab(\''+t+'\')" style="background:#fef2f2;color:#dc2626;font-weight:700">'+TRN_TAB_LABELS[t]+'</button>';
+        // #dc2626 on #fef2f2 only reached 4.41:1 (fails 4.5:1 AA) — #b91c1c
+        // is the same red family, darker, 5.91:1. Still covered by the
+        // Noir color-remap list, so dark-theme rendering is unaffected.
+        return '<button type="button" class="nav-btn trn-tab-btn'+(t===_trnTab?' active':'')+'" onclick="trnSetTab(\''+t+'\')" style="background:#fef2f2;color:#b91c1c;font-weight:700">'+TRN_TAB_LABELS[t]+'</button>';
       }).join('') +
     '</div>' +
     '<div id="trn-pane" class="trn-pane"></div>';

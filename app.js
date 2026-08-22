@@ -5844,7 +5844,7 @@ function renderHoldPallets(){
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${p.released?'<span style="background:#d1fae5;color:#16a34a;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:700"> Released</span>'
             : isAging ? '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:700"> Aging</span>'
-            : '<span style="background:#fef3c7;color:#d97706;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:700">⏳ On Hold</span>'}
+            : '<span style="background:#fef3c7;color:#b45309;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:700">⏳ On Hold</span>'}
           ${p.sourceType==='NCR' ? `<span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:99px;font-size:.7rem;font-weight:700">Source: NCR ${escHtml(p.sourceReference||'')}</span>`
             : p.sourceType==='Quality Issue' ? `<span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:99px;font-size:.7rem;font-weight:700">Source: Quality Issue ${escHtml(p.sourceReference||'')}</span>`
             : `<span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:99px;font-size:.7rem;font-weight:700">Source: Manual</span>`}
@@ -6133,7 +6133,7 @@ function renderManagerDash(){
         bhtml += '<div style="background:#fff;border-radius:7px;padding:10px 12px;margin-bottom:6px;border-left:3px solid #1e3a5f">';
         bhtml += '<div style="font-weight:700;font-size:.82rem;color:#1e3a5f">'+n.message+'</div>';
         if(n.details) bhtml += '<div style="font-size:.75rem;color:#6b7280;margin-top:5px;white-space:pre-line;line-height:1.6">'+n.details+'</div>';
-        bhtml += '<div style="font-size:.7rem;color:#9ca3af;margin-top:5px">'+new Date(n.timestamp).toLocaleString()+' · From: '+(n.from||'Production')+'</div>';
+        bhtml += '<div style="font-size:.7rem;color:#6b7280;margin-top:5px">'+new Date(n.timestamp).toLocaleString()+' · From: '+(n.from||'Production')+'</div>';
         bhtml += '</div>';
       });
       bhtml += '</div>';
@@ -9479,7 +9479,14 @@ function printPrintPreview(){
       return;
     }
   }catch(_){}
-  window.print();
+  // Do NOT fall back to a bare window.print() here — the preview overlay
+  // sits on top of whatever portal screen the user was on (e.g. the live
+  // NCR list), which stays the active .view underneath it. Printing that
+  // would print live portal/dashboard content instead of the intended
+  // print document — exactly the "print button prints the live UI" defect
+  // this preview architecture exists to prevent. Fail loudly instead.
+  if(typeof showToast==='function') showToast('Print preview failed to load — please try again','red');
+  console.warn('printPrintPreview: print-preview-frame unavailable, refused to fall back to window.print()');
 }
 window.addEventListener('popstate', function(){
   if(document.body.classList.contains('print-preview-open')) closePrintPreview();
@@ -10145,7 +10152,7 @@ function portalBiProdKpis(items){
     + items.map(function(k){
       return '<div class="pbi-kpi"><div class="pbi-kpi-val" style="color:'+(k.c||'#1e3a5f')+'">'+portalBiEsc(String(k.v))+'</div>'
         +'<div class="pbi-kpi-lbl">'+portalBiEsc(k.l)+'</div>'
-        +(k.s?'<div style="font-size:.7rem;color:#94a3b8;font-weight:700;margin-top:4px">'+portalBiEsc(k.s)+'</div>':'')
+        +(k.s?'<div style="font-size:.7rem;color:var(--muted);font-weight:700;margin-top:4px">'+portalBiEsc(k.s)+'</div>':'')
         +'</div>';
     }).join('')
     +'</div>';
@@ -14031,7 +14038,9 @@ function bdPushHistory(b, action, note){
 function bdStatusChipHtml(status){
   var map = {
     'Triage Required': '#dc2626',
-    'Assigned': '#d97706',
+    // #d97706 only gave white text 3.19:1 (fails 4.5:1 AA) — #b45309 is the
+    // same amber family, darker, 5.02:1.
+    'Assigned': '#b45309',
     'In Progress': '#2563eb',
     'Awaiting Verification': '#7c3aed',
     'Closed': '#16a34a'
@@ -14156,7 +14165,7 @@ function renderBreakdown(){
       var actions = '';
       if(b.status==='Triage Required' && currentPortal==='maintenance'){
         actions += '<button type="button" class="btn-primary" style="font-size:.72rem;padding:5px 10px" onclick="openBDTriageModal('+i+')">Classify &amp; Assign Ownership</button>'
-                 + '<button type="button" class="btn-ghost" style="font-size:.72rem;padding:5px 10px" onclick="bdReassign('+i+')">Send to Production for Review</button>';
+                 + '<button type="button" class="btn-ghost" style="font-size:.72rem;padding:5px 10px" onclick="openBDReassignModal('+i+')">Send to Production for Review</button>';
       }
       if(b.status==='Assigned' && isOwnerPortal){
         actions += '<button type="button" class="btn-primary" style="font-size:.72rem;padding:5px 10px" onclick="bdStartWork('+i+')">Start Work</button>';
@@ -14166,7 +14175,7 @@ function renderBreakdown(){
       }
       if(b.status==='Awaiting Verification' && isVerifyingPortal){
         actions += '<button type="button" class="btn-primary" style="font-size:.72rem;padding:5px 10px" onclick="bdVerifyClose('+i+')">Verify &amp; Close</button>'
-                 + '<button type="button" class="btn-ghost" style="font-size:.72rem;padding:5px 10px;color:#dc2626" onclick="bdRejectVerification('+i+')">Not Fixed — Send Back</button>';
+                 + '<button type="button" class="btn-ghost" style="font-size:.72rem;padding:5px 10px;color:#dc2626" onclick="openBDRejectModal('+i+')">Not Fixed — Send Back</button>';
       }
       html += '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+actions+'</div>';
       html+=bdHistoryHtml(b, i);
@@ -14334,22 +14343,36 @@ function bdSubmitTriage(){
 // Maintenance is unsure this is theirs at all (before classifying) and
 // wants Production to take a first look — the only other portal in this
 // workflow, so no free-text "which department" prompt is needed.
-function bdReassign(i){
+// Reassignment reason is captured via a dedicated modal (bd-reassign-modal)
+// rather than window.prompt() — same business logic, history entry, and
+// notification routing as before, just an in-system UI.
+function openBDReassignModal(i){
   var b = maintData.breakdowns[i];
   if(!b) return;
-  var reason = prompt('Reason for sending to Production for review (required):','');
-  if(!reason || !reason.trim()){ showToast('A reason is required','red'); return; }
+  document.getElementById('bdr-index').value = i;
+  document.getElementById('bdr-reason').value = '';
+  document.getElementById('bd-reassign-modal').classList.add('open');
+  setTimeout(function(){ var el=document.getElementById('bdr-reason'); if(el) el.focus(); }, 30);
+}
+function closeBDReassignModal(){ document.getElementById('bd-reassign-modal').classList.remove('open'); }
+function bdSubmitReassign(){
+  var i = parseInt(document.getElementById('bdr-index').value);
+  var b = maintData.breakdowns[i];
+  if(!b) return;
+  var reason = document.getElementById('bdr-reason').value.trim();
+  if(!reason){ showToast('A reason is required','red'); return; }
   b.suspectedOwnership = 'Production';
   // Stays in Triage Required until classified — a review request is never
   // itself a final ownership assignment.
-  bdPushHistory(b, 'Sent to Production for Review', reason.trim());
+  bdPushHistory(b, 'Sent to Production for Review', reason);
   saveMaintData();
+  closeBDReassignModal();
   renderBreakdown();
   if(typeof bdSyncQualityInfoNotif==='function') bdSyncQualityInfoNotif(b);
   if(typeof notifyPortal==='function') notifyPortal('production', {
     type:'breakdown-review', from:'Maintenance Portal',
     message:'Breakdown needs your review — '+(b.line||''),
-    details:reason.trim(),
+    details:reason,
     actionView:'breakdown'
   });
   showToast('Sent to Production for review — BD-'+String(i+1).padStart(3,'0'),'amber');
@@ -14413,21 +14436,37 @@ function bdVerifyClose(i){
   if(b.id && typeof invalidateBreakdownInfoNotifs==='function') invalidateBreakdownInfoNotifs(b.id);
   showToast('Breakdown closed — BD-'+String(i+1).padStart(3,'0'),'green');
 }
-function bdRejectVerification(i){
+// "What is still wrong?" reason is captured via a dedicated modal
+// (bd-reject-modal) rather than window.prompt() — same business logic,
+// history entry, and notification routing as before, just an in-system UI.
+function openBDRejectModal(i){
   var b = maintData.breakdowns[i];
   if(!b) return;
-  var note = prompt('What is still wrong? (sent back to '+(b.currentOwner||'the owning portal')+', required)','');
-  if(!note || !note.trim()){ showToast('Please describe what is still wrong','red'); return; }
+  document.getElementById('bdj-index').value = i;
+  document.getElementById('bdj-note').value = '';
+  var lbl = document.getElementById('bdj-owner-label');
+  if(lbl) lbl.textContent = b.currentOwner || 'the owning portal';
+  document.getElementById('bd-reject-modal').classList.add('open');
+  setTimeout(function(){ var el=document.getElementById('bdj-note'); if(el) el.focus(); }, 30);
+}
+function closeBDRejectModal(){ document.getElementById('bd-reject-modal').classList.remove('open'); }
+function bdSubmitReject(){
+  var i = parseInt(document.getElementById('bdj-index').value);
+  var b = maintData.breakdowns[i];
+  if(!b) return;
+  var note = document.getElementById('bdj-note').value.trim();
+  if(!note){ showToast('Please describe what is still wrong','red'); return; }
   b.status = 'In Progress';
-  bdPushHistory(b, 'Verification Rejected — Returned to '+(b.currentOwner||''), note.trim());
+  bdPushHistory(b, 'Verification Rejected — Returned to '+(b.currentOwner||''), note);
   saveMaintData();
+  closeBDRejectModal();
   renderBreakdown();
   if(typeof bdSyncQualityInfoNotif==='function') bdSyncQualityInfoNotif(b);
   var ownerPortal = (b.currentOwner||'').toLowerCase();
   if(ownerPortal && typeof notifyPortal==='function') notifyPortal(ownerPortal, {
     type:'breakdown-rejected', from: capFirst(b.verifyingPortal)+' Portal',
     message:'Breakdown verification rejected — '+(b.line||''),
-    details:note.trim(),
+    details:note,
     actionView:'breakdown'
   });
   showToast('Sent back to '+(b.currentOwner||''),'amber');

@@ -176,7 +176,8 @@ body.theme-switching{ animation:themeFlash .4s ease }
   body.theme-noir [style*="color:#6b7280"],
   body.theme-noir [style*="color:#9ca3af"],
   body.theme-noir [style*="color:#64748b"],
-  body.theme-noir [style*="color:#94a3b8"]{ color:var(--muted) !important; }
+  body.theme-noir [style*="color:#94a3b8"],
+  body.theme-noir [style*="color:#475569"]{ color:var(--muted) !important; }
 
   /* Dark amber/brown notice text (paired with #fef3c7/#fffbeb/#fff7ed-style
      warning boxes above) — same root-cause class as the Linked Records bug:
@@ -189,6 +190,11 @@ body.theme-switching{ animation:themeFlash .4s ease }
 
   /* Production BI's pladis-brand navy/red palette (inline KPI values) */
   body.theme-noir [style*="color:#c8102e"]{ color:var(--red) !important; }
+
+  /* sfChartBars() value text (e.g. "NCRs by Line/Area", "Re-Work by Day") —
+     the teal accent used for Maintenance-flavored charts, same mapping
+     already established for .pbi-live-tag's identical color. */
+  body.theme-noir [style*="color:#0f766e"]{ color:var(--green) !important; }
 
   body.theme-noir [style*="color:#4C1D95"],
   body.theme-noir [style*="color:#4c1d95"],
@@ -1513,6 +1519,15 @@ th{
   border-bottom:1.5px solid var(--border)!important;
   white-space:nowrap;
 }
+/* This blanket th{} rule's !important wins over EVERY per-table th color
+   (including tables that set an inline background like .pbi-table/
+   .pbih-table's th cells — .theme-quality .pbih-table th{background:#4c1d95}
+   and friends never actually apply; this rule always did). --primary-dark
+   (#5B21B6) reads fine against --surface-2 in the light theme (contrast is
+   high there), but in Noir both tokens are mid/dark tones — measured
+   1.97-2.62:1, failing WCAG AA — affecting every plain <th> app-wide.
+   --primary-light gives 6.5:1 against --surface-2 in Noir. */
+body.theme-noir th{ color:var(--primary-light)!important; }
 td{
   padding:10px 12px!important;
   border-bottom:1px solid var(--border)!important;
@@ -1750,6 +1765,10 @@ body.admin-active .edit-pencil:hover{opacity:1!important;background:var(--border
 .db-stat:hover,.ncr-kpi:hover{transform:translateY(-2px);box-shadow:var(--form-shadow-lg)}
 .db-stat-num,.ncr-kpi-num{font-size:1.65rem;font-weight:850;letter-spacing:-.03em;line-height:1.1;margin-bottom:4px}
 .db-stat-lbl,.ncr-kpi-lbl{font-size:.72rem;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:.05em}
+/* KPI tile labels (Total NCRs, Open, Closed, ...) — CSS-class color, same
+   inline-only-safety-net blind spot; the tile's own background correctly
+   darkens in Noir already (measured 2.62:1, failing). */
+body.theme-noir .db-stat-lbl,body.theme-noir .ncr-kpi-lbl{color:var(--primary-light)}
 .ncr-card{
   background:var(--form-surface);
   border:1px solid var(--form-border);
@@ -1775,6 +1794,11 @@ body.admin-active .edit-pencil:hover{opacity:1!important;background:var(--border
 .ncr-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;font-size:.82rem;margin-bottom:12px}
 @media(max-width:600px){.ncr-grid{grid-template-columns:1fr}}
 .ncr-grid b{color:#5b21b6;font-weight:750}
+/* Field labels (Product, MRR #, Batch/Lot, Raised By, ...) on NCR cards and
+   the Hold Details modal — CSS-class color, never touched by the inline-
+   only safety net, while its container's background does correctly darken
+   in Noir (measured 2.07:1, failing). */
+body.theme-noir .ncr-grid b{color:var(--primary-light)}
 .ncr-block{
   /* Fixed light background regardless of theme (Light or Violet Noir) —
      must be paired with a fixed dark text color, never an inherited/themed
@@ -1805,6 +1829,15 @@ body.admin-active .edit-pencil:hover{opacity:1!important;background:var(--border
    style makes it invisible to the substring-matching safety net, so
    background and text color always stay paired correctly in both themes. */
 .ncr-block.linked{background:#f8fafc;border:1px dashed #cbd5e1;color:#1f2937}
+/* Same root cause reproduced inside .ncr-block.linked itself: its "view
+   Hold Pallets" / "view" links use inline style="color:#2563eb", which the
+   safety net DOES catch (color:#2563eb is in its general remap list,
+   correctly, for links elsewhere that sit on now-dark backgrounds) — but
+   this card's own background is the deliberately theme-independent light
+   one above, so remapping only the link text creates the exact same
+   mismatch a second time. Pin it back to the original blue, scoped to
+   inside this always-light card only. */
+body.theme-noir .ncr-block.linked a{color:#2563eb!important}
 .ncr-empty{
   text-align:center;padding:48px 24px;color:var(--muted);
   background:linear-gradient(180deg,var(--form-surface),var(--surface-2));
@@ -2580,6 +2613,12 @@ body.intro-active #notif-live-banner,body.intro-active #notif-panel{display:none
 .np-card-title{font-weight:800;color:#1e1b4b;font-size:.86rem}
 .np-card-meta{font-size:.7rem;color:#7c3aed;font-weight:700;margin:3px 0 6px}
 .np-card-details{font-size:.76rem;color:var(--muted);white-space:pre-wrap;line-height:1.4}
+/* .np-card's background is var(--form-surface) (theme-aware, near-black in
+   Noir) but the title/meta text colors above are hardcoded CSS-class values
+   never covered by the global inline-style safety net — same recurring
+   safety-net-blind-spot bug class as .ncr-grid b / .db-stat-lbl. */
+body.theme-noir .np-card-title{color:var(--primary-light)}
+body.theme-noir .np-card-meta{color:var(--primary-light)}
 .np-checks{margin-top:8px;padding:8px 10px;background:#f5f3ff;border-radius:10px;border:1px solid var(--border)}
 .np-checks div{font-size:.72rem;color:#5b21b6;font-weight:650;padding:3px 0}
 .np-checks div::before{content:"☐ ";color:#7C3AED}
