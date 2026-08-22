@@ -2589,6 +2589,7 @@ window.onload=()=>{
   document.getElementById('cwd-week').value=wk;
   renderHome();
   initCWSelect();
+  if(typeof initProductMasterLookups==='function') initProductMasterLookups();
 };
 function getWeekStr(){const d=new Date(),y=d.getFullYear(),w=Math.ceil((((d-new Date(y,0,1))/86400000)+new Date(y,0,1).getDay()+1)/7);return `${y}-W${String(w).padStart(2,'0')}`;}
 
@@ -5102,12 +5103,205 @@ function setSelOrOtherVal(selId, otherId, v){
     if(otherEl){ otherEl.style.display='block'; otherEl.value = v; }
   }
 }
-function updateProdDesc(){
-  const item = document.getElementById('cc-item')?.value;
-  const desc = document.getElementById('cc-proddesc');
-  if(desc && item && CC_PRODUCTS[item]){
-    desc.value = CC_PRODUCTS[item];
+// ============================================================
+// SYSTEM-WIDE PRODUCT <-> ITEM CODE MASTER LOOKUP
+// ============================================================
+// Reusable across every genuine Product/Item identification field found in
+// the system-wide field audit (Quality: NCR, Scoring, Consumer Complaints,
+// Hold Pallets, Re-Work Case, Metal Detector Rejects, Weekly Issues;
+// Production: Production Log/Value/Scrap, Re-Work tab). Reads PRODUCT_MASTER
+// / PRODUCT_MASTER_META (product-master-data.js, sourced verbatim from the
+// official "Carton per pallet" sheet) — read-only, never mutated at
+// runtime. Two genuine ambiguities exist in that source data (one Item Code
+// with two different Descriptions, one Description with two different Item
+// Codes) — both are kept as separate PRODUCT_MASTER records rather than
+// resolved automatically, so they simply appear as two distinct suggestions
+// for the user to choose between; see product-master-data.js.
+//
+// Partial, case-insensitive search against BOTH item code and description
+// (searchProducts). A field is only ever filled by an explicit user
+// selection (click/Enter on a real suggestion) — never by guessing from
+// free text, and never on blur — so an item code that doesn't resolve to
+// any real record simply shows "No matching products found" and leaves the
+// field's typed text untouched (no fabricated product is ever assigned).
+
+function searchProducts(query, limit){
+  limit = limit || 8;
+  if(typeof PRODUCT_MASTER==='undefined' || !query) return [];
+  var q = String(query).trim().toLowerCase();
+  if(!q) return [];
+  var out = [];
+  for(var i=0; i<PRODUCT_MASTER.length && out.length<limit; i++){
+    var p = PRODUCT_MASTER[i];
+    if(p.item.toLowerCase().indexOf(q)>=0 || p.desc.toLowerCase().indexOf(q)>=0) out.push(p);
   }
+  return out;
+}
+function findProductByItemCode(code){
+  if(typeof PRODUCT_MASTER==='undefined' || !code) return [];
+  var c = String(code).trim();
+  return PRODUCT_MASTER.filter(function(p){ return p.item===c; });
+}
+function findProductsByDescription(desc){
+  if(typeof PRODUCT_MASTER==='undefined' || !desc) return [];
+  var d = String(desc).trim();
+  return PRODUCT_MASTER.filter(function(p){ return p.desc===d; });
+}
+
+var _pmlState = { fieldId:null, results:[], highlight:-1, role:null, pairFieldId:null };
+
+function _pmlEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function _pmlMark(text, query){
+  var esc = _pmlEsc(text);
+  if(!query) return esc;
+  var q = query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  try{ return esc.replace(new RegExp('('+q+')','ig'), '<mark class="pml-match">$1</mark>'); }
+  catch(e){ return esc; }
+}
+function pmlClose(){
+  document.querySelectorAll('.pml-suggest').forEach(function(p){ p.remove(); });
+  _pmlState = { fieldId:null, results:[], highlight:-1, role:null, pairFieldId:null };
+}
+function _pmlHighlightIndex(i){
+  var box = document.querySelector('.pml-suggest');
+  if(!box) return;
+  box.querySelectorAll('.pml-option').forEach(function(el){ el.classList.remove('active'); });
+  _pmlState.highlight = i;
+  if(i>=0){
+    var el = box.querySelector('.pml-option[data-idx="'+i+'"]');
+    if(el){ el.classList.add('active'); el.scrollIntoView({block:'nearest'}); }
+  }
+}
+function _pmlRender(inputEl, results, query){
+  document.querySelectorAll('.pml-suggest').forEach(function(p){ p.remove(); });
+  var box = document.createElement('div');
+  box.className = 'pml-suggest';
+  box.setAttribute('role','listbox');
+  if(!results.length){
+    box.innerHTML = '<div class="pml-empty">No matching products found</div>';
+  } else {
+    box.innerHTML = results.map(function(p,i){
+      return '<div class="pml-option" role="option" data-idx="'+i+'" onmousedown="pmlSelect('+i+')">'
+        +'<div class="pml-option-desc">'+_pmlMark(p.desc, query)+'</div>'
+        +'<div class="pml-option-item">Item No: '+_pmlMark(p.item, query)+'</div>'
+        +'</div>';
+    }).join('');
+  }
+  inputEl.insertAdjacentElement('afterend', box);
+  _pmlHighlightIndex(-1);
+}
+function pmlSelect(idx){
+  var p = _pmlState.results[idx];
+  if(!p) return;
+  var field = document.getElementById(_pmlState.fieldId);
+  if(!field) return;
+  field.value = (_pmlState.role==='item') ? p.item : p.desc;
+  if(_pmlState.pairFieldId){
+    var pair = document.getElementById(_pmlState.pairFieldId);
+    if(pair) pair.value = (_pmlState.role==='item') ? p.desc : p.item;
+  }
+  pmlClose();
+}
+function _pmlOnInput(e){
+  var field = e.target;
+  var q = field.value;
+  if(!q || !q.trim()){ pmlClose(); return; }
+  var results = searchProducts(q, 8);
+  _pmlState.fieldId = field.id;
+  _pmlState.results = results;
+  _pmlRender(field, results, q.trim());
+}
+function _pmlOnKeydown(e){
+  var box = document.querySelector('.pml-suggest');
+  if(!box) return;
+  var n = _pmlState.results.length;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    if(n) _pmlHighlightIndex((_pmlState.highlight+1) % n);
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    if(n) _pmlHighlightIndex((_pmlState.highlight-1+n) % n);
+  } else if(e.key==='Enter'){
+    if(_pmlState.highlight>=0){ e.preventDefault(); pmlSelect(_pmlState.highlight); }
+    else if(n===1){ e.preventDefault(); pmlSelect(0); }
+  } else if(e.key==='Escape'){
+    pmlClose();
+  }
+}
+function _pmlOnFocus(e){
+  var field = e.target;
+  if(field.value && field.value.trim()){
+    var results = searchProducts(field.value, 8);
+    _pmlState.fieldId = field.id;
+    _pmlState.results = results;
+    _pmlRender(field, results, field.value.trim());
+  }
+}
+function _pmlOnBlur(){
+  // Let a mousedown-select on an option register (it fires before blur)
+  // before tearing the popup down.
+  setTimeout(function(){
+    var active = document.activeElement;
+    if(active && active.closest && active.closest('.pml-suggest')) return;
+    pmlClose();
+  }, 150);
+}
+/**
+ * Binds searchable Product<->Item Code autocomplete onto an EXISTING input
+ * field — no markup change, no new field invented. Idempotent (safe to
+ * call more than once on the same field).
+ *   role: 'item'    — this field holds the Item Code (fills with p.item on select)
+ *         'product' — this field holds the Product Name/Description (default; fills with p.desc)
+ *   pairFieldId: id of a companion field to keep in sync on selection
+ *                (e.g. NCR's Item # <-> Product Name) — omit for the many
+ *                single-field "Product" inputs that have no separate Item
+ *                field in the existing form.
+ */
+function bindProductLookup(fieldId, opts){
+  opts = opts || {};
+  var field = document.getElementById(fieldId);
+  if(!field || field.dataset.pmlBound) return;
+  field.dataset.pmlBound = '1';
+  field.setAttribute('autocomplete','off');
+  field.addEventListener('input', function(e){
+    _pmlState.role = opts.role || 'product';
+    _pmlState.pairFieldId = opts.pairFieldId || null;
+    _pmlOnInput(e);
+  });
+  field.addEventListener('keydown', _pmlOnKeydown);
+  field.addEventListener('focus', function(e){
+    _pmlState.role = opts.role || 'product';
+    _pmlState.pairFieldId = opts.pairFieldId || null;
+    _pmlOnFocus(e);
+  });
+  field.addEventListener('blur', _pmlOnBlur);
+}
+// Wires every genuine Product/Item field found in the system-wide audit.
+// Called once from window.onload — every field below is static markup
+// present at page load, not template-generated, so a single init pass is
+// enough (bindProductLookup is idempotent regardless).
+function initProductMasterLookups(){
+  // Quality — NCR: true paired fields (Item # <-> Product Name)
+  bindProductLookup('ncr-item', {role:'item', pairFieldId:'ncr-prod'});
+  bindProductLookup('ncr-prod', {role:'product', pairFieldId:'ncr-item'});
+  // Quality — Consumer Complaints: true paired fields (replaces the old
+  // giant static <select> + CC_PRODUCTS single-direction hookup)
+  bindProductLookup('cc-item', {role:'item', pairFieldId:'cc-proddesc'});
+  bindProductLookup('cc-proddesc', {role:'product', pairFieldId:'cc-item'});
+  // Quality — single "Product" fields (no separate Item field in the
+  // existing form; selecting a suggestion fills the product description)
+  bindProductLookup('sc-product', {role:'product'});
+  bindProductLookup('hp-prod', {role:'product'});
+  bindProductLookup('rwc-prod', {role:'product'});
+  bindProductLookup('mi-prod', {role:'product'});
+  bindProductLookup('md-rej-prod', {role:'product'});
+  bindProductLookup('md-rej-prod2', {role:'product'});
+  // Production — single "Product" fields
+  bindProductLookup('pl-product', {role:'product'});
+  bindProductLookup('pv-product', {role:'product'});
+  bindProductLookup('scrap-product', {role:'product'});
+  bindProductLookup('rw-origproduct', {role:'product'});
+  bindProductLookup('rwu-newproduct', {role:'product'});
 }
 
 function reviewComplaintSubmit(){
@@ -5184,7 +5378,9 @@ function editComplaint(i){
   setVal('cc-contact', c.contact);
   setSelOrOther('cc-brand','cc-brand-other', c.brand);
   setSelOrOther('cc-branch','cc-branch-other', c.branch);
-  setSelOrOther('cc-item','cc-item-other', c.item);
+  // cc-item is now a plain text field (Product Master autocomplete), not
+  // an Other-enabled <select> — just restore the saved item code verbatim.
+  setVal('cc-item', c.item);
   setVal('cc-proddesc', c.proddesc);
   setVal('cc-proddate', c.proddate);
   setSelOrOther('cc-source','cc-source-other', c.source);
@@ -8496,7 +8692,7 @@ function calcPermitDuration(){
 function renderPermitForm(forceType){
   const type = forceType || document.getElementById('permit-type').value;
   const wrap = document.getElementById('permit-form-body');
-  if(!type){ wrap.innerHTML='<div style="text-align:center;padding:30px;color:#9ca3af;font-size:.85rem">Select a permit type above to load the form</div>'; return; }
+  if(!type){ wrap.innerHTML='<div style="text-align:center;padding:30px;color:#6b7280;font-size:.85rem">Select a permit type above to load the form</div>'; return; }
   const today = new Date().toISOString().split('T')[0];
 
   // Shared document header style (responsive classes — no clipped columns on phone/iPad)
@@ -8568,18 +8764,25 @@ function renderPermitForm(forceType){
   const pSectionHdr = (text, color='#4C1D95') => `
     <div style="background:linear-gradient(135deg,${color},#7C3AED);color:#fff;padding:8px 12px;font-size:.78rem;font-weight:750;border-bottom:1px solid ${color};line-height:1.35">${text}</div>`;
 
+  // Header row's background (pCheckHeader's own inline gradient) is always
+  // a fixed light lavender, in both themes — it's never touched by the
+  // Noir dark-surface remap since a gradient value never literally
+  // contains "background:#f5f3ff". #16a34a/#dc2626 were too light against
+  // it even in Light theme (3:1 / 4.4:1); the darker #15803d/#b91c1c pass
+  // (see styles.css .pmt-check-head overrides for why Noir needs its own
+  // pin, not the general remap).
   const pCheckHeader = () => `
     <div class="pmt-check-head" style="background:linear-gradient(90deg,#f5f3ff,#ede9fe);border-bottom:1px solid #e9d5ff">
       <div class="pmt-check-label" style="font-weight:700;color:#4C1D95">Item</div>
-      <div class="pmt-check-yes" style="font-size:.72rem;font-weight:700;color:#16a34a">YES</div>
-      <div class="pmt-check-no" style="font-size:.72rem;font-weight:700;color:#dc2626">NO</div>
+      <div class="pmt-check-yes" style="font-size:.72rem;font-weight:700;color:#15803d">YES</div>
+      <div class="pmt-check-no" style="font-size:.72rem;font-weight:700;color:#b91c1c">NO</div>
     </div>`;
 
   const sigRow = (s1, s2, s3) => `
     <div class="pmt-sig-row">
       ${[s1,s2,s3].map((s,i)=>`<div style="${i>0?'border-left:1px solid #e5e7eb;':''}padding:10px 12px">
         <div style="font-size:.73rem;font-weight:700;color:#1e3a5f;margin-bottom:20px;line-height:1.35">${s}</div>
-        <div style="border-top:1px solid #374151;padding-top:4px;font-size:.68rem;color:#9ca3af">Name / Date / Signature</div>
+        <div style="border-top:1px solid #374151;padding-top:4px;font-size:.68rem;color:#6b7280">Name / Date / Signature</div>
       </div>`).join('')}
     </div>`;
 
@@ -8612,7 +8815,7 @@ function renderPermitForm(forceType){
       <div class="pmt-day-grid">
         ${[1,2,3,4,5,6].map(n=>`<div class="pmt-day-cell">Day ${n}<br><input type="text" style="width:100%;border:1px solid #e5e7eb;border-radius:6px;font-size:.72rem;margin-top:6px;text-align:center;font-family:inherit;padding:6px;box-sizing:border-box" placeholder="Name/Sign"/></div>`).join('')}
       </div>
-      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#6b7280;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
     ${saveBtn('working')}`;
 
   } else if(type==='hotwork'){
@@ -8656,7 +8859,7 @@ function renderPermitForm(forceType){
       </div>
       </div>
       ${sigRow('Issued By — أصدر بواسطة','Dept. Manager — مدير القسم','Safety Manager — مدير السلامة')}
-      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#6b7280;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
     ${saveBtn('hotwork')}`;
 
   } else if(type==='highlevel'){
@@ -8687,7 +8890,7 @@ function renderPermitForm(forceType){
       ${pRow('Issued By — أصدر بواسطة','pmt-originator','text',currentUser?.name||'')}
       </div>
       ${sigRow('Issued By — أصدر بواسطة','Dept. Manager — مدير القسم','Safety Manager — مدير السلامة')}
-      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#6b7280;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
     ${saveBtn('highlevel')}`;
 
   } else if(type==='confined'){
@@ -8743,7 +8946,7 @@ function renderPermitForm(forceType){
       ${pRow('Issued By (Originator)','pmt-originator','text',currentUser?.name||'')}
       </div>
       ${sigRow('Originator — القائم بالعمل','Safety Manager — مدير السلامة','Dept. Manager — مدير القسم')}
-      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 2/2</div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#6b7280;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 2/2</div>
     ${saveBtn('confined')}`;
 
   } else if(type==='heavy'){
@@ -8784,7 +8987,7 @@ function renderPermitForm(forceType){
       ${pRow('Issued By — أصدر بواسطة','pmt-originator','text',currentUser?.name||'')}
       </div>
       ${sigRow('Issued By — أصدر بواسطة','Dept. Manager — مدير القسم','Safety Manager — مدير السلامة')}
-      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#6b7280;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
     ${saveBtn('heavy')}`;
 
   } else if(type==='excavation'){
@@ -8844,13 +9047,13 @@ function renderPermitForm(forceType){
       ${pRow('Issued By — القائم بالعمل','pmt-originator','text',currentUser?.name||'')}
       </div>
       <div class="pmt-sig-row" style="grid-template-columns:repeat(4,1fr)">
-        ${['Issued By — القائم بالعمل','Dept. Manager — مدير القسم','Safety Manager — مدير السلامة','Utilities — الخدمات'].map((s,idx)=>`<div style="${idx>0?'border-left:1px solid #e5e7eb;':''}padding:10px 12px"><div style="font-size:.73rem;font-weight:700;color:#1e3a5f;margin-bottom:20px;line-height:1.35">${s}</div><div style="border-top:1px solid #374151;padding-top:4px;font-size:.68rem;color:#9ca3af">Name / Date / Signature</div></div>`).join('')}
+        ${['Issued By — القائم بالعمل','Dept. Manager — مدير القسم','Safety Manager — مدير السلامة','Utilities — الخدمات'].map((s,idx)=>`<div style="${idx>0?'border-left:1px solid #e5e7eb;':''}padding:10px 12px"><div style="font-size:.73rem;font-weight:700;color:#1e3a5f;margin-bottom:20px;line-height:1.35">${s}</div><div style="border-top:1px solid #374151;padding-top:4px;font-size:.68rem;color:#6b7280">Name / Date / Signature</div></div>`).join('')}
       </div>
       ${pSectionHdr('Daily Check — الفحص اليومي','#374151')}
       <div class="pmt-day-grid">
         ${[1,2,3,4,5,6].map(n=>`<div class="pmt-day-cell">Day ${n}<br><input type="text" style="width:100%;border:1px solid #e5e7eb;border-radius:6px;font-size:.72rem;margin-top:6px;text-align:center;font-family:inherit;padding:6px;box-sizing:border-box" placeholder="Name/Sign"/></div>`).join('')}
       </div>
-      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#6b7280;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
     ${saveBtn('excavation')}`;
 
   } else if(type==='scaffold'){
@@ -8885,7 +9088,7 @@ function renderPermitForm(forceType){
       ${pRow('Issued By — أصدر بواسطة','pmt-originator','text',currentUser?.name||'')}
       </div>
       ${sigRow('Issued By — أصدر بواسطة','Dept. Manager — مدير القسم','Safety Manager — مدير السلامة')}
-      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#6b7280;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
     ${saveBtn('scaffold')}`;
 
   } else if(type==='radiation'){
@@ -8919,7 +9122,7 @@ function renderPermitForm(forceType){
       <div style="padding:8px 12px;background:#fef3c7;border-top:1px solid #fcd34d;font-size:.74rem;color:#92400e">
         This permit is valid for <strong>one shift, 8 hours maximum</strong>. Not a substitute for a working-near-hazard-area permit. Must be displayed in the vicinity of the work area.
       </div>
-      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#6b7280;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
     ${saveBtn('radiation')}`;
 
   } else if(type==='emergencyequip'){
@@ -8955,10 +9158,10 @@ function renderPermitForm(forceType){
       </div>
       </div>
       <div class="pmt-sig-row" style="grid-template-columns:1fr 1fr">
-        <div style="padding:10px 12px"><div style="font-size:.73rem;font-weight:700;color:#1e3a5f;margin-bottom:20px;line-height:1.35">Requester — الشخص الطالب</div><div style="border-top:1px solid #374151;padding-top:4px;font-size:.68rem;color:#9ca3af">Name / Date / Signature</div></div>
-        <div style="border-left:1px solid #e5e7eb;padding:10px 12px"><div style="font-size:.73rem;font-weight:700;color:#1e3a5f;margin-bottom:20px;line-height:1.35">Safety Manager Approval — اعتماد مدير السلامة</div><div style="border-top:1px solid #374151;padding-top:4px;font-size:.68rem;color:#9ca3af">Name / Date / Signature</div></div>
+        <div style="padding:10px 12px"><div style="font-size:.73rem;font-weight:700;color:#1e3a5f;margin-bottom:20px;line-height:1.35">Requester — الشخص الطالب</div><div style="border-top:1px solid #374151;padding-top:4px;font-size:.68rem;color:#6b7280">Name / Date / Signature</div></div>
+        <div style="border-left:1px solid #e5e7eb;padding:10px 12px"><div style="font-size:.73rem;font-weight:700;color:#1e3a5f;margin-bottom:20px;line-height:1.35">Safety Manager Approval — اعتماد مدير السلامة</div><div style="border-top:1px solid #374151;padding-top:4px;font-size:.68rem;color:#6b7280">Name / Date / Signature</div></div>
       </div>
-      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#6b7280;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
     ${saveBtn('emergencyequip')}`;
 
   } else if(type==='cutliftlock'){
@@ -8991,7 +9194,7 @@ function renderPermitForm(forceType){
         <br>هذه النسخة متاحة لدى مدير السلامة. يتم إرسال نسخة من هذا النموذج إلى المدير المباشر. تحفظ نسخة منه بالملف الخاص بمعيار فصل / عزل الطاقة.
       </div>
       <div style="margin-top:10px">${pRow('Safety Manager Approval — اعتماد مدير السلامة في المصنع','cl-safety-approval','text',currentUser?.name||'')}</div>
-      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#6b7280;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
     ${saveBtn('cutliftlock')}`;
 
   } else if(type==='photography'){
@@ -9007,7 +9210,7 @@ function renderPermitForm(forceType){
       ${pTextArea('Purpose of Photography — السبب والغرض من التصوير','pmt-desc','Purpose of the photography...',{rows:2})}
       </div>
       ${sigRow('Safety Manager — مدير السلامة','Factory Manager — مدير المصنع','HR Director — مدير الموارد البشرية')}
-      <div style="padding:8px 12px;font-size:.68rem;color:#9ca3af;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
+      <div style="padding:8px 12px;font-size:.68rem;color:#6b7280;text-align:center">ISSUED NO: 00 · ISSUED ON: 10.03.2012 · REV NO: 00 · REV DATE: 10.03.2012 · Page 1/1</div>
     ${saveBtn('photography')}`;
 
   } else if(type==='fmc13'){
@@ -9024,7 +9227,7 @@ function renderPermitForm(forceType){
       <div style="display:grid;grid-template-columns:100px 1fr 180px;background:#1e3a5f">
         <div style="padding:10px 12px;border-right:1px solid rgba(255,255,255,.2)"><div style="color:rgba(255,255,255,.7);font-size:.6rem">Document Ref.</div><div style="color:#fff;font-weight:800;font-size:.82rem">FMC-F/HSE/13</div><div style="color:rgba(255,255,255,.55);font-size:.6rem;margin-top:3px">Version 02 · 23/08/2023</div></div>
         <div style="padding:10px 12px;text-align:center"><div style="color:#fff;font-size:1rem;font-weight:900">Permit To Work</div><div style="color:rgba(255,255,255,.65);font-size:.68rem;margin-top:2px">تصريح العمل الشامل — pladis KSA</div></div>
-        <div style="padding:10px 12px;border-left:1px solid rgba(255,255,255,.2)">
+        <div style="padding:10px 12px;border-left:1px solid rgba(255,255,255,.2)" class="pmt-header-field">
           ${fi2('fmc-serial','Permit Serial No.','text','WO-XXXX')}
           ${fi2('fmc-wonote','WO / Notification #','text','')}
         </div>
@@ -9054,7 +9257,7 @@ function renderPermitForm(forceType){
             ${['Pressure (Air, water, gas, oil)','Toxic gases','Hazardous Chemicals','High Temperature','Moving Machinery','Sharp objects / knives','Electricity','Falling Objects','Combustible material','Adjacent operation','Limited Visibility','Ignition sources','Manual Handling','Slips / Tripping','Dust'].map((a,i)=>chk('fmc-hz'+i,a)).join('')}
           </div>
           <div style="padding-left:8px">
-            <div style="font-weight:800;font-size:.7rem;color:#059669;margin-bottom:6px">Personal Protective Equipment</div>
+            <div style="font-weight:800;font-size:.7rem;color:#15803d;margin-bottom:6px">Personal Protective Equipment</div>
             ${['Helmet','Safety harness / Life line','Earplug / Earmuff','Climbing gear','Goggles / Safety glasses','Body harness with shock absorber','Face shield','Gloves leather / cotton','Toxic Gas mask','Chemical gloves','Organic vapors mask','Cut resistance gloves','Dust mask','Chemical suit / apron','Welding Mask','High visibility vest','Welding Jacket','Breathing Apparatus','Chemical resistance shoes','Electrical PPE Level (0)(1)(2)(3)(4)'].map((a,i)=>chk('fmc-ppe'+i,a)).join('')}
           </div>
         </div>
@@ -9072,7 +9275,7 @@ function renderPermitForm(forceType){
       ${grpEnd}
 
       <!-- Working at Heights -->
-      ${grpHdr('Working at Heights Additional Requirements','#d97706')}
+      ${grpHdr('Working at Heights Additional Requirements','#b45309')}
         ${['Scaffolding complete and tagged (Green) safe to use','Scaffolding footing on solid foundations / plates','Scaffolding is leveled','No overhead obstruction / live electrical wires','Toe boards & handrails installed','Complete planks / platform provided','Scaffolding braces installed','Ladders & Access ladders secured and free of defects','Safety net to contain debris provided','Open areas / gratings adequately covered','Safety cage provided and secured','Lifeline available & attached to secured anchor point','All translucent roof sheets identified','Scaffolding to be inspected before use, after alteration, weekly and after bad weather'].map((a,i)=>chk('fmc-wah'+i,a)).join('')}
       ${grpEnd}
 
@@ -9092,20 +9295,20 @@ function renderPermitForm(forceType){
       ${grpEnd}
 
       <!-- Energy Isolation -->
-      ${grpHdr('Energy Isolation Additional Requirements','#0891b2')}
+      ${grpHdr('Energy Isolation Additional Requirements','#0e7490')}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <div>
-            <div style="font-weight:800;font-size:.7rem;color:#0891b2;margin-bottom:4px">Electrical Isolation</div>
+            <div style="font-weight:800;font-size:.7rem;color:#0e7490;margin-bottom:4px">Electrical Isolation</div>
             ${['Equipment control/PLC switched off and locked','Equipment isolated through main isolator / circuit breaker','Equipment isolated through circuit breaker on power','Main fuse removed and kept in safe place','Earthing the circuit breaker / switch','Earthing through external earth','Applying pad locks on isolated breaker / tagging out','Voltage checking / testing'].map((a,i)=>chk('fmc-ei'+i,a)).join('')}
           </div>
           <div>
-            <div style="font-weight:800;font-size:.7rem;color:#0891b2;margin-bottom:4px">Mechanical Isolation</div>
+            <div style="font-weight:800;font-size:.7rem;color:#0e7490;margin-bottom:4px">Mechanical Isolation</div>
             ${['Line / equipment isolated by inlet and outlet valves only','Line isolated by spades, blind or spectacle blind','Isolation valves allocated at drawings or P&ID','Using chains and pad locks on isolated valves','The isolated valves locked and tagged out','Inform area owner before commencing isolation'].map((a,i)=>chk('fmc-mi'+i,a)).join('')}
             <div style="margin-top:8px">${fi2('fmc-iso-notes','Notes (locks / tags no.)','text','')}</div>
             ${fi2('fmc-iso-points','Number of isolation points','text','')}
           </div>
         </div>
-        <div style="background:#e0f2fe;border-radius:6px;padding:8px;margin-top:8px;font-size:.72rem">
+        <div class="pmt-iso-note" style="background:#e0f2fe;border-radius:6px;padding:8px;margin-top:8px;font-size:.72rem">
           <strong>ISOLATION:</strong> I have done energy isolation and equipment is now out of service.
           ${grid2(fi2('fmc-iso-by','Energy Isolator','text',''),fi2('fmc-iso-date','Date','date'),fi2('fmc-iso-time','Time','time'))}
         </div>
@@ -9159,10 +9362,10 @@ function renderPermitForm(forceType){
       ${grpEnd}
 
       <!-- Close Out -->
-      ${grpHdr('Close Out — إغلاق التصريح','#16a34a')}
+      ${grpHdr('Close Out — إغلاق التصريح','#15803d')}
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;color:#16a34a;cursor:pointer"><input type="radio" name="fmc-close" value="completed"/>  Permit Closed (Job Completed)</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;color:#d97706;cursor:pointer"><input type="radio" name="fmc-close" value="maxvalid"/> ⏰ Permit Stopped (Max Validity)</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;color:#15803d;cursor:pointer"><input type="radio" name="fmc-close" value="completed"/>  Permit Closed (Job Completed)</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;color:#b45309;cursor:pointer"><input type="radio" name="fmc-close" value="maxvalid"/> ⏰ Permit Stopped (Max Validity)</label>
           <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;color:#dc2626;cursor:pointer"><input type="radio" name="fmc-close" value="cancelled"/>  Permit Cancelled</label>
         </div>
         ${fi2('fmc-close-date','Closing Date & Time','datetime-local','')}
