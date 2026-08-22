@@ -2023,6 +2023,39 @@ body.theme-noir .pmt-iso-note label{color:#0c4a6e!important}
    remaps it to var(--muted), which happens to read fine against that same
    dark header, so only Light theme needs the fix. */
 body.theme-pladis .pmt-header-field label{color:rgba(255,255,255,.82)!important}
+
+/* Product Master lookup — searchable autocomplete dropdown (bindProductLookup).
+   In-flow block below the field (same convention as .ra-suggest-picker),
+   not an absolutely-positioned overlay — no z-index/overflow juggling
+   needed, and it naturally pushes surrounding content down like every
+   other "picker" panel in the app. Uses theme tokens throughout so it
+   never needs a separate Noir remap entry. */
+.pml-suggest{
+  background:var(--form-surface);
+  border:1px solid var(--form-border);
+  border-radius:10px;
+  margin-top:4px;
+  padding:4px;
+  max-height:260px;
+  overflow-y:auto;
+  box-shadow:var(--form-shadow-lg);
+  position:relative;
+  z-index:20;
+}
+.pml-option{
+  padding:7px 10px;
+  border-radius:7px;
+  cursor:pointer;
+  line-height:1.3;
+}
+.pml-option:hover,.pml-option.active{
+  background:color-mix(in srgb, var(--primary) 14%, var(--form-surface));
+}
+.pml-option-desc{font-size:.82rem;font-weight:700;color:var(--text)}
+.pml-option-item{font-size:.72rem;color:var(--muted);margin-top:2px}
+.pml-match{background:color-mix(in srgb, var(--primary) 30%, transparent);color:inherit;border-radius:3px;padding:0 1px}
+.pml-empty{padding:10px;font-size:.78rem;color:var(--muted);text-align:center}
+
 @media(max-width:900px){
   .cls-pick{grid-template-columns:1fr!important}
   .choice-chip-grid{grid-template-columns:1fr!important}

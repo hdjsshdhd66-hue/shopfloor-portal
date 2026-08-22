@@ -2589,6 +2589,7 @@ window.onload=()=>{
   document.getElementById('cwd-week').value=wk;
   renderHome();
   initCWSelect();
+  if(typeof initProductMasterLookups==='function') initProductMasterLookups();
 };
 function getWeekStr(){const d=new Date(),y=d.getFullYear(),w=Math.ceil((((d-new Date(y,0,1))/86400000)+new Date(y,0,1).getDay()+1)/7);return `${y}-W${String(w).padStart(2,'0')}`;}
 
@@ -5102,12 +5103,205 @@ function setSelOrOtherVal(selId, otherId, v){
     if(otherEl){ otherEl.style.display='block'; otherEl.value = v; }
   }
 }
-function updateProdDesc(){
-  const item = document.getElementById('cc-item')?.value;
-  const desc = document.getElementById('cc-proddesc');
-  if(desc && item && CC_PRODUCTS[item]){
-    desc.value = CC_PRODUCTS[item];
+// ============================================================
+// SYSTEM-WIDE PRODUCT <-> ITEM CODE MASTER LOOKUP
+// ============================================================
+// Reusable across every genuine Product/Item identification field found in
+// the system-wide field audit (Quality: NCR, Scoring, Consumer Complaints,
+// Hold Pallets, Re-Work Case, Metal Detector Rejects, Weekly Issues;
+// Production: Production Log/Value/Scrap, Re-Work tab). Reads PRODUCT_MASTER
+// / PRODUCT_MASTER_META (product-master-data.js, sourced verbatim from the
+// official "Carton per pallet" sheet) — read-only, never mutated at
+// runtime. Two genuine ambiguities exist in that source data (one Item Code
+// with two different Descriptions, one Description with two different Item
+// Codes) — both are kept as separate PRODUCT_MASTER records rather than
+// resolved automatically, so they simply appear as two distinct suggestions
+// for the user to choose between; see product-master-data.js.
+//
+// Partial, case-insensitive search against BOTH item code and description
+// (searchProducts). A field is only ever filled by an explicit user
+// selection (click/Enter on a real suggestion) — never by guessing from
+// free text, and never on blur — so an item code that doesn't resolve to
+// any real record simply shows "No matching products found" and leaves the
+// field's typed text untouched (no fabricated product is ever assigned).
+
+function searchProducts(query, limit){
+  limit = limit || 8;
+  if(typeof PRODUCT_MASTER==='undefined' || !query) return [];
+  var q = String(query).trim().toLowerCase();
+  if(!q) return [];
+  var out = [];
+  for(var i=0; i<PRODUCT_MASTER.length && out.length<limit; i++){
+    var p = PRODUCT_MASTER[i];
+    if(p.item.toLowerCase().indexOf(q)>=0 || p.desc.toLowerCase().indexOf(q)>=0) out.push(p);
   }
+  return out;
+}
+function findProductByItemCode(code){
+  if(typeof PRODUCT_MASTER==='undefined' || !code) return [];
+  var c = String(code).trim();
+  return PRODUCT_MASTER.filter(function(p){ return p.item===c; });
+}
+function findProductsByDescription(desc){
+  if(typeof PRODUCT_MASTER==='undefined' || !desc) return [];
+  var d = String(desc).trim();
+  return PRODUCT_MASTER.filter(function(p){ return p.desc===d; });
+}
+
+var _pmlState = { fieldId:null, results:[], highlight:-1, role:null, pairFieldId:null };
+
+function _pmlEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function _pmlMark(text, query){
+  var esc = _pmlEsc(text);
+  if(!query) return esc;
+  var q = query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  try{ return esc.replace(new RegExp('('+q+')','ig'), '<mark class="pml-match">$1</mark>'); }
+  catch(e){ return esc; }
+}
+function pmlClose(){
+  document.querySelectorAll('.pml-suggest').forEach(function(p){ p.remove(); });
+  _pmlState = { fieldId:null, results:[], highlight:-1, role:null, pairFieldId:null };
+}
+function _pmlHighlightIndex(i){
+  var box = document.querySelector('.pml-suggest');
+  if(!box) return;
+  box.querySelectorAll('.pml-option').forEach(function(el){ el.classList.remove('active'); });
+  _pmlState.highlight = i;
+  if(i>=0){
+    var el = box.querySelector('.pml-option[data-idx="'+i+'"]');
+    if(el){ el.classList.add('active'); el.scrollIntoView({block:'nearest'}); }
+  }
+}
+function _pmlRender(inputEl, results, query){
+  document.querySelectorAll('.pml-suggest').forEach(function(p){ p.remove(); });
+  var box = document.createElement('div');
+  box.className = 'pml-suggest';
+  box.setAttribute('role','listbox');
+  if(!results.length){
+    box.innerHTML = '<div class="pml-empty">No matching products found</div>';
+  } else {
+    box.innerHTML = results.map(function(p,i){
+      return '<div class="pml-option" role="option" data-idx="'+i+'" onmousedown="pmlSelect('+i+')">'
+        +'<div class="pml-option-desc">'+_pmlMark(p.desc, query)+'</div>'
+        +'<div class="pml-option-item">Item No: '+_pmlMark(p.item, query)+'</div>'
+        +'</div>';
+    }).join('');
+  }
+  inputEl.insertAdjacentElement('afterend', box);
+  _pmlHighlightIndex(-1);
+}
+function pmlSelect(idx){
+  var p = _pmlState.results[idx];
+  if(!p) return;
+  var field = document.getElementById(_pmlState.fieldId);
+  if(!field) return;
+  field.value = (_pmlState.role==='item') ? p.item : p.desc;
+  if(_pmlState.pairFieldId){
+    var pair = document.getElementById(_pmlState.pairFieldId);
+    if(pair) pair.value = (_pmlState.role==='item') ? p.desc : p.item;
+  }
+  pmlClose();
+}
+function _pmlOnInput(e){
+  var field = e.target;
+  var q = field.value;
+  if(!q || !q.trim()){ pmlClose(); return; }
+  var results = searchProducts(q, 8);
+  _pmlState.fieldId = field.id;
+  _pmlState.results = results;
+  _pmlRender(field, results, q.trim());
+}
+function _pmlOnKeydown(e){
+  var box = document.querySelector('.pml-suggest');
+  if(!box) return;
+  var n = _pmlState.results.length;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    if(n) _pmlHighlightIndex((_pmlState.highlight+1) % n);
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    if(n) _pmlHighlightIndex((_pmlState.highlight-1+n) % n);
+  } else if(e.key==='Enter'){
+    if(_pmlState.highlight>=0){ e.preventDefault(); pmlSelect(_pmlState.highlight); }
+    else if(n===1){ e.preventDefault(); pmlSelect(0); }
+  } else if(e.key==='Escape'){
+    pmlClose();
+  }
+}
+function _pmlOnFocus(e){
+  var field = e.target;
+  if(field.value && field.value.trim()){
+    var results = searchProducts(field.value, 8);
+    _pmlState.fieldId = field.id;
+    _pmlState.results = results;
+    _pmlRender(field, results, field.value.trim());
+  }
+}
+function _pmlOnBlur(){
+  // Let a mousedown-select on an option register (it fires before blur)
+  // before tearing the popup down.
+  setTimeout(function(){
+    var active = document.activeElement;
+    if(active && active.closest && active.closest('.pml-suggest')) return;
+    pmlClose();
+  }, 150);
+}
+/**
+ * Binds searchable Product<->Item Code autocomplete onto an EXISTING input
+ * field — no markup change, no new field invented. Idempotent (safe to
+ * call more than once on the same field).
+ *   role: 'item'    — this field holds the Item Code (fills with p.item on select)
+ *         'product' — this field holds the Product Name/Description (default; fills with p.desc)
+ *   pairFieldId: id of a companion field to keep in sync on selection
+ *                (e.g. NCR's Item # <-> Product Name) — omit for the many
+ *                single-field "Product" inputs that have no separate Item
+ *                field in the existing form.
+ */
+function bindProductLookup(fieldId, opts){
+  opts = opts || {};
+  var field = document.getElementById(fieldId);
+  if(!field || field.dataset.pmlBound) return;
+  field.dataset.pmlBound = '1';
+  field.setAttribute('autocomplete','off');
+  field.addEventListener('input', function(e){
+    _pmlState.role = opts.role || 'product';
+    _pmlState.pairFieldId = opts.pairFieldId || null;
+    _pmlOnInput(e);
+  });
+  field.addEventListener('keydown', _pmlOnKeydown);
+  field.addEventListener('focus', function(e){
+    _pmlState.role = opts.role || 'product';
+    _pmlState.pairFieldId = opts.pairFieldId || null;
+    _pmlOnFocus(e);
+  });
+  field.addEventListener('blur', _pmlOnBlur);
+}
+// Wires every genuine Product/Item field found in the system-wide audit.
+// Called once from window.onload — every field below is static markup
+// present at page load, not template-generated, so a single init pass is
+// enough (bindProductLookup is idempotent regardless).
+function initProductMasterLookups(){
+  // Quality — NCR: true paired fields (Item # <-> Product Name)
+  bindProductLookup('ncr-item', {role:'item', pairFieldId:'ncr-prod'});
+  bindProductLookup('ncr-prod', {role:'product', pairFieldId:'ncr-item'});
+  // Quality — Consumer Complaints: true paired fields (replaces the old
+  // giant static <select> + CC_PRODUCTS single-direction hookup)
+  bindProductLookup('cc-item', {role:'item', pairFieldId:'cc-proddesc'});
+  bindProductLookup('cc-proddesc', {role:'product', pairFieldId:'cc-item'});
+  // Quality — single "Product" fields (no separate Item field in the
+  // existing form; selecting a suggestion fills the product description)
+  bindProductLookup('sc-product', {role:'product'});
+  bindProductLookup('hp-prod', {role:'product'});
+  bindProductLookup('rwc-prod', {role:'product'});
+  bindProductLookup('mi-prod', {role:'product'});
+  bindProductLookup('md-rej-prod', {role:'product'});
+  bindProductLookup('md-rej-prod2', {role:'product'});
+  // Production — single "Product" fields
+  bindProductLookup('pl-product', {role:'product'});
+  bindProductLookup('pv-product', {role:'product'});
+  bindProductLookup('scrap-product', {role:'product'});
+  bindProductLookup('rw-origproduct', {role:'product'});
+  bindProductLookup('rwu-newproduct', {role:'product'});
 }
 
 function reviewComplaintSubmit(){
@@ -5184,7 +5378,9 @@ function editComplaint(i){
   setVal('cc-contact', c.contact);
   setSelOrOther('cc-brand','cc-brand-other', c.brand);
   setSelOrOther('cc-branch','cc-branch-other', c.branch);
-  setSelOrOther('cc-item','cc-item-other', c.item);
+  // cc-item is now a plain text field (Product Master autocomplete), not
+  // an Other-enabled <select> — just restore the saved item code verbatim.
+  setVal('cc-item', c.item);
   setVal('cc-proddesc', c.proddesc);
   setVal('cc-proddate', c.proddate);
   setSelOrOther('cc-source','cc-source-other', c.source);
